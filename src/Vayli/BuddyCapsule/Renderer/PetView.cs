@@ -18,8 +18,6 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
 
     public sealed class PetEngine
     {
-        public static PetEngine Instance { get; } = new PetEngine();
-
         private static readonly string[] AvailablePoses =
         {
             "idle", "wave-01", "wave-02", "wave-03", "happy", "peek",
@@ -34,6 +32,8 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
             "All systems running smoothly ⚡",
             "Listening to the beat 🎵"
         };
+
+        public static PetEngine Instance { get; } = new PetEngine();
 
         private readonly Dictionary<string, PetPoseMetadata> _poseMeta = new(StringComparer.OrdinalIgnoreCase);
         private readonly Random _rng = new();

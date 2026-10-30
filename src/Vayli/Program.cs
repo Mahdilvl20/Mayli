@@ -41,6 +41,12 @@ namespace WindowsBuddy
                 LogWriter.WriteNow("boot", "Vayli CapsuleWindow started successfully.");
                 return app.Run();
             }
+            catch (Exception ex)
+            {
+                System.IO.File.WriteAllText("F:\\Vayli_Project\\crash.log", ex.ToString());
+                Forms.MessageBox.Show(ex.ToString(), "Vayli Startup Error");
+                return 1;
+            }
             finally
             {
                 if (_trayIcon != null)
