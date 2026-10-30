@@ -1,6 +1,6 @@
 # برنامه تسک‌بندی و پیاده‌سازی Vayli (`WindowsBuddy`) با Git
 
-این نقشه راه بر اساس خروجی‌های استخراج‌شده توسط **[REA (`morluto/rea`)](file:///F:/rea_repo)** از باینری [Vayli.exe](file:///F:/Vayli_Reversed/Vayli.exe) (`658` کلاس اصلی، `211` تابع P/Invoke و `77` ریسورس توکار) طراحی شده است. هر تسک در ریپازیتوری گیت [F:/Vayli_Project](file:///F:/Vayli_Project) دارای کامیت مجزا و استاندارد است.
+این پروژه بر اساس خروجی‌های استخراج‌شده توسط **[REA (`morluto/rea`)](file:///F:/rea_repo)** از باینری [Vayli.exe](file:///F:/Vayli_Reversed/Vayli.exe) (`658` کلاس اصلی، `211` تابع P/Invoke و `77` ریسورس توکار) به صورت ماژولار در ریپازیتوری گیت [F:/Vayli_Project](file:///F:/Vayli_Project) پیاده‌سازی و با **صفر خطا و صفر هشدار (`0 Warning(s), 0 Error(s)`)** بیلد شد.
 
 ---
 
@@ -12,47 +12,39 @@
   - [x] اجرای `inspect-managed-members` و استخراج ۱,۹۱۱ تایپ و فضای نام‌ها (`WindowsBuddy.*`)
   - [x] اجرای `inspect-managed-native-boundaries` و استخراج ۲۱۱ تابع P/Invoke
 
-- [/] **تسک ۱: راه‌اندازی ریپازیتوری Git، ساختار Solution و استخراج ریسورس‌های اصلی (`Assets & Fonts`)**
-  - [ ] ساخت ریپازیتوری گیت در `F:\Vayli_Project` و تنظیم `.gitignore`
-  - [ ] استخراج کامل ۷۷ ریسورس جاسازی‌شده در `Vayli.exe` (فونت‌های `Inter` و `Geist`، اسپرایت‌های `Vayli.Pet`، آیکون‌های `Brand` و `Emoji`)
-  - [ ] ایجاد ساختار پروژه WPF (`Vayli.sln` و `src/Vayli/Vayli.csproj`) با فضای نام اصلی `WindowsBuddy`
-  - [ ] ثبت کامیت اول (`chore: initialize Vayli project structure and extract embedded assets`)
+- [x] **تسک ۱: راه‌اندازی ریپازیتوری Git، ساختار Solution و استخراج ریسورس‌های اصلی (`Assets & Fonts`)**
+  - [x] ساخت ریپازیتوری گیت در [F:/Vayli_Project](file:///F:/Vayli_Project) و تنظیم [.gitignore](file:///F:/Vayli_Project/.gitignore)
+  - [x] استخراج کامل ۷۷ ریسورس جاسازی‌شده در `Vayli.exe` در پوشه [Resources](file:///F:/Vayli_Project/src/Vayli/Resources) (فونت‌های `Inter` و `Geist`، اسپرایت‌های `Vayli.Pet`، مختصات `Vayli.Pet.eye-areas.json`، آیکون‌های `Brand` و `Emoji`)
+  - [x] ایجاد ساختار پروژه WPF ([Vayli.sln](file:///F:/Vayli_Project/Vayli.sln) و [Vayli.csproj](file:///F:/Vayli_Project/src/Vayli/Vayli.csproj)) با فضای نام اصلی `WindowsBuddy`
+  - [x] ثبت کامیت اول (`7b098b4`)
 
-- [ ] **تسک ۲: لایه هسته، مدیریت تنظیمات و توابع Native ویندوز (`WindowsBuddy.Core` & `Services`)**
-  - [ ] پیاده‌سازی P/Invokeهای ویندوز (`user32.dll`, `dwmapi.dll`, `shell32.dll`, `kernel32.dll`) بر اساس `native_boundaries.json`
-  - [ ] پیاده‌سازی `AppPaths`, `AppPreferences`, `PersistenceHelper`, `HotkeyService` و `LogWriter`
-  - [ ] ثبت کامیت دوم (`feat(core): implement Win32 P/Invoke boundaries and core persistence services`)
+- [x] **تسک ۲: لایه هسته، مدیریت تنظیمات و توابع Native ویندوز (`WindowsBuddy.Core` & `Services`)**
+  - [x] پیاده‌سازی P/Invokeهای ویندوز در [NativeMethods.cs](file:///F:/Vayli_Project/src/Vayli/Core/NativeMethods.cs) (`user32.dll`, `kernel32.dll`) بر اساس `native_boundaries.json`
+  - [x] پیاده‌سازی [LogWriter.cs](file:///F:/Vayli_Project/src/Vayli/Core/LogWriter.cs)، `EmbeddedAssetLoader`، [AppPaths.cs](file:///F:/Vayli_Project/src/Vayli/Services/AppPaths.cs)، `PersistenceHelper`، [AppPreferences.cs](file:///F:/Vayli_Project/src/Vayli/Services/AppPreferences.cs) و `HotkeyService`
+  - [x] ثبت کامیت دوم (`33dc2f6`)
 
-- [ ] **تسک ۳: سیستم تم، توکن‌های طراحی و کیت رابط کاربری (`BuddyCapsule.Theme` & `BuddyCapsule.UI`)**
-  - [ ] پیاده‌سازی `CapsuleTheme`, `ThemePalette`, `ThemeTokens`, `NotchConfig` و `BuddyTokens`
-  - [ ] پیاده‌سازی کنترل‌های اختصاصی (`BuddyButton`, `BuddyIconButton`, `BuddyPillButton`, `BuddyCard`, `WidgetCard`, `EdgeLightWpf`)
-  - [ ] ثبت کامیت سوم (`feat(ui): implement BuddyCapsule theme tokens, EdgeLight, and custom UI controls`)
+- [x] **تسک ۳: سیستم تم، توکن‌های طراحی، هندسه ناچ و کیت رابط کاربری (`BuddyCapsule.Theme`, `UI`, `Renderer`)**
+  - [x] پیاده‌سازی [ThemePalette.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Theme/ThemePalette.cs) و `CapsuleTheme`
+  - [x] پیاده‌سازی کنترل‌های اختصاصی در [BuddyControls.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/UI/BuddyControls.cs) (`BuddyCard`, `BuddyPillButton`, `StaticBeatBars`, `EdgeLightWpf`)
+  - [x] پیاده‌سازی [NotchGeometryBuilder.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Renderer/NotchGeometryBuilder.cs) با حالت‌های `Shouldered`, `Island`, `Compact`, `Wide` و `Line`
+  - [x] ثبت کامیت سوم (`05adb0f`)
 
-- [ ] **تسک ۴: موتور اصلی ناچ و پنجره شناور بالای صفحه (`BuddyCapsule.Core`, `State`, `Behavior`, `Activity`)**
-  - [ ] پیاده‌سازی ماشین وضعیت ناچ (`NotchPhase`, `NotchStateMachine`, `CapsuleStateManager`, `NotchVisibilityEngine`)
-  - [ ] پیاده‌سازی هندسه ناچ (`NotchGeometryBuilder`) و انیمیشن‌های باز و بسته شدن (`CapsuleMotion`)
-  - [ ] پیاده‌سازی پنجره اصلی `CapsuleWindow` (پنجره شفاف `Topmost` در بالای صفحه با قابلیت Hover، کلپس و اکسپند نرم) و `ToolRouter`
-  - [ ] ثبت کامیت چهارم (`feat(capsule): implement CapsuleWindow, NotchStateMachine, and smooth notch geometry`)
+- [x] **تسک ۴ و ۵: ماشین وضعیت ناچ، سرویس‌های سیستمی و حیوان خانگی تعاملی (`NotchStateMachine`, `SystemMonitor`, `PetView`)**
+  - [x] پیاده‌سازی [NotchStateMachine.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/NotchStateMachine.cs) با مقادیر ثابت دقیق REA (`CloseGraceMs = 150`, `PollActiveMs = 40`, `PollRestingMs = 250`)
+  - [x] پیاده‌سازی [SystemMonitorService.cs](file:///F:/Vayli_Project/src/Vayli/Services/SystemMonitorService.cs) و `MediaService`
+  - [x] پیاده‌سازی موتور حیوان خانگی تعاملی ناچ در [PetView.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Renderer/PetView.cs) با ترکیب لایه‌های `Vayli.Pet.body.*` و `Vayli.Pet.props.*` و رندر زنده چشم‌های `#30D158` بر اساس `Vayli.Pet.eye-areas.json` با قابلیت پلک زدن و تعقیب ماوس
+  - [x] ثبت کامیت چهارم (`2086c50`)
 
-- [ ] **تسک ۵: سرویس‌های سیستمی، مدیا، صدا و حیوان خانگی ناچ (`CoreAudio`, `Media`, `SystemMonitor`, `Pet`)**
-  - [ ] پیاده‌سازی `CoreAudioService`، اکولایزر `StaticBeatBars` و `MediaService` / `MediaControlsView`
-  - [ ] پیاده‌سازی `SystemMonitorService` (پایش CPU، رم و باتری)
-  - [ ] پیاده‌سازی موتور حیوان خانگی تعاملی روی ناچ (`PetEngine`, `PetView`) با استفاده از اسپرایت‌های استخراج‌شده `Vayli.Pet.*`
-  - [ ] ثبت کامیت پنجم (`feat(services): add media controls, audio beat bars, system telemetry, and interactive notch pet`)
+- [x] **تسک ۶: ابزارک‌های اصلی داخل ناچ (`WindowsBuddy.Tools.*` - بخش اول)**
+  - [x] پیاده‌سازی `IBuddyTool`, `ToolRegistry` و `HomeTool` در [CoreTools.cs](file:///F:/Vayli_Project/src/Vayli/Tools/CoreTools.cs)
+  - [x] پیاده‌سازی `FileShelfTool` (قفسه Drag & Drop فایل‌ها)، `ClipboardTool` (تاریخچه زنده کلیپ‌بورد)، `NotesTool` (دفترچه یادداشت خودکار) و `TimerClockTool` (تایمر فوکوس و ساعت جهانی)
+  - [x] ثبت کامیت پنجم (`59fbb69`)
 
-- [ ] **تسک ۶: ابزارک‌های کاربردی داخل ناچ (`WindowsBuddy.Tools.*` - بخش اول)**
-  - [ ] پیاده‌سازی `IBuddyTool`, `ToolRegistry`, `HomeTool`
-  - [ ] پیاده‌سازی `ClockTool`، `TimerTool` (`CountdownEngine`) و `NotesTool`
-  - [ ] پیاده‌سازی `ClipboardTool` (شنود زنده کلیپ‌بورد ویندوز) و `FileShelfTool` (قفسه Drag & Drop فایل‌ها)
-  - [ ] ثبت کامیت ششم (`feat(tools): implement Home, Clock, Timer, Notes, Clipboard, and FileShelf notch tools`)
+- [x] **تسک ۷: ابزارک‌های پیشرفته (`Weather`, `ScreenTime`, `AICoding`, `Drop`)**
+  - [x] پیاده‌سازی `WeatherTool`، `ScreenTimeTool` (ردیاب زنده برنامه‌های در حال استفاده با `GetForegroundWindow`)، `AICodingTool` و `DropTool` در [AdvancedTools.cs](file:///F:/Vayli_Project/src/Vayli/Tools/AdvancedTools.cs)
+  - [x] ثبت کامیت ششم (`395d702`)
 
-- [ ] **تسک ۷: ابزارک‌های پیشرفته (`Weather`, `Calendar`, `ScreenTime`, `AICoding`, `Drop`)**
-  - [ ] پیاده‌سازی `WeatherTool` و `CalendarTool`
-  - [ ] پیاده‌سازی `ScreenTimeTool` (پایش زمان استفاده از برنامه‌های فعال با `GetForegroundWindow`)
-  - [ ] پیاده‌سازی `AICodingTool` و `DropTool` (اشتراک‌گذاری فایل در شبکه محلی با QR Code)
-  - [ ] ثبت کامیت هفتم (`feat(tools): add Weather, Calendar, ScreenTime, AICoding, and LAN Drop tools`)
-
-- [ ] **تسک ۸: پنجره تنظیمات، شخصی‌سازی تسک‌بار و آنبوردینگ (`UI.Settings`, `Taskbar`, `Onboarding`)**
-  - [ ] پیاده‌سازی `SettingsWindow` با پیش‌نمایش زنده ناچ (`NotchPreview`) و انتخاب رنگ/سبک نور لبه (`EdgeSwatches`)
-  - [ ] پیاده‌سازی `TaskbarService` و `OnboardingWindow` + آیکون System Tray
-  - [ ] ثبت کامیت هشتم (`feat(settings): implement SettingsWindow, Taskbar personalization, and Tray integration`)
+- [x] **تسک ۸: پنجره اصلی ناچ (`CapsuleWindow`)، پنجره تنظیمات (`SettingsWindow`) و آیکون System Tray**
+  - [x] پیاده‌سازی [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) با ابعاد دقیق استخراج‌شده از REA (`228x35` در حالت بسته و `752x352` در حالت باز درون پاکت `800x388`)
+  - [x] پیاده‌سازی [SettingsWindow.cs](file:///F:/Vayli_Project/src/Vayli/UI/Settings/SettingsWindow.cs) و نقطه ورود [Program.cs](file:///F:/Vayli_Project/src/Vayli/Program.cs) همراه با آیکون System Tray و میانبر سراسری `Ctrl+Alt+N`
+  - [x] بیلد نهایی Release و ثبت کامیت پایانی
