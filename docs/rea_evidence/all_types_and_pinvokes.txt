@@ -1,0 +1,872 @@
+=== ALL TOP-LEVEL TYPES (658) ===
+<Module>
+WindowsBuddy.Program
+WindowsBuddy.Tools.Clipboard.ClipboardDrag
+WindowsBuddy.Tools.Weather.WeatherFix
+WindowsBuddy.Tools.Weather.WindowsWeatherLocation
+WindowsBuddy.Tools.IBuddyTool
+WindowsBuddy.Tools.IFileDropTarget
+WindowsBuddy.Tools.IEscapeAware
+WindowsBuddy.Tools.Drop.DropTool
+WindowsBuddy.Tools.Drop.DropAdapter
+WindowsBuddy.Tools.Drop.DropNic
+WindowsBuddy.Tools.Drop.DropProfile
+WindowsBuddy.Tools.Drop.DropNetworkState
+WindowsBuddy.Tools.Drop.DropNetwork
+WindowsBuddy.Tools.Drop.INetworkEvents
+WindowsBuddy.Tools.Drop.DropNetworkWatcher
+WindowsBuddy.Tools.Drop.DropFirewallRule
+WindowsBuddy.Tools.Drop.DropFirewall
+WindowsBuddy.Core.CursorStateMetadata
+WindowsBuddy.Core.CursorPackManifest
+WindowsBuddy.Core.CursorPack
+WindowsBuddy.Core.CursorPackManager
+WindowsBuddy.Core.ThemeMetadata
+WindowsBuddy.Core.ThemeColors
+WindowsBuddy.Core.ThemeTypography
+WindowsBuddy.Core.ThemeWallpaper
+WindowsBuddy.Core.ThemeTaskbar
+WindowsBuddy.Core.ThemeSystemStatus
+WindowsBuddy.Core.ThemePackage
+WindowsBuddy.Core.ThemeValidator
+WindowsBuddy.Core.LogWriter
+WindowsBuddy.Core.LogScrubber
+WindowsBuddy.Core.Guard
+WindowsBuddy.Core.Backoff
+WindowsBuddy.Core.TransactionLogger
+WindowsBuddy.Services.PillDebugLog
+WindowsBuddy.Services.CrashGuard
+WindowsBuddy.Services.CrashBoundary
+WindowsBuddy.Services.CrashDiagnostics
+WindowsBuddy.Services.BootTimeline
+WindowsBuddy.UI.CrashNotice
+WindowsBuddy.UI.StoppedRespondingWindow
+WindowsBuddy.UI.TrialConnectWindow
+WindowsBuddy.Services.UiHangWatchdog
+WindowsBuddy.Services.HelperProcessJob
+WindowsBuddy.Services.PackageUpdateLifecycle
+WindowsBuddy.Services.StoreUpdateState
+WindowsBuddy.Services.StoreUpdateService
+WindowsBuddy.Services.HangDumpWriter
+WindowsBuddy.Services.NotchStabilityCounters
+WindowsBuddy.Services.CallbackLifetime
+WindowsBuddy.Services.QuitWatchdog
+WindowsBuddy.Services.ShutdownSession
+WindowsBuddy.Services.ShutdownRestoration
+WindowsBuddy.Services.ShutdownRestorationException
+WindowsBuddy.Services.OrderedSaveWorker
+WindowsBuddy.Services.AppPaths
+WindowsBuddy.Services.LegacyMigration
+WindowsBuddy.Services.PersistenceHelper
+WindowsBuddy.Services.Lifecycle.ShutdownState
+WindowsBuddy.Services.Lifecycle.PersistenceClass
+WindowsBuddy.Services.Lifecycle.OperationSnapshot
+WindowsBuddy.Services.Lifecycle.OperationGate
+WindowsBuddy.Services.Lifecycle.AdmissionDeferredException
+WindowsBuddy.Services.Lifecycle.OperationReceipt
+WindowsBuddy.Services.Lifecycle.ProducerFence
+WindowsBuddy.Services.Lifecycle.IShutdownParticipant
+WindowsBuddy.Services.Lifecycle.ParticipantRegistry
+WindowsBuddy.Services.Lifecycle.ShutdownCoordinator
+WindowsBuddy.Services.StartupService
+WindowsBuddy.Services.CredentialState
+WindowsBuddy.Services.CredentialResult
+WindowsBuddy.Services.ICredentialVault
+WindowsBuddy.Services.ICredentialProtector
+WindowsBuddy.Services.CredentialStore
+WindowsBuddy.Services.Ed25519
+WindowsBuddy.Services.SignedTrialAnchor
+WindowsBuddy.Services.TrialServer
+WindowsBuddy.Services.EntitlementGate
+WindowsBuddy.Services.NetworkSecurity
+WindowsBuddy.Services.LicenseKeyInput
+WindowsBuddy.Services.LicenseStatus
+WindowsBuddy.Services.LicenseState
+WindowsBuddy.Services.AccessState
+WindowsBuddy.Services.ActivationStatus
+WindowsBuddy.Services.ActivationResult
+WindowsBuddy.Services.RemoteRelease
+WindowsBuddy.Services.SeatReleaseState
+WindowsBuddy.Services.PendingSeatRelease
+WindowsBuddy.Services.PendingSeatReleaseList
+WindowsBuddy.Services.LicenseServerException
+WindowsBuddy.Services.DeactivationResult
+WindowsBuddy.Services.StoredLicenseRecord
+WindowsBuddy.Services.LicenseService
+WindowsBuddy.Services.WallpaperService
+WindowsBuddy.Services.CursorSnapshot
+WindowsBuddy.Services.CursorApplyResult
+WindowsBuddy.Services.CursorService
+WindowsBuddy.Services.TaskbarCapabilityStatus
+WindowsBuddy.Services.TaskbarCompatibilityResult
+WindowsBuddy.Services.TaskbarService
+WindowsBuddy.Services.CoreAudio.EDataFlow
+WindowsBuddy.Services.CoreAudio.ERole
+WindowsBuddy.Services.CoreAudio.IMMDeviceCollection
+WindowsBuddy.Services.CoreAudio.IMMDeviceEnumerator
+WindowsBuddy.Services.CoreAudio.IMMDevice
+WindowsBuddy.Services.CoreAudio.IPropertyStore
+WindowsBuddy.Services.CoreAudio.PROPERTYKEY
+WindowsBuddy.Services.CoreAudio.PROPVARIANT
+WindowsBuddy.Services.CoreAudio.IAudioEndpointVolume
+WindowsBuddy.Services.CoreAudio.IAudioEndpointVolumeCallback
+WindowsBuddy.Services.CoreAudio.IAudioMeterInformation
+WindowsBuddy.Services.CoreAudio.AUDIO_VOLUME_NOTIFICATION_DATA
+WindowsBuddy.Services.CoreAudio.IMMNotificationClient
+WindowsBuddy.Services.CoreAudio.MMDeviceEnumeratorComObject
+WindowsBuddy.Services.CoreAudio.IPolicyConfig
+WindowsBuddy.Services.CoreAudio.PolicyConfigClientComObject
+WindowsBuddy.Services.CoreAudio.AudioOutputDevice
+WindowsBuddy.Services.CoreAudio.AudioVolumeChangedEventArgs
+WindowsBuddy.Services.CoreAudio.AudioEndpointChangedEventArgs
+WindowsBuddy.Services.CoreAudio.CoreAudioService
+WindowsBuddy.Services.CoreAudio.AudioSpectrum
+WindowsBuddy.Services.NetworkConnectionState
+WindowsBuddy.Services.NetworkSnapshot
+WindowsBuddy.Services.NetworkService
+WindowsBuddy.Services.SafeWebClient
+WindowsBuddy.Services.SystemPerfData
+WindowsBuddy.Services.SystemTelemetryData
+WindowsBuddy.Services.SystemMonitorService
+WindowsBuddy.Services.PerfMetric
+WindowsBuddy.Services.SystemSample
+WindowsBuddy.Services.SystemSampler
+WindowsBuddy.Services.ConfigurationSnapshot
+WindowsBuddy.Services.BackupService
+WindowsBuddy.Services.UserBackupService
+WindowsBuddy.UI.Settings.BackupUi
+WindowsBuddy.Engine.ApplyResult
+WindowsBuddy.Engine.ThemeEngine
+WindowsBuddy.Taskbar.CapabilityTier
+WindowsBuddy.Taskbar.TaskbarPropertyCapability
+WindowsBuddy.Taskbar.TaskbarCapabilities
+WindowsBuddy.Taskbar.TaskbarAlignment
+WindowsBuddy.Taskbar.TaskbarSearchMode
+WindowsBuddy.Taskbar.TaskbarBlurStyle
+WindowsBuddy.Taskbar.TaskbarStyle
+WindowsBuddy.Taskbar.TaskbarConfiguration
+WindowsBuddy.Taskbar.TaskbarCapabilityService
+WindowsBuddy.Taskbar.TaskbarSnapshot
+WindowsBuddy.Taskbar.TaskbarStateService
+WindowsBuddy.Taskbar.TaskbarApplyResult
+WindowsBuddy.Taskbar.TaskbarApplyService
+WindowsBuddy.Taskbar.TaskbarRestoreService
+WindowsBuddy.BuddyCapsule.Activity.CollapsedActivityProfile
+WindowsBuddy.BuddyCapsule.Activity.NotchProfileMetrics
+WindowsBuddy.BuddyCapsule.Activity.ActivityPriority
+WindowsBuddy.BuddyCapsule.Activity.ActivityMode
+WindowsBuddy.BuddyCapsule.Activity.ActivityTier
+WindowsBuddy.BuddyCapsule.Activity.ActivityType
+WindowsBuddy.BuddyCapsule.Activity.ActivityTransitionType
+WindowsBuddy.BuddyCapsule.Activity.NotchActivity
+WindowsBuddy.BuddyCapsule.Activity.PillActivitySnapshot
+WindowsBuddy.BuddyCapsule.Activity.PillActivityChangedEventArgs
+WindowsBuddy.BuddyCapsule.Activity.ActivityTransitionEventArgs
+WindowsBuddy.BuddyCapsule.Activity.TimerUpdateEventArgs
+WindowsBuddy.BuddyCapsule.Activity.ActivityTimelineEntry
+WindowsBuddy.BuddyCapsule.Activity.MediaTrackInfo
+WindowsBuddy.BuddyCapsule.Activity.PillActivityArbiter
+WindowsBuddy.BuddyCapsule.Activity.DynamicActivityService
+WindowsBuddy.BuddyCapsule.Activity.ReminderDelivery
+WindowsBuddy.BuddyCapsule.State.CapsuleState
+WindowsBuddy.BuddyCapsule.State.CapsuleDisplayState
+WindowsBuddy.BuddyCapsule.State.CapsuleTextSpan
+WindowsBuddy.BuddyCapsule.State.CapsuleLiveActivity
+WindowsBuddy.BuddyCapsule.State.MessagePresentationState
+WindowsBuddy.BuddyCapsule.State.CapsuleStateManager
+WindowsBuddy.BuddyCapsule.State.FirstRunState
+WindowsBuddy.BuddyCapsule.State.FirstRunManager
+WindowsBuddy.BuddyCapsule.Animation.CapsuleMotion
+WindowsBuddy.BuddyCapsule.Behavior.NotchVisibilityMode
+WindowsBuddy.BuddyCapsule.Behavior.OverMaximizedLook
+WindowsBuddy.BuddyCapsule.Behavior.MediaVisibilityMode
+WindowsBuddy.BuddyCapsule.Behavior.EventPresentationMode
+WindowsBuddy.BuddyCapsule.Behavior.PerAppVisibility
+WindowsBuddy.BuddyCapsule.Behavior.AppVisibilityRule
+WindowsBuddy.BuddyCapsule.Behavior.NotchBehaviorConfig
+WindowsBuddy.BuddyCapsule.Behavior.NotchSettingsArea
+WindowsBuddy.BuddyCapsule.Behavior.NotchSettingsChangedEventArgs
+WindowsBuddy.BuddyCapsule.Behavior.NotchSettings
+WindowsBuddy.BuddyCapsule.Behavior.VisibilityChangeEventArgs
+WindowsBuddy.BuddyCapsule.Behavior.PresenceInputs
+WindowsBuddy.BuddyCapsule.Behavior.NotchVisibilityEngine
+WindowsBuddy.Services.Media.MediaViewState
+WindowsBuddy.Services.Media.MediaService
+WindowsBuddy.Services.Bluetooth.DeviceCategory
+WindowsBuddy.Services.Bluetooth.BluetoothService
+WindowsBuddy.Services.Messages.BuddyMessageService
+WindowsBuddy.Services.Pet.PetOptions
+WindowsBuddy.Services.Pet.PetHistory
+WindowsBuddy.Services.Pet.PetPreferences
+WindowsBuddy.Services.Pet.PetExpression
+WindowsBuddy.Services.Pet.PetMoment
+WindowsBuddy.Services.Pet.PetLine
+WindowsBuddy.Services.Pet.PetStrings
+WindowsBuddy.Services.Pet.PetEngine
+WindowsBuddy.Services.Pet.PetPresence
+WindowsBuddy.Services.Pet.PetLife
+WindowsBuddy.Services.Pet.PetMood
+WindowsBuddy.Services.Pet.PetSegmentKind
+WindowsBuddy.Services.Pet.PetActivity
+WindowsBuddy.Services.Pet.PetBigScene
+WindowsBuddy.Services.Pet.PetDrawing
+WindowsBuddy.Services.Pet.PetLineEntry
+WindowsBuddy.Services.Pet.PetContent
+WindowsBuddy.Services.Pet.PetContext
+WindowsBuddy.Services.Pet.PetSegment
+WindowsBuddy.Services.Pet.PetCalendar
+WindowsBuddy.Services.Pet.PetStories
+WindowsBuddy.Services.Pet.PetLines
+WindowsBuddy.Services.Pet.PetDay
+WindowsBuddy.BuddyCapsule.Theme.CapsuleTheme
+WindowsBuddy.BuddyCapsule.Theme.NotchInk
+WindowsBuddy.BuddyCapsule.Theme.ThemePalette
+WindowsBuddy.BuddyCapsule.Theme.ThemeTokens
+WindowsBuddy.BuddyCapsule.Theme.NotchConfigModel
+WindowsBuddy.BuddyCapsule.Theme.NotchConfig
+WindowsBuddy.BuddyCapsule.UI.BuddyMasterTokens
+WindowsBuddy.BuddyCapsule.UI.BuddyTokens
+WindowsBuddy.BuddyCapsule.UI.BuddyLabel
+WindowsBuddy.BuddyCapsule.UI.BuddyHero
+WindowsBuddy.BuddyCapsule.UI.BuddyMeter
+WindowsBuddy.BuddyCapsule.UI.BuddyWaveMeter
+WindowsBuddy.BuddyCapsule.UI.BuddyCardHeader
+WindowsBuddy.BuddyCapsule.UI.BuddyCard
+WindowsBuddy.BuddyCapsule.UI.BuddyButtonVariant
+WindowsBuddy.BuddyCapsule.UI.BuddyButton
+WindowsBuddy.BuddyCapsule.UI.BuddyIconButton
+WindowsBuddy.BuddyCapsule.UI.BuddyToggle
+WindowsBuddy.BuddyCapsule.UI.BuddySlider
+WindowsBuddy.BuddyCapsule.UI.BuddySegmentedControl
+WindowsBuddy.BuddyCapsule.UI.BuddyTooltip
+WindowsBuddy.BuddyCapsule.UI.BuddyScrollViewer
+WindowsBuddy.BuddyCapsule.UI.BuddyMenu
+WindowsBuddy.BuddyCapsule.UI.BuddyHeader
+WindowsBuddy.BuddyCapsule.UI.BuddyDivider
+WindowsBuddy.BuddyCapsule.UI.BuddyChip
+WindowsBuddy.BuddyCapsule.UI.BuddyTextField
+WindowsBuddy.BuddyCapsule.UI.BuddySearchInput
+WindowsBuddy.BuddyCapsule.UI.BuddySearchBox
+WindowsBuddy.BuddyCapsule.UI.BuddyListRow
+WindowsBuddy.BuddyCapsule.UI.BuddyDisclosureRow
+WindowsBuddy.BuddyCapsule.UI.BuddyMetricDisplay
+WindowsBuddy.BuddyCapsule.UI.BuddyStatusDot
+WindowsBuddy.BuddyCapsule.UI.BuddyComboBox
+WindowsBuddy.BuddyCapsule.UI.BuddySurface
+WindowsBuddy.BuddyCapsule.UI.BuddyMetric
+WindowsBuddy.BuddyCapsule.UI.BuddyProgress
+WindowsBuddy.BuddyCapsule.UI.BuddyStatusState
+WindowsBuddy.BuddyCapsule.UI.BuddyStatus
+WindowsBuddy.BuddyCapsule.UI.BuddySettingsCard
+WindowsBuddy.BuddyCapsule.UI.BuddySettingsToggle
+WindowsBuddy.BuddyCapsule.UI.BuddySettingsSlider
+WindowsBuddy.BuddyCapsule.UI.BuddyPillButton
+WindowsBuddy.BuddyCapsule.UI.BuddyColorSwatches
+WindowsBuddy.BuddyCapsule.UI.BuddyCustomColorPickerWindow
+WindowsBuddy.BuddyCapsule.UI.BuddyAnimationStyleSelector
+WindowsBuddy.BuddyCapsule.UI.MiniMotionPreviewCanvas
+WindowsBuddy.BuddyCapsule.UI.BuddyTint
+WindowsBuddy.BuddyCapsule.UI.BuddySlidingSegmented
+WindowsBuddy.BuddyCapsule.UI.OverlayScroll
+WindowsBuddy.BuddyCapsule.UI.BuddyStepper
+WindowsBuddy.BuddyCapsule.UI.ConnectorKit
+WindowsBuddy.BuddyCapsule.UI.BuddyFonts
+WindowsBuddy.BuddyCapsule.UI.BuddyTheme
+WindowsBuddy.BuddyCapsule.UI.BuddyThemeCard
+WindowsBuddy.BuddyCapsule.UI.WidgetCard
+WindowsBuddy.BuddyCapsule.UI.MediaSeekSurface
+WindowsBuddy.BuddyCapsule.UI.MediaTransportControls
+WindowsBuddy.BuddyCapsule.UI.MediaSeekInteraction
+WindowsBuddy.BuddyCapsule.UI.MediaControlsView
+WindowsBuddy.BuddyCapsule.UI.BuddySparkline
+WindowsBuddy.BuddyCapsule.UI.BuddyMenuItem
+WindowsBuddy.BuddyCapsule.UI.BuddyDropdown
+WindowsBuddy.BuddyCapsule.UI.BuddyRow
+WindowsBuddy.BuddyCapsule.UI.BuddyVirtualList
+WindowsBuddy.BuddyCapsule.UI.BuddyKit
+WindowsBuddy.BuddyCapsule.UI.BuddyPrimaryPill
+WindowsBuddy.BuddyCapsule.UI.BuddyUndoToast
+WindowsBuddy.BuddyCapsule.UI.BuddyInlineSearch
+WindowsBuddy.BuddyCapsule.UI.BuddyDockSlot
+WindowsBuddy.BuddyCapsule.UI.TypeSurface
+WindowsBuddy.BuddyCapsule.UI.VayliType
+WindowsBuddy.BuddyCapsule.UI.ActivityPreview
+WindowsBuddy.BuddyCapsule.UI.BuddyTypography
+WindowsBuddy.BuddyCapsule.UI.LauncherLifecycleState
+WindowsBuddy.BuddyCapsule.UI.BuddyToolLauncher
+WindowsBuddy.BuddyCapsule.UI.NotchEditing
+WindowsBuddy.BuddyCapsule.UI.EditGesture
+WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder
+WindowsBuddy.BuddyCapsule.Renderer.NotchGlyphs
+WindowsBuddy.BuddyCapsule.Renderer.PetEyeArea
+WindowsBuddy.BuddyCapsule.Renderer.PetAtlas
+WindowsBuddy.BuddyCapsule.Renderer.PetFrame
+WindowsBuddy.BuddyCapsule.Renderer.PetAssets
+WindowsBuddy.BuddyCapsule.Renderer.PetView
+WindowsBuddy.BuddyCapsule.Renderer.PetLaneSolver
+WindowsBuddy.BuddyCapsule.Renderer.MiniRobotView
+WindowsBuddy.BuddyCapsule.Renderer.GardenEase
+WindowsBuddy.BuddyCapsule.Renderer.GardenKey
+WindowsBuddy.BuddyCapsule.Renderer.GardenTrack
+WindowsBuddy.BuddyCapsule.Renderer.GardenEvent
+WindowsBuddy.BuddyCapsule.Renderer.GardenScene
+WindowsBuddy.BuddyCapsule.Renderer.GardenScenes
+WindowsBuddy.BuddyCapsule.Renderer.GardenView
+WindowsBuddy.BuddyCapsule.Renderer.PetFrameInflater
+WindowsBuddy.BuddyCapsule.Renderer.PetStageWindow
+WindowsBuddy.BuddyCapsule.Renderer.PetVectorRig
+WindowsBuddy.BuddyCapsule.Renderer.VayliRobotMark
+WindowsBuddy.BuddyCapsule.Renderer.PetArt
+WindowsBuddy.BuddyCapsule.Renderer.PetTile
+WindowsBuddy.BuddyCapsule.Renderer.LiveMessageVisuals
+WindowsBuddy.BuddyCapsule.Renderer.LiveMessageMark
+WindowsBuddy.BuddyCapsule.Renderer.BluetoothPresentation
+WindowsBuddy.BuddyCapsule.Renderer.EdgeLightStyle
+WindowsBuddy.BuddyCapsule.Renderer.EdgeLightMode
+WindowsBuddy.BuddyCapsule.Renderer.EdgeLightOutline
+WindowsBuddy.BuddyCapsule.Renderer.EdgeLightLook
+WindowsBuddy.BuddyCapsule.Renderer.IEdgeLightSurface
+WindowsBuddy.BuddyCapsule.Renderer.EdgeLightWpf
+WindowsBuddy.BuddyCapsule.Renderer.PowerSaver
+WindowsBuddy.BuddyCapsule.Renderer.EdgeLightComposition
+WindowsBuddy.BuddyCapsule.Renderer.NotchBeatOverlay
+WindowsBuddy.BuddyCapsule.Renderer.VectorIcons
+WindowsBuddy.BuddyCapsule.Renderer.BrandAssets
+WindowsBuddy.BuddyCapsule.Renderer.FluentIcons
+WindowsBuddy.BuddyCapsule.Renderer.BuddyToolDefinition
+WindowsBuddy.BuddyCapsule.Renderer.BuddyToolIcons
+WindowsBuddy.BuddyCapsule.Core.NotchPhase
+WindowsBuddy.BuddyCapsule.Core.NotchPresence
+WindowsBuddy.BuddyCapsule.Core.INotchSurface
+WindowsBuddy.BuddyCapsule.Core.INotchScheduler
+WindowsBuddy.BuddyCapsule.Core.NotchTimer
+WindowsBuddy.BuddyCapsule.Core.NotchTransition
+WindowsBuddy.BuddyCapsule.Core.NotchStateMachine
+WindowsBuddy.BuddyCapsule.Core.DispatcherNotchScheduler
+WindowsBuddy.BuddyCapsule.Core.NotchLog
+WindowsBuddy.BuddyCapsule.Core.NotchDiagnostics
+WindowsBuddy.BuddyCapsule.Core.CapsuleTextScrollController
+WindowsBuddy.BuddyCapsule.Core.CapsuleWindow
+WindowsBuddy.BuddyCapsule.Core.RestingWants
+WindowsBuddy.BuddyCapsule.Core.RestingFitStep
+WindowsBuddy.BuddyCapsule.Core.RestingFitItem
+WindowsBuddy.BuddyCapsule.Core.RestingFitResult
+WindowsBuddy.BuddyCapsule.Core.RestingFit
+WindowsBuddy.BuddyCapsule.Core.StaticBeatBars
+WindowsBuddy.BuddyCapsule.Core.NotchEdgeLight
+WindowsBuddy.BuddyCapsule.Core.BuddyCapsuleService
+WindowsBuddy.BuddyCapsule.Core.ToolNavigationEventArgs
+WindowsBuddy.BuddyCapsule.Core.TabPlaceholder
+WindowsBuddy.BuddyCapsule.Core.ToolRouter
+WindowsBuddy.BuddyCapsule.Core.LiveNotchE2ETestRunner
+WindowsBuddy.BuddyCapsule.Core.MessageE2ETestRunner
+WindowsBuddy.BuddyCapsule.Core.FreezeQa
+WindowsBuddy.BuddyCapsule.Core.ThemeQa
+WindowsBuddy.BuddyCapsule.Core.ContrastScan
+WindowsBuddy.BuddyCapsule.Core.StressQa
+WindowsBuddy.BuddyCapsule.Core.EdgeLightQa
+WindowsBuddy.BuddyCapsule.Core.TabSwitchQa
+WindowsBuddy.Core.LoopGuard
+WindowsBuddy.Services.ResourceMetrics
+WindowsBuddy.Services.RenderProfile
+WindowsBuddy.Services.DiagnosticsExport
+WindowsBuddy.Services.StorageJanitor
+WindowsBuddy.Services.LegacyFolderCleanup
+WindowsBuddy.Tools.ToolCategory
+WindowsBuddy.Tools.ToolState
+WindowsBuddy.Tools.CollapsedBadgeData
+WindowsBuddy.Tools.IHeaderStatusLead
+WindowsBuddy.Tools.ToolConfigModel
+WindowsBuddy.Tools.ToolItemConfig
+WindowsBuddy.Tools.ToolRegistry
+WindowsBuddy.Tools.HomeTool
+WindowsBuddy.Tools.HomeWidgetCard
+WindowsBuddy.Tools.Clock.ClockFormat
+WindowsBuddy.Tools.Clock.ClockDisplayMode
+WindowsBuddy.Tools.Clock.ClockDateFormat
+WindowsBuddy.Tools.Clock.WorldClockCity
+WindowsBuddy.Tools.Clock.ClockSettingsModel
+WindowsBuddy.Tools.Clock.ClockSettings
+WindowsBuddy.Tools.Clock.TimeZoneOption
+WindowsBuddy.Tools.Clock.ClockService
+WindowsBuddy.Tools.Clock.CuratedCityEntry
+WindowsBuddy.Tools.Clock.ClockTool
+WindowsBuddy.Tools.SystemTool
+WindowsBuddy.Tools.Clipboard.ClipKind
+WindowsBuddy.Tools.Clipboard.ClipboardItem
+WindowsBuddy.Tools.Clipboard.ClipboardService
+WindowsBuddy.Tools.Clipboard.AppBadgeHelper
+WindowsBuddy.Tools.Clipboard.LinkMetadata
+WindowsBuddy.Tools.Clipboard.LinkMetadataService
+WindowsBuddy.Tools.Clipboard.ClipboardTool
+WindowsBuddy.Tools.Notes.NoteItem
+WindowsBuddy.Tools.Notes.NotesOwnership
+WindowsBuddy.Tools.Notes.NotesService
+WindowsBuddy.Tools.Notes.NotesTool
+WindowsBuddy.Tools.Notes.NoteBlockKind
+WindowsBuddy.Tools.Notes.NoteRun
+WindowsBuddy.Tools.Notes.NoteBlock
+WindowsBuddy.Tools.Notes.NoteDocument
+WindowsBuddy.Tools.Notes.NotePalette
+WindowsBuddy.Tools.Notes.NoteDocumentConverter
+WindowsBuddy.Tools.Notes.NoteInline
+WindowsBuddy.Tools.Notes.NoteEditor
+WindowsBuddy.Tools.Common.CountdownEngine
+WindowsBuddy.Tools.Timer.TimerServiceState
+WindowsBuddy.Tools.Timer.TimerService
+WindowsBuddy.Tools.Timer.TimerTool
+WindowsBuddy.Tools.FileShelf.ParkedFile
+WindowsBuddy.Tools.FileShelf.ShelfSort
+WindowsBuddy.Tools.FileShelf.ShelfTab
+WindowsBuddy.Tools.FileShelf.RemovedItem
+WindowsBuddy.Tools.FileShelf.ShelfCopyRecovery
+WindowsBuddy.Tools.FileShelf.ShelfStorageDto
+WindowsBuddy.Tools.FileShelf.ShelfTabDto
+WindowsBuddy.Tools.FileShelf.ShelfItemDto
+WindowsBuddy.Tools.FileShelf.FileShelfService
+WindowsBuddy.Tools.FileShelf.FileShelfTool
+WindowsBuddy.Tools.FileShelf.ShelfDataImport
+WindowsBuddy.Tools.FileShelf.ShelfThumbnails
+WindowsBuddy.Services.AppPreferencesModel
+WindowsBuddy.Services.AppPreferences
+WindowsBuddy.Services.LicenseStub
+WindowsBuddy.Services.AppLinks
+WindowsBuddy.Services.HotkeyService
+WindowsBuddy.Services.SettingsData
+WindowsBuddy.Services.SettingsTransaction
+WindowsBuddy.UI.Settings.SettingsTheme
+WindowsBuddy.UI.Settings.Glyphs
+WindowsBuddy.UI.Settings.IconTile
+WindowsBuddy.UI.Settings.SettingsPreviewStage
+WindowsBuddy.UI.Settings.SVisualRole
+WindowsBuddy.UI.Settings.SClickable
+WindowsBuddy.UI.Settings.SButtonKind
+WindowsBuddy.UI.Settings.SButton
+WindowsBuddy.UI.Settings.SSwatch
+WindowsBuddy.UI.Settings.SSwatchPalette
+WindowsBuddy.UI.Settings.SCaptionButton
+WindowsBuddy.UI.Settings.SToggle
+WindowsBuddy.UI.Settings.SSegmented
+WindowsBuddy.UI.Settings.SSlider
+WindowsBuddy.UI.Settings.SDropdown
+WindowsBuddy.UI.Settings.STextBox
+WindowsBuddy.UI.Settings.Keycap
+WindowsBuddy.UI.Settings.SHotkeyRecorder
+WindowsBuddy.UI.Settings.SettingsPageLayout
+WindowsBuddy.UI.Settings.SCard
+WindowsBuddy.UI.Settings.SUI
+WindowsBuddy.UI.Settings.SettingsOperationGate
+WindowsBuddy.UI.Settings.SMotion
+WindowsBuddy.UI.Settings.SSettingBinding
+WindowsBuddy.UI.Settings.SettingsColorSurface
+WindowsBuddy.UI.Settings.SettingsColorAxis
+WindowsBuddy.UI.Settings.SettingsColorAxisPeer
+WindowsBuddy.UI.Settings.SettingsColorPlane
+WindowsBuddy.UI.Settings.SettingsColorPlanePeer
+WindowsBuddy.UI.Settings.SettingsSegment
+WindowsBuddy.UI.Settings.SettingsSegmentsPeer
+WindowsBuddy.UI.Settings.SettingsSegmentPeer
+WindowsBuddy.UI.Settings.SettingsDropdownPeer
+WindowsBuddy.UI.Settings.SettingsInvokePeer
+WindowsBuddy.UI.Settings.SettingsHotkeyPeer
+WindowsBuddy.UI.Settings.SettingsTogglePeer
+WindowsBuddy.UI.Settings.SettingsSliderPeer
+WindowsBuddy.UI.Settings.ModuleInfo
+WindowsBuddy.UI.Settings.ModuleCatalog
+WindowsBuddy.UI.Settings.PageInfo
+WindowsBuddy.UI.Settings.PageContext
+WindowsBuddy.UI.Settings.SettingsWindow
+WindowsBuddy.UI.Settings.SettingsLauncher
+WindowsBuddy.UI.Settings.SettingsPages
+WindowsBuddy.UI.Settings.FluentExtensions
+WindowsBuddy.UI.Settings.ChoiceCards
+WindowsBuddy.UI.Settings.EdgeSwatches
+WindowsBuddy.UI.Settings.MusicSwatches
+WindowsBuddy.UI.Settings.NotchPreview
+WindowsBuddy.UI.Settings.ModuleList
+WindowsBuddy.UI.Settings.SettingsSearch
+WindowsBuddy.UI.Settings.SettingsQa
+WindowsBuddy.UI.Settings.SettingsNavQa
+WindowsBuddy.Tools.Calendar.IcsFreq
+WindowsBuddy.Tools.Calendar.IcsRule
+WindowsBuddy.Tools.Calendar.IcsTime
+WindowsBuddy.Tools.Calendar.IcsEvent
+WindowsBuddy.Tools.Calendar.IcsOccurrence
+WindowsBuddy.Tools.Calendar.IcsCalendar
+WindowsBuddy.Tools.Calendar.Ics
+WindowsBuddy.Tools.Calendar.HolidayCountries
+WindowsBuddy.Tools.Calendar.FetchResult
+WindowsBuddy.Tools.Calendar.FeedData
+WindowsBuddy.Tools.Calendar.CalendarFeeds
+WindowsBuddy.Tools.Calendar.CalColor
+WindowsBuddy.Tools.Calendar.CalRepeat
+WindowsBuddy.Tools.Calendar.CalAlert
+WindowsBuddy.Tools.Calendar.OccKind
+WindowsBuddy.Tools.Calendar.UserEvent
+WindowsBuddy.Tools.Calendar.UserReminder
+WindowsBuddy.Tools.Calendar.CalendarSubscription
+WindowsBuddy.Tools.Calendar.CalendarSettings
+WindowsBuddy.Tools.Calendar.CalendarData
+WindowsBuddy.Tools.Calendar.CalOccurrence
+WindowsBuddy.Tools.Calendar.Cal
+WindowsBuddy.Tools.Calendar.QuickAddResult
+WindowsBuddy.Tools.Calendar.QuickAdd
+WindowsBuddy.Tools.Calendar.CalendarService
+WindowsBuddy.Tools.Calendar.CalendarEditor
+WindowsBuddy.Tools.Calendar.TimeField
+WindowsBuddy.Tools.Calendar.MiniMonth
+WindowsBuddy.Tools.Calendar.Toggle
+WindowsBuddy.Tools.Calendar.CalendarSettingsPanel
+WindowsBuddy.Tools.Calendar.CountryRow
+WindowsBuddy.Tools.Calendar.SubscriptionRow
+WindowsBuddy.Tools.Calendar.CalendarTool
+WindowsBuddy.Tools.Calendar.CalList
+WindowsBuddy.Tools.Calendar.DayColumn
+WindowsBuddy.Tools.Calendar.EventRow
+WindowsBuddy.Tools.Calendar.ReminderRow
+WindowsBuddy.Tools.Calendar.CompletedHeaderRow
+WindowsBuddy.Tools.Calendar.MonthCell
+WindowsBuddy.Tools.Calendar.DayPanel
+WindowsBuddy.Tools.Weather.SolarCalculator
+WindowsBuddy.Tools.Weather.WeatherData
+WindowsBuddy.Tools.Weather.DailyForecast
+WindowsBuddy.Tools.Weather.HourlyForecast
+WindowsBuddy.Tools.Weather.GeocodedCity
+WindowsBuddy.Tools.Weather.RecentCity
+WindowsBuddy.Tools.Weather.WeatherPrefs
+WindowsBuddy.Tools.Weather.WeatherFetchState
+WindowsBuddy.Tools.Weather.WeatherService
+WindowsBuddy.Tools.Weather.WeatherTool
+WindowsBuddy.Tools.Weather.WeatherGlyphs
+WindowsBuddy.Tools.Files.OutFormat
+WindowsBuddy.Tools.Files.SizeMode
+WindowsBuddy.Tools.Files.SaveTarget
+WindowsBuddy.Tools.Files.ItemState
+WindowsBuddy.Tools.Files.ConvertSettings
+WindowsBuddy.Tools.Files.FileItem
+WindowsBuddy.Tools.Files.ConvertEngine
+WindowsBuddy.Tools.Files.PdfWriter
+WindowsBuddy.Tools.Files.PdfInput
+WindowsBuddy.Tools.Files.FilesConverterTool
+WindowsBuddy.Tools.Links.LinksBookmark
+WindowsBuddy.Tools.Links.QuickLinkType
+WindowsBuddy.Tools.Links.SearchEngineItem
+WindowsBuddy.Tools.Links.LinksPreferences
+WindowsBuddy.Tools.Links.SearchEngines
+WindowsBuddy.Tools.Links.LinkUrl
+WindowsBuddy.Tools.Links.LinksTool
+WindowsBuddy.Tools.Links.WebsiteIcons
+WindowsBuddy.Tools.Units.UnitsConverterTool
+WindowsBuddy.Tools.Units.Unit
+WindowsBuddy.Tools.Units.UnitCategory
+WindowsBuddy.Tools.Units.UnitCatalog
+WindowsBuddy.Tools.Units.Expr
+WindowsBuddy.Tools.Units.Format
+WindowsBuddy.Tools.Units.CurrencyRates
+WindowsBuddy.Tools.Units.Recent
+WindowsBuddy.Tools.Units.UnitsState
+WindowsBuddy.Tools.Sounds.SoundTrackConfig
+WindowsBuddy.Tools.Sounds.SoundMixerStateModel
+WindowsBuddy.Tools.Sounds.SoundChannel
+WindowsBuddy.Tools.Sounds.SoundMixerService
+WindowsBuddy.Tools.Message.MessageAnimationMode
+WindowsBuddy.Tools.Message.MessageFinish
+WindowsBuddy.Tools.Message.MessageDurationMode
+WindowsBuddy.Tools.Message.MessageSettings
+WindowsBuddy.Tools.Message.MessageText
+WindowsBuddy.Tools.Message.EmojiText
+WindowsBuddy.Tools.Message.MessageTiming
+WindowsBuddy.Tools.Message.ColorEmoji
+WindowsBuddy.Tools.Message.MessageRenderer
+WindowsBuddy.Tools.Message.MessageService
+WindowsBuddy.Tools.Message.MessageBannerTool
+WindowsBuddy.Tools.ScreenTime.DayScreenTimeRecord
+WindowsBuddy.Tools.ScreenTime.ScreenTimeHistoryModel
+WindowsBuddy.Tools.ScreenTime.InputActivitySample
+WindowsBuddy.Tools.ScreenTime.ScreenTimeService
+WindowsBuddy.Tools.ScreenTime.ScreenTimeTool
+WindowsBuddy.Tools.ScreenTime.AppIconExtractor
+WindowsBuddy.Tools.Analytics.AnalyticsRange
+WindowsBuddy.Tools.Analytics.Breakdown
+WindowsBuddy.Tools.Analytics.AnalyticsFeatures
+WindowsBuddy.Tools.Analytics.ProviderIds
+WindowsBuddy.Tools.Analytics.AnalyticsSite
+WindowsBuddy.Tools.Analytics.AnalyticsSettings
+WindowsBuddy.Tools.Analytics.SeriesPoint
+WindowsBuddy.Tools.Analytics.RankedRow
+WindowsBuddy.Tools.Analytics.AnalyticsSnapshot
+WindowsBuddy.Tools.Analytics.AnalyticsErrorKind
+WindowsBuddy.Tools.Analytics.AnalyticsException
+WindowsBuddy.Tools.Analytics.HttpReply
+WindowsBuddy.Tools.Analytics.HttpCall
+WindowsBuddy.Tools.Analytics.AnalyticsHttp
+WindowsBuddy.Tools.Analytics.J
+WindowsBuddy.Tools.Analytics.SiteClock
+WindowsBuddy.Tools.Analytics.SecretStore
+WindowsBuddy.Tools.Analytics.TestResult
+WindowsBuddy.Tools.Analytics.IAnalyticsProvider
+WindowsBuddy.Tools.Analytics.AnalyticsProviders
+WindowsBuddy.Tools.Analytics.PlausibleProvider
+WindowsBuddy.Tools.Analytics.DataFastProvider
+WindowsBuddy.Tools.Analytics.GoogleProvider
+WindowsBuddy.Tools.Analytics.GaProperty
+WindowsBuddy.Tools.Analytics.GoogleAuth
+WindowsBuddy.Tools.Analytics.ServiceAccount
+WindowsBuddy.Tools.Analytics.Pkcs8
+WindowsBuddy.Tools.Analytics.AnalyticsService
+WindowsBuddy.Tools.Analytics.AnalyticsTool
+WindowsBuddy.Tools.Revenue.RevenueRange
+WindowsBuddy.Tools.Revenue.RevenueProviderIds
+WindowsBuddy.Tools.Revenue.RevenueConfigModel
+WindowsBuddy.Tools.Revenue.RevenueErrorKind
+WindowsBuddy.Tools.Revenue.RevenueException
+WindowsBuddy.Tools.Revenue.RevenueSnapshot
+WindowsBuddy.Tools.Revenue.RevenueTestResult
+WindowsBuddy.Tools.Revenue.IRevenueProvider
+WindowsBuddy.Tools.Revenue.RevenueHttp
+WindowsBuddy.Tools.Revenue.RevenueMath
+WindowsBuddy.Tools.Revenue.StripeProvider
+WindowsBuddy.Tools.Revenue.GumroadProvider
+WindowsBuddy.Tools.Revenue.RevenueService
+WindowsBuddy.Tools.Revenue.RevenueTool
+WindowsBuddy.Tools.AICoding.AICodingToolType
+WindowsBuddy.Tools.AICoding.AgentStatus
+WindowsBuddy.Tools.AICoding.ActivityDays
+WindowsBuddy.Tools.AICoding.ClockFormat
+WindowsBuddy.Tools.AICoding.ModelPrice
+WindowsBuddy.Tools.AICoding.PricingTable
+WindowsBuddy.Tools.AICoding.AICodingBudgetConfig
+WindowsBuddy.Tools.AICoding.UsageRow
+WindowsBuddy.Tools.AICoding.AICodingSnapshot
+WindowsBuddy.Tools.AICoding.UsageEvent
+WindowsBuddy.Tools.AICoding.LogFileState
+WindowsBuddy.Tools.AICoding.AICodingService
+WindowsBuddy.Tools.AICoding.AICodingTool
+WindowsBuddy.Tools.AICoding.AgentMarks
+WindowsBuddy.UI.Onboarding.OnboardingWindow
+WindowsBuddy.UI.Onboarding.TrackedText
+WindowsBuddy.UI.Onboarding.LetterReveal
+WindowsBuddy.UI.Onboarding.LiveNotchTile
+WindowsBuddy.UI.Onboarding.WelcomeDemo
+WindowsBuddy.UI.Onboarding.OnboardingQa
+<PrivateImplementationDetails>{300C7A6B-ADF5-4BEA-A70A-EDB0430C695F}
+<>f__AnonymousType0`6
+<>f__AnonymousType1`2
+<>f__AnonymousType2`5
+<>f__AnonymousType3`2
+<>f__AnonymousType4`2
+<>f__AnonymousType5`2
+<>f__AnonymousType6`3
+
+=== ALL PINVOKE IMPORTS (211) ===
+kernel32.dll!AttachConsole (method: AttachConsole, token: 0x06000001)
+ole32.dll!DoDragDrop (method: DoDragDrop, token: 0x06000023)
+user32.dll!GetWindowLong (method: GetWindowLong, token: 0x06000024)
+user32.dll!SetWindowLong (method: SetWindowLong, token: 0x06000025)
+user32.dll!GetCursorPos (method: GetCursorPos, token: 0x06000026)
+shlwapi.dll!SHCreateStreamOnFileEx (method: SHCreateStreamOnFileEx, token: 0x06000031)
+shell32.dll!SHGetKnownFolderPath (method: SHGetKnownFolderPath, token: 0x060000a4)
+iphlpapi.dll!GetIfEntry2 (method: GetIfEntry2, token: 0x06000118)
+iphlpapi.dll!GetBestInterface (method: GetBestInterface, token: 0x06000119)
+kernel32.dll!SetErrorMode (method: SetErrorMode, token: 0x0600020f)
+kernel32.dll!WerSetFlags (method: WerSetFlags, token: 0x06000210)
+kernel32.dll!RegisterApplicationRestart (method: RegisterApplicationRestart, token: 0x06000211)
+kernel32.dll!UnregisterApplicationRestart (method: UnregisterApplicationRestart, token: 0x06000212)
+kernel32.dll!GetCurrentThreadId (method: GetCurrentThreadId, token: 0x06000299)
+kernel32.dll!CreateJobObject (method: CreateJobObject, token: 0x060002a3)
+kernel32.dll!SetInformationJobObject (method: SetInformationJobObject, token: 0x060002a4)
+kernel32.dll!AssignProcessToJobObject (method: AssignProcessToJobObject, token: 0x060002a5)
+kernel32.dll!TerminateJobObject (method: TerminateJobObject, token: 0x060002a6)
+kernel32.dll!IsProcessInJob (method: IsProcessInJob, token: 0x060002a7)
+kernel32.dll!GetCurrentProcess (method: GetCurrentProcess, token: 0x060002ad)
+kernel32.dll!TerminateProcess (method: TerminateProcess, token: 0x060002ae)
+kernel32.dll!OpenProcess (method: OpenProcess, token: 0x060002d3)
+dbghelp.dll!MiniDumpWriteDump (method: MiniDumpWriteDump, token: 0x060002d4)
+kernel32.dll!GetCurrentProcess (method: GetCurrentProcess, token: 0x060002de)
+kernel32.dll!TerminateProcess (method: TerminateProcess, token: 0x060002df)
+kernel32.dll!GetCurrentPackageFullName (method: GetCurrentPackageFullName, token: 0x06000306)
+kernel32.dll!GetCurrentPackageFamilyName (method: GetCurrentPackageFamilyName, token: 0x06000308)
+advapi32.dll!CredWriteW (method: CredWrite, token: 0x060003a9)
+advapi32.dll!CredReadW (method: CredRead, token: 0x060003aa)
+advapi32.dll!CredDeleteW (method: CredDelete, token: 0x060003ab)
+advapi32.dll!CredFree (method: CredFree, token: 0x060003ac)
+user32.dll!SystemParametersInfo (method: SystemParametersInfo, token: 0x060004b0)
+user32.dll!SystemParametersInfo (method: SystemParametersInfo, token: 0x060004b1)
+user32.dll!SystemParametersInfo (method: SystemParametersInfo, token: 0x060004d0)
+user32.dll!SendMessageTimeout (method: SendMessageTimeout, token: 0x060004d1)
+shell32.dll!SHAppBarMessage (method: SHAppBarMessage, token: 0x060004e8)
+user32.dll!FindWindow (method: FindWindow, token: 0x060004e9)
+ole32.dll!PropVariantClear (method: PropVariantClear, token: 0x06000550)
+kernel32.dll!GetCurrentThread (method: GetCurrentThread, token: 0x06000569)
+kernel32.dll!GetThreadTimes (method: GetThreadTimes, token: 0x0600056a)
+wlanapi.dll!WlanOpenHandle (method: WlanOpenHandle, token: 0x060005c2)
+wlanapi.dll!WlanCloseHandle (method: WlanCloseHandle, token: 0x060005c3)
+wlanapi.dll!WlanEnumInterfaces (method: WlanEnumInterfaces, token: 0x060005c4)
+wlanapi.dll!WlanFreeMemory (method: WlanFreeMemory, token: 0x060005c5)
+wlanapi.dll!WlanQueryInterface (method: WlanQueryInterface, token: 0x060005c6)
+kernel32.dll!GetSystemPowerStatus (method: GetSystemPowerStatus, token: 0x0600062c)
+kernel32.dll!GlobalMemoryStatusEx (method: GlobalMemoryStatusEx2, token: 0x06000636)
+kernel32.dll!GlobalMemoryStatusEx (method: GlobalMemoryStatusEx, token: 0x06000660)
+shell32.dll!SHAppBarMessage (method: SHAppBarMessage, token: 0x06000712)
+user32.dll!FindWindow (method: FindWindow, token: 0x06000713)
+shell32.dll!SHAppBarMessage (method: SHAppBarMessage, token: 0x06000727)
+user32.dll!FindWindow (method: FindWindow, token: 0x06000728)
+user32.dll!SendMessageTimeout (method: SendMessageTimeout, token: 0x06000729)
+shell32.dll!SHAppBarMessage (method: SHAppBarMessage, token: 0x0600072e)
+user32.dll!FindWindow (method: FindWindow, token: 0x0600072f)
+user32.dll!SendMessageTimeout (method: SendMessageTimeout, token: 0x06000730)
+user32.dll!GetForegroundWindow (method: GetForegroundWindow, token: 0x0600095b)
+user32.dll!GetAncestor (method: GetAncestor, token: 0x0600095c)
+user32.dll!SetWinEventHook (method: SetWinEventHook, token: 0x0600095d)
+user32.dll!UnhookWinEvent (method: UnhookWinEvent, token: 0x0600095e)
+user32.dll!GetWindowThreadProcessId (method: GetWindowThreadProcessId, token: 0x0600095f)
+user32.dll!GetClassName (method: GetClassName, token: 0x06000960)
+user32.dll!GetWindowRect (method: GetWindowRect, token: 0x06000961)
+user32.dll!GetWindowLong (method: GetWindowLong, token: 0x06000962)
+user32.dll!MonitorFromWindow (method: MonitorFromWindow, token: 0x06000963)
+user32.dll!GetMonitorInfo (method: GetMonitorInfo, token: 0x06000964)
+user32.dll!GetTopWindow (method: GetTopWindow, token: 0x06000965)
+user32.dll!GetWindow (method: GetWindow, token: 0x06000966)
+user32.dll!IsWindowVisible (method: IsWindowVisible, token: 0x06000967)
+user32.dll!IsIconic (method: IsIconic, token: 0x06000968)
+user32.dll!IsZoomed (method: IsZoomed, token: 0x06000969)
+dwmapi.dll!DwmGetWindowAttribute (method: DwmGetWindowAttribute, token: 0x0600096a)
+shell32.dll!SHGetKnownFolderPath (method: SHGetKnownFolderPath, token: 0x06000ac7)
+shell32.dll!SHQueryUserNotificationState (method: SHQueryUserNotificationState, token: 0x06000add)
+secur32.dll!GetUserNameEx (method: GetUserNameEx, token: 0x06000ade)
+netapi32.dll!NetUserGetInfo (method: NetUserGetInfo, token: 0x06000adf)
+netapi32.dll!NetApiBufferFree (method: NetApiBufferFree, token: 0x06000ae0)
+user32.dll!GetLastInputInfo (method: GetLastInputInfo, token: 0x060010ae)
+user32.dll!GetCursorPos (method: GetCursorPos, token: 0x060010af)
+user32.dll!GetWindowLong (method: GetWindowLong, token: 0x060011e6)
+user32.dll!SetWindowLong (method: SetWindowLong, token: 0x060011e7)
+user32.dll!SetWindowPos (method: SetWindowPos, token: 0x060011e8)
+user32.dll!IsWindowVisible (method: IsWindowVisible, token: 0x060011e9)
+user32.dll!GetWindowRect (method: GetWindowRect, token: 0x060011ea)
+user32.dll!ShowWindow (method: ShowWindow, token: 0x060011eb)
+kernel32.dll!GetSystemPowerStatus (method: GetSystemPowerStatus, token: 0x06001260)
+CoreMessaging.dll!CreateDispatcherQueueController (method: CreateDispatcherQueueController, token: 0x06001266)
+d2d1.dll!D2D1CreateFactory (method: D2D1CreateFactory, token: 0x06001267)
+user32.dll!RegisterClassEx (method: RegisterClassEx, token: 0x06001269)
+user32.dll!CreateWindowEx (method: CreateWindowEx, token: 0x0600126a)
+user32.dll!DefWindowProc (method: DefWindowProc, token: 0x0600126b)
+user32.dll!DestroyWindow (method: DestroyWindow, token: 0x0600126c)
+user32.dll!SetLayeredWindowAttributes (method: SetLayeredWindowAttributes, token: 0x0600126d)
+user32.dll!ShowWindow (method: ShowWindow, token: 0x0600126e)
+user32.dll!IsWindowVisible (method: IsWindowVisible, token: 0x0600126f)
+user32.dll!SetWindowPos (method: SetWindowPos, token: 0x06001270)
+user32.dll!GetWindowRect (method: GetWindowRect, token: 0x06001271)
+kernel32.dll!GetModuleHandle (method: GetModuleHandle, token: 0x06001272)
+user32.dll!ShowWindow (method: ShowWindow, token: 0x060012c1)
+user32.dll!SetWindowPos (method: SetWindowPos, token: 0x060012c2)
+user32.dll!GetWindowRect (method: GetWindowRect, token: 0x060012c3)
+user32.dll!DestroyWindow (method: DestroyWindow, token: 0x060012c4)
+user32.dll!GetWindow (method: GetWindow, token: 0x060012c5)
+user32.dll!RegisterHotKey (method: RegisterHotKey, token: 0x0600142d)
+user32.dll!UnregisterHotKey (method: UnregisterHotKey, token: 0x0600142e)
+user32.dll!GetWindowLong (method: GetWindowLong, token: 0x0600142f)
+user32.dll!SetWindowLong (method: SetWindowLong, token: 0x06001430)
+user32.dll!GetWindowLong (method: GetWindowLong, token: 0x06001456)
+user32.dll!SetWindowLong (method: SetWindowLong, token: 0x06001457)
+user32.dll!GetForegroundWindow (method: GetForegroundWindow, token: 0x06001458)
+user32.dll!SetForegroundWindow (method: SetForegroundWindow, token: 0x06001459)
+user32.dll!GetWindowRect (method: GetWindowRect, token: 0x0600145b)
+user32.dll!GetClassName (method: GetClassName, token: 0x0600145c)
+user32.dll!GetCursorPos (method: GetCursorPos, token: 0x0600145d)
+user32.dll!MonitorFromPoint (method: MonitorFromPoint, token: 0x0600145e)
+user32.dll!MonitorFromWindow (method: MonitorFromWindow, token: 0x0600145f)
+user32.dll!RegisterWindowMessage (method: RegisterWindowMessage, token: 0x06001460)
+bthprops.cpl!BluetoothFindFirstRadio (method: BluetoothFindFirstRadio, token: 0x06001461)
+bthprops.cpl!BluetoothFindRadioClose (method: BluetoothFindRadioClose, token: 0x06001462)
+bthprops.cpl!BluetoothFindFirstDevice (method: BluetoothFindFirstDevice, token: 0x06001463)
+bthprops.cpl!BluetoothFindDeviceClose (method: BluetoothFindDeviceClose, token: 0x06001464)
+kernel32.dll!CloseHandle (method: CloseHandle, token: 0x06001465)
+bthprops.cpl!BluetoothFindNextDevice (method: BluetoothFindNextDevice, token: 0x06001466)
+user32.dll!GetMonitorInfo (method: GetMonitorInfo, token: 0x06001469)
+user32.dll!GetDpiForWindow (method: GetDpiForWindow, token: 0x0600146a)
+user32.dll!UnregisterPowerSettingNotification (method: UnregisterPowerSettingNotification, token: 0x0600146b)
+user32.dll!RegisterPowerSettingNotification (method: RegisterPowerSettingNotification, token: 0x0600146c)
+shcore.dll!GetDpiForMonitor (method: GetDpiForMonitor, token: 0x0600146d)
+user32.dll!SetWinEventHook (method: SetWinEventHook, token: 0x0600146e)
+user32.dll!UnhookWinEvent (method: UnhookWinEvent, token: 0x0600146f)
+user32.dll!WindowFromPoint (method: WindowFromPoint, token: 0x060014e1)
+user32.dll!GetAncestor (method: GetAncestor, token: 0x060014e2)
+user32.dll!SetWindowPos (method: SetWindowPos, token: 0x0600152f)
+user32.dll!IsWindowVisible (method: PetNativeVisible, token: 0x060015b5)
+user32.dll!ShowWindow (method: PetNativeShow, token: 0x060015b6)
+user32.dll!GetAsyncKeyState (method: GetAsyncKeyState, token: 0x060015cf)
+user32.dll!SendInput (method: SendInput, token: 0x060015da)
+user32.dll!GetSystemMetrics (method: GetSystemMetrics, token: 0x060015db)
+psapi.dll!EmptyWorkingSet (method: EmptyWorkingSet, token: 0x060016f3)
+kernel32.dll!AttachConsole (method: AttachConsole, token: 0x06001701)
+user32.dll!SetCursorPos (method: SetCursorPos, token: 0x0600170c)
+user32.dll!mouse_event (method: mouse_event, token: 0x0600170d)
+user32.dll!InitializeTouchInjection (method: InitializeTouchInjection, token: 0x0600170e)
+user32.dll!InjectTouchInput (method: InjectTouchInput, token: 0x0600170f)
+user32.dll!GetWindowRect (method: GetWindowRect, token: 0x0600173e)
+user32.dll!SendMessage (method: SendMessage, token: 0x0600173f)
+user32.dll!GetDpiForWindow (method: GetDpiForWindow, token: 0x06001740)
+user32.dll!SetCursorPos (method: SetCursorPos, token: 0x0600175c)
+user32.dll!mouse_event (method: mouse_event, token: 0x0600175d)
+gdi32.dll!BitBlt (method: BitBlt, token: 0x0600175e)
+user32.dll!GetDC (method: GetDC, token: 0x0600175f)
+user32.dll!ReleaseDC (method: ReleaseDC, token: 0x06001760)
+user32.dll!GetGuiResources (method: GetGuiResources, token: 0x06001782)
+user32.dll!EnumWindows (method: EnumWindows, token: 0x06001783)
+user32.dll!GetWindowThreadProcessId (method: GetWindowThreadProcessId, token: 0x06001784)
+kernel32.dll!GlobalMemoryStatusEx (method: GlobalMemoryStatusEx, token: 0x060017a0)
+user32.dll!GetDpiForSystem (method: GetDpiForSystem, token: 0x060017a1)
+user32.dll!AddClipboardFormatListener (method: AddClipboardFormatListener, token: 0x06001a71)
+user32.dll!RemoveClipboardFormatListener (method: RemoveClipboardFormatListener, token: 0x06001a72)
+user32.dll!GetClipboardSequenceNumber (method: GetClipboardSequenceNumber, token: 0x06001a73)
+user32.dll!GetForegroundWindow (method: GetForegroundWindow, token: 0x06001a74)
+user32.dll!GetClipboardOwner (method: GetClipboardOwner, token: 0x06001a75)
+user32.dll!GetOpenClipboardWindow (method: GetOpenClipboardWindow, token: 0x06001a76)
+user32.dll!GetWindowThreadProcessId (method: GetWindowThreadProcessId, token: 0x06001a77)
+kernel32.dll!OpenProcess (method: OpenProcess, token: 0x06001a78)
+kernel32.dll!QueryFullProcessImageName (method: QueryFullProcessImageName, token: 0x06001a79)
+kernel32.dll!CloseHandle (method: CloseHandle, token: 0x06001a7a)
+shlwapi.dll!StrCmpLogicalW (method: StrCmpLogicalW, token: 0x06001f71)
+ole32.dll!ReleaseStgMedium (method: ReleaseStgMedium, token: 0x0600200c)
+kernel32.dll!GlobalLock (method: GlobalLock, token: 0x0600200d)
+kernel32.dll!GlobalUnlock (method: GlobalUnlock, token: 0x0600200e)
+kernel32.dll!GlobalSize (method: GlobalSize, token: 0x0600200f)
+shell32.dll!SHCreateItemFromParsingName (method: SHCreateItemFromParsingName, token: 0x06002028)
+gdi32.dll!GetObject (method: GetObject, token: 0x06002029)
+gdi32.dll!DeleteObject (method: DeleteObject, token: 0x0600202a)
+user32.dll!RegisterHotKey (method: RegisterHotKey, token: 0x060020e4)
+user32.dll!UnregisterHotKey (method: UnregisterHotKey, token: 0x060020e5)
+dwmapi.dll!DwmSetWindowAttribute (method: DwmSetWindowAttribute, token: 0x0600229b)
+user32.dll!SetForegroundWindow (method: SetForegroundWindow, token: 0x0600229c)
+user32.dll!MonitorFromPoint (method: MonitorFromPoint, token: 0x0600229d)
+shcore.dll!GetDpiForMonitor (method: GetDpiForMonitor, token: 0x0600229e)
+user32.dll!GetWindowLong (method: GetWindowLong32, token: 0x0600229f)
+user32.dll!SetWindowLong (method: SetWindowLong32, token: 0x060022a0)
+user32.dll!AllowSetForegroundWindow (method: AllowSetForegroundWindow, token: 0x060022ec)
+gdi32.dll!BitBlt (method: BitBlt, token: 0x0600239c)
+user32.dll!GetDC (method: GetDC, token: 0x0600239d)
+user32.dll!ReleaseDC (method: ReleaseDC, token: 0x0600239e)
+user32.dll!SetCursorPos (method: SetCursorPos, token: 0x060023a6)
+shell32.dll!SHGetKnownFolderPath (method: SHGetKnownFolderPath, token: 0x06002804)
+d2d1.dll!D2D1CreateFactory (method: D2D1CreateFactory, token: 0x06002a6c)
+dwrite.dll!DWriteCreateFactory (method: DWriteCreateFactory, token: 0x06002a6d)
+gdi32.dll!CreateCompatibleDC (method: CreateCompatibleDC, token: 0x06002a6e)
+gdi32.dll!CreateDIBSection (method: CreateDIBSection, token: 0x06002a6f)
+gdi32.dll!SelectObject (method: SelectObject, token: 0x06002a70)
+gdi32.dll!GdiFlush (method: GdiFlush, token: 0x06002a71)
+user32.dll!GetLastInputInfo (method: GetLastInputInfo, token: 0x06002b85)
+user32.dll!GetForegroundWindow (method: GetForegroundWindow, token: 0x06002b88)
+user32.dll!GetWindowThreadProcessId (method: GetWindowThreadProcessId, token: 0x06002b89)
+kernel32.dll!OpenProcess (method: OpenProcess, token: 0x06002b8a)
+kernel32.dll!QueryFullProcessImageName (method: QueryFullProcessImageName, token: 0x06002b8b)
+kernel32.dll!CloseHandle (method: CloseHandle, token: 0x06002b8c)
+user32.dll!EnumChildWindows (method: EnumChildWindows, token: 0x06002b8d)
+shell32.dll!SHDefExtractIcon (method: SHDefExtractIcon, token: 0x06002c49)
+user32.dll!DestroyIcon (method: DestroyIcon, token: 0x06002c4a)
+icu.dll!ucal_open (method: ucal_open, token: 0x06002cc0)
+icu.dll!ucal_close (method: ucal_close, token: 0x06002cc1)
+icu.dll!ucal_setMillis (method: ucal_setMillis, token: 0x06002cc2)
+icu.dll!ucal_get (method: ucal_get, token: 0x06002cc3)
+icu.dll!ucal_getCanonicalTimeZoneID (method: ucal_getCanonicalTimeZoneID, token: 0x06002cc4)
+icu.dll!ucal_getTimeZoneIDForWindowsID (method: ucal_getTimeZoneIDForWindowsID, token: 0x06002cc5)
+user32.dll!SetForegroundWindow (method: SetForegroundWindow, token: 0x06003002)
