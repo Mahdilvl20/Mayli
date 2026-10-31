@@ -20,14 +20,19 @@ namespace WindowsBuddy.BuddyCapsule.Core
 {
     /// <summary>
     /// CapsuleWindow: Exact notch window architecture matching the Vayli design references.
-    /// CollapsedWidth = 228, CollapsedHeight = 35 (Can expand to 360x42 for wide notification/greeting banner)
-    /// ExpandedWidth = 752, ExpandedHeight = 352
+    /// Dynamic Island Collapsed Modes:
+    /// - Resting Clock & Battery: 228 x 35
+    /// - Live Music Playback (Spotify / Web / Player): 290 x 35
+    /// - Live Notification Banner (Copied Image/Text, Bluetooth Headset, Screenshot): 340 x 38
+    /// - Expanded Multi-tool View: 752 x 352
     /// </summary>
     public sealed class CapsuleWindow : Window
     {
         public const double CollapsedWidth = 228.0;
         public const double CollapsedHeight = 35.0;
+        public const double MediaCollapsedWidth = 290.0;
         public const double BannerCollapsedWidth = 340.0;
+        public const double BannerCollapsedHeight = 38.0;
         public const double ExpandedWidth = 752.0;
         public const double ExpandedHeight = 352.0;
         public const double StableEnvelopeWidth = 800.0;
@@ -52,24 +57,37 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly TextBlock _headerSubtitleText;
         private readonly TextBlock _headerBatteryText;
 
-        // Collapsed Banner & Normal elements
+        // 1. Collapsed Resting Normal View
         private readonly Grid _collapsedNormalView;
-        private readonly Grid _collapsedBannerView;
-        private readonly TextBlock _bannerIcon;
-        private readonly TextBlock _bannerTitle;
-        private readonly TextBlock _bannerSubtitle;
         private readonly TextBlock _collapsedClockText;
         private readonly TextBlock _collapsedBatteryText;
         private readonly StaticBeatBars _collapsedBeatBars;
         private readonly PetView _collapsedMiniPet;
 
+        // 2. Collapsed Live Media View (Music Playing)
+        private readonly Grid _collapsedMediaView;
+        private readonly TextBlock _mediaIcon;
+        private readonly TextBlock _mediaTrackText;
+        private readonly TextBlock _mediaArtistText;
+        private readonly StaticBeatBars _mediaBeatBars;
+
+        // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth)
+        private readonly Grid _collapsedBannerView;
+        private readonly TextBlock _bannerIcon;
+        private readonly TextBlock _bannerTitle;
+        private readonly TextBlock _bannerSubtitle;
+
         private readonly DispatcherTimer _morphTimer;
         private readonly DispatcherTimer _clockTimer;
-        private readonly DispatcherTimer _bannerCycleTimer;
+        private readonly DispatcherTimer _bannerDismissTimer;
         private double _morphProgress; // 0.0 = Collapsed, 1.0 = Expanded
         private double _targetProgress;
         private string _activeToolId = "home";
-        private int _bannerMode = 0; // 0=Normal, 1=GoodMorning, 2=Copied, 3=AirPods, 4=CoffeeBreak, 5=Coding
+
+        private bool _isBannerActive = false;
+        private bool _isMusicActive = false;
+        private double _currentBaseCollapsedWidth = CollapsedWidth;
+        private double _currentBaseCollapsedHeight = CollapsedHeight;
 
         public CapsuleWindow()
         {
@@ -131,7 +149,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _edgeLight = new EdgeLightWpf();
 
             // -------------------------------------------------------------
-            // 1. Collapsed Resting Content (228 x 35) & Notch Notifications
+            // Collapsed Content Root (Contains Normal, Media & Banner views)
             // -------------------------------------------------------------
             _collapsedContent = new Grid
             {
@@ -139,7 +157,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // Normal collapsed view
+            // View 1: Normal resting collapsed view
             _collapsedNormalView = new Grid();
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -179,21 +197,70 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 Text = $"{SystemMonitorService.Current.BatteryPercent}%⚡",
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = CapsuleTheme.Brush(Color.FromRgb(48, 209, 88)), // Signature Green
+                Foreground = CapsuleTheme.Brush(Color.FromRgb(48, 209, 88)),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(_collapsedBatteryText, 4);
             _collapsedNormalView.Children.Add(_collapsedBatteryText);
             _collapsedContent.Children.Add(_collapsedNormalView);
 
-            // Dynamic Banner view (Screenshot 2: Copied, Screenshot, AirPods / Screenshot 6: Good morning)
+            // View 2: Live Media Playback View (when music is playing)
+            _collapsedMediaView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
+            var mediaDock = new DockPanel();
+
+            _mediaIcon = new TextBlock
+            {
+                Text = "🎵",
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            DockPanel.SetDock(_mediaIcon, Dock.Left);
+            mediaDock.Children.Add(_mediaIcon);
+
+            _mediaBeatBars = new StaticBeatBars(5, 12)
+            {
+                Margin = new Thickness(6, 0, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            DockPanel.SetDock(_mediaBeatBars, Dock.Right);
+            mediaDock.Children.Add(_mediaBeatBars);
+
+            var mediaTextSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            _mediaTrackText = new TextBlock
+            {
+                Text = "Playing",
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                MaxWidth = 130,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _mediaArtistText = new TextBlock
+            {
+                Text = " · Media",
+                FontSize = 11,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                MaxWidth = 95,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            mediaTextSp.Children.Add(_mediaTrackText);
+            mediaTextSp.Children.Add(_mediaArtistText);
+            mediaDock.Children.Add(mediaTextSp);
+
+            _collapsedMediaView.Children.Add(mediaDock);
+            _collapsedContent.Children.Add(_collapsedMediaView);
+
+            // View 3: Dynamic Banner View (Screenshot 2: Copied, Screenshot saved, AirPods Pro Connected)
             _collapsedBannerView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
             var bannerDock = new DockPanel();
 
             _bannerIcon = new TextBlock
             {
                 Text = "📋",
-                FontSize = 13,
+                FontSize = 13.5,
                 Margin = new Thickness(0, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -204,7 +271,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _bannerTitle = new TextBlock
             {
                 Text = "Copied",
-                FontSize = 12,
+                FontSize = 12.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
@@ -214,7 +281,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 Text = " · Image",
                 FontSize = 12,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 220,
+                TextTrimming = TextTrimming.CharacterEllipsis
             };
             bannerTextStack.Children.Add(_bannerTitle);
             bannerTextStack.Children.Add(_bannerSubtitle);
@@ -223,7 +292,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedContent.Children.Add(_collapsedBannerView);
 
             // -------------------------------------------------------------
-            // 2. Expanded Content (752 x 352)
+            // Expanded Content (752 x 352)
             // -------------------------------------------------------------
             _expandedContent = new Grid
             {
@@ -235,13 +304,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _expandedContent.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             _expandedContent.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // TOP HEADER BAR (Exact layout from Screenshot 1 & 3 & 4)
+            // TOP HEADER BAR
             var headerBar = new DockPanel { Margin = new Thickness(2, 0, 2, 8) };
 
-            // Left brand & tool title
             var leftBrand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-            // Squircle Robot Head Icon
             var squircleIcon = new Border
             {
                 Width = 22,
@@ -293,7 +360,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
             // Right header actions: Battery + Theme Switcher + Settings + Close
             var rightActions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
 
-            // Battery badge
             _headerBatteryText = new TextBlock
             {
                 Text = $"{SystemMonitorService.Current.BatteryPercent}% ⚡",
@@ -305,7 +371,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             rightActions.Children.Add(_headerBatteryText);
 
-            // Theme Switcher Button (Screenshot 5: Cycles Pure Black -> Ember Dark -> Vivid -> Silver)
             var themeBtn = CreateHeaderIconButton("🎨", $"Theme: {CapsuleTheme.Current.DisplayName} (Click to switch)");
             themeBtn.MouseLeftButtonUp += (_, _) =>
             {
@@ -314,12 +379,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             rightActions.Children.Add(themeBtn);
 
-            // Settings Button
             var settingsBtn = CreateHeaderIconButton("⚙", "Settings");
             settingsBtn.MouseLeftButtonUp += (_, _) => SettingsWindow.ShowSingleton();
             rightActions.Children.Add(settingsBtn);
 
-            // Close Button
             var collapseBtn = CreateHeaderIconButton("✕", "Close Notch");
             collapseBtn.MouseLeftButtonUp += (_, _) => _machine.RequestClose("close-button");
             rightActions.Children.Add(collapseBtn);
@@ -338,7 +401,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             Grid.SetRow(_viewportHost, 1);
             _expandedContent.Children.Add(_viewportHost);
 
-            // Bottom Navigation Dock Bar (Screenshot 1: 18 tool icons with active circle highlight & dot)
+            // Bottom Navigation Dock Bar
             var navDockBorder = new Border
             {
                 Background = CapsuleTheme.Brush(p.DockPill),
@@ -363,7 +426,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _envelopeRoot.Children.Add(_capsuleCard);
             Content = _envelopeRoot;
 
-            // Wire state machine transitions & morph animation
+            // Morph Animation timer
             _morphTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(14) };
             _morphTimer.Tick += OnMorphTick;
 
@@ -388,7 +451,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 if (_morphProgress <= 0.1)
                 {
-                    // Right clicking or clicking collapsed notch toggles banner notifications or opens
                     _machine.Click("capsule-click");
                 }
             };
@@ -404,15 +466,19 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             _clockTimer.Start();
 
-            // Periodic banner simulation when collapsed (Screenshots 2 & 6: Good morning, Copied, AirPods Pro)
-            _bannerCycleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
-            _bannerCycleTimer.Tick += (_, _) =>
+            // Notification Banner Dismissal Timer
+            _bannerDismissTimer = new DispatcherTimer();
+            _bannerDismissTimer.Tick += (_, _) =>
             {
-                if (_morphProgress > 0.1) return;
-                _bannerMode = (_bannerMode + 1) % 6;
-                ShowBannerNotificationMode(_bannerMode);
+                _bannerDismissTimer.Stop();
+                _isBannerActive = false;
+                UpdateCollapsedViewState();
             };
-            _bannerCycleTimer.Start();
+
+            // Hook Real-time Notch Action Events (Real Clipboard, Bluetooth & Media!)
+            var actionService = RealtimeNotchActionService.Instance;
+            actionService.NotificationRequested += OnRealNotificationRequested;
+            actionService.MediaTrackChanged += OnRealMediaTrackChanged;
 
             CapsuleTheme.ThemeChanged += ApplyThemeAndGeometry;
             AppPreferences.Instance.Changed += ApplyThemeAndGeometry;
@@ -421,45 +487,88 @@ namespace WindowsBuddy.BuddyCapsule.Core
             UpdateMorphVisuals(0.0);
         }
 
-        private void ShowBannerNotificationMode(int mode)
+        #region Real-Time Action Handlers
+
+        private void OnRealNotificationRequested(NotchNotificationPayload payload)
         {
-            var p = CapsuleTheme.Current;
-            switch (mode)
+            Dispatcher.InvokeAsync(() =>
             {
-                case 1: // Screenshot 6: Good morning, Alex!
-                    _collapsedNormalView.Visibility = Visibility.Collapsed;
-                    _collapsedBannerView.Visibility = Visibility.Visible;
-                    _bannerIcon.Text = "🤖";
-                    _bannerTitle.Text = "Good morning, Alex!";
-                    _bannerSubtitle.Text = "";
-                    break;
-                case 2: // Screenshot 2: Copied · Image
-                    _collapsedNormalView.Visibility = Visibility.Collapsed;
-                    _collapsedBannerView.Visibility = Visibility.Visible;
-                    _bannerIcon.Text = "📋";
-                    _bannerTitle.Text = "Copied";
-                    _bannerSubtitle.Text = " · Image";
-                    break;
-                case 3: // Screenshot 2: Screenshot saved
-                    _collapsedNormalView.Visibility = Visibility.Collapsed;
-                    _collapsedBannerView.Visibility = Visibility.Visible;
-                    _bannerIcon.Text = "📸";
-                    _bannerTitle.Text = "Screenshot saved";
-                    _bannerSubtitle.Text = "";
-                    break;
-                case 4: // Screenshot 2: AirPods Pro Connected
-                    _collapsedNormalView.Visibility = Visibility.Collapsed;
-                    _collapsedBannerView.Visibility = Visibility.Visible;
-                    _bannerIcon.Text = "🎧";
-                    _bannerTitle.Text = "AirPods Pro";
-                    _bannerSubtitle.Text = "  Connected";
-                    break;
-                default: // Normal clock & battery
-                    _collapsedBannerView.Visibility = Visibility.Collapsed;
-                    _collapsedNormalView.Visibility = Visibility.Visible;
-                    break;
+                _isBannerActive = true;
+                _bannerIcon.Text = payload.Icon;
+                _bannerTitle.Text = payload.Title;
+                _bannerSubtitle.Text = payload.Subtitle;
+
+                // Display banner view
+                _collapsedNormalView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedBannerView.Visibility = Visibility.Visible;
+
+                _currentBaseCollapsedWidth = BannerCollapsedWidth;
+                _currentBaseCollapsedHeight = BannerCollapsedHeight;
+
+                if (_morphProgress <= 0.1)
+                {
+                    _targetProgress = 0.0;
+                    _morphTimer.Start();
+                }
+
+                _bannerDismissTimer.Interval = TimeSpan.FromMilliseconds(payload.DurationMs);
+                _bannerDismissTimer.Stop();
+                _bannerDismissTimer.Start();
+            });
+        }
+
+        private void OnRealMediaTrackChanged(string track, string artist, bool isPlaying)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                _isMusicActive = isPlaying;
+                _mediaTrackText.Text = string.IsNullOrWhiteSpace(track) ? "Playing" : track;
+                _mediaArtistText.Text = string.IsNullOrWhiteSpace(artist) ? "" : $" · {artist}";
+                _mediaBeatBars.IsPlaying = isPlaying;
+
+                if (!_isBannerActive)
+                {
+                    UpdateCollapsedViewState();
+                }
+            });
+        }
+
+        private void UpdateCollapsedViewState()
+        {
+            if (_isBannerActive)
+            {
+                _collapsedNormalView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedBannerView.Visibility = Visibility.Visible;
+                _currentBaseCollapsedWidth = BannerCollapsedWidth;
+                _currentBaseCollapsedHeight = BannerCollapsedHeight;
+            }
+            else if (_isMusicActive)
+            {
+                _collapsedNormalView.Visibility = Visibility.Collapsed;
+                _collapsedBannerView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Visible;
+                _currentBaseCollapsedWidth = MediaCollapsedWidth;
+                _currentBaseCollapsedHeight = CollapsedHeight;
+            }
+            else
+            {
+                _collapsedBannerView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedNormalView.Visibility = Visibility.Visible;
+                _currentBaseCollapsedWidth = CollapsedWidth;
+                _currentBaseCollapsedHeight = CollapsedHeight;
+            }
+
+            if (_morphProgress <= 0.1)
+            {
+                _targetProgress = 0.0;
+                _morphTimer.Start();
             }
         }
+
+        #endregion
 
         private static Border CreateHeaderIconButton(string glyph, string tooltip)
         {
@@ -515,8 +624,12 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             if (msg == NativeMethods.WM_CLIPBOARDUPDATE && AppPreferences.Instance.Raw.ClipboardRecording)
             {
+                RealtimeNotchActionService.Instance.HandleClipboardUpdate();
                 ClipboardTool.CaptureCurrentClipboard();
-                ShowBannerNotificationMode(2); // Show "Copied" banner!
+            }
+            else if (msg == NativeMethods.WM_DEVICECHANGE)
+            {
+                RealtimeNotchActionService.Instance.HandleDeviceChange((int)wParam);
             }
             else if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DPICHANGED)
             {
@@ -551,7 +664,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     ToolTip = tool.Title
                 };
 
-                // Active circular highlight
                 var circleHighlight = new Border
                 {
                     Width = 26,
@@ -563,7 +675,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 };
                 itemContainer.Children.Add(circleHighlight);
 
-                // Icon Glyph
                 var iconText = new TextBlock
                 {
                     Text = tool.IconGlyph,
@@ -574,7 +685,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 };
                 itemContainer.Children.Add(iconText);
 
-                // Tiny white dot indicator right beneath icon (Screenshot 1)
                 var activeDot = new Ellipse
                 {
                     Width = 3,
@@ -614,7 +724,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _navTabsPanel.Children.Add(itemContainer);
             }
 
-            // Divider and '+' customize button matching Screenshot 1
             var divider = new Border
             {
                 Width = 1,
@@ -651,7 +760,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
             if (tool == null) return;
             _activeToolId = tool.Id;
 
-            // Update Header text based on selected tool (Screenshot 1, 3, 4)
             _headerTitleText.Text = tool.Title;
             _headerSubtitleText.Text = tool.Id switch
             {
@@ -697,8 +805,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
             double t = Math.Clamp(progress, 0.0, 1.0);
             double ease = 1.0 - Math.Pow(1.0 - t, 3);
 
-            double curW = CollapsedWidth + (ExpandedWidth - CollapsedWidth) * ease;
-            double curH = CollapsedHeight + (ExpandedHeight - CollapsedHeight) * ease;
+            double baseW = _currentBaseCollapsedWidth;
+            double baseH = _currentBaseCollapsedHeight;
+
+            double curW = baseW + (ExpandedWidth - baseW) * ease;
+            double curH = baseH + (ExpandedHeight - baseH) * ease;
 
             _capsuleCard.Width = curW;
             _capsuleCard.Height = curH;
@@ -707,8 +818,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             string style = AppPreferences.Instance.NotchSilhouette;
             var geo = NotchGeometryBuilder.BuildMorphedGeometry(
                 style,
-                CollapsedWidth,
-                CollapsedHeight,
+                baseW,
+                baseH,
                 ExpandedWidth,
                 ExpandedHeight,
                 t);

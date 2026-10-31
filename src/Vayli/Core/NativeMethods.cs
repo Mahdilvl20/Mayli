@@ -21,6 +21,7 @@ namespace WindowsBuddy.Core
         public const int HTTRANSPARENT = -1;
         public const int WM_HOTKEY = 0x0312;
         public const int WM_CLIPBOARDUPDATE = 0x031D;
+        public const int WM_DEVICECHANGE = 0x0219;
         public const int WM_DPICHANGED = 0x02E0;
         public const int WM_DISPLAYCHANGE = 0x007E;
 
