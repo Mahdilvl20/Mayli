@@ -122,8 +122,8 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
                 new Point(width, 0),
                 isStroked: true));
 
-            // Top flush edge along screen top
-            fig.Segments.Add(new LineSegment(new Point(0, 0), isStroked: !isOutline));
+            // Top flush edge along screen top - strictly unstroked so it stays pure black and blends seamlessly into the top screen bezel
+            fig.Segments.Add(new LineSegment(new Point(0, 0), isStroked: false));
 
             var pathGeo = new PathGeometry(new[] { fig });
             pathGeo.Freeze();

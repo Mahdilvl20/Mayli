@@ -52,6 +52,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly Grid _capsuleCard;
         private readonly Path _notchBackdropPath;
         private readonly Path _notchOutlinePath;
+        private readonly Line _notchTopBlackLine;
         private readonly EdgeLightWpf _edgeLight;
         private readonly Grid _collapsedContent;
         private readonly Grid _expandedContent;
@@ -176,6 +177,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 Stroke = CapsuleTheme.Brush(p.BorderStrong),
                 StrokeThickness = 1.0
+            };
+
+            // Pure black 1px top line along screen bezel - ensures the top flush edge is pitch-black and blends seamlessly into monitor bezel
+            _notchTopBlackLine = new Line
+            {
+                X1 = 0,
+                Y1 = 0,
+                Y2 = 0,
+                Stroke = Brushes.Black,
+                StrokeThickness = 1.0,
+                IsHitTestVisible = false
             };
 
             _edgeLight = new EdgeLightWpf();
@@ -591,6 +603,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _capsuleCard.Children.Add(_notchBackdropPath);
             _capsuleCard.Children.Add(_notchOutlinePath);
+            _capsuleCard.Children.Add(_notchTopBlackLine);
             _capsuleCard.Children.Add(_edgeLight);
             _capsuleCard.Children.Add(_collapsedContent);
             _capsuleCard.Children.Add(_expandedContent);
@@ -1189,6 +1202,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _notchBackdropPath.Data = geo;
             _notchOutlinePath.Data = geo;
+            _notchTopBlackLine.X2 = curW;
             _edgeLight.UpdateGeometry(geo, t > 0.5, curW, curH);
 
             _collapsedContent.Opacity = Math.Clamp(1.0 - t * 2.5, 0.0, 1.0);
