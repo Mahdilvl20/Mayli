@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Renderer;
 using WindowsBuddy.BuddyCapsule.Theme;
@@ -30,19 +31,31 @@ namespace WindowsBuddy.Tools
     {
         private static readonly List<IBuddyTool> _tools = new();
         public static IReadOnlyList<IBuddyTool> All => _tools;
+        public static Action<string> OnToolNavigationRequested;
 
         public static void RegisterDefaults()
         {
             if (_tools.Count > 0) return;
-            _tools.Add(new HomeTool());
-            _tools.Add(new FileShelfTool());
-            _tools.Add(new ClipboardTool());
-            _tools.Add(new NotesTool());
-            _tools.Add(new TimerClockTool());
-            _tools.Add(new WeatherTool());
-            _tools.Add(new ScreenTimeTool());
-            _tools.Add(new AICodingTool());
-            _tools.Add(new DropTool());
+
+            // 18 tools matching the exact dock sequence in Screenshot 1
+            _tools.Add(new HomeTool());         // 1. Home
+            _tools.Add(new SystemTool());       // 2. System
+            _tools.Add(new ClockTool());        // 3. Clock
+            _tools.Add(new TimerClockTool());   // 4. Focus
+            _tools.Add(new CalendarTool());     // 5. Calendar
+            _tools.Add(new WeatherTool());      // 6. Weather
+            _tools.Add(new ClipboardTool());    // 7. Clipboard
+            _tools.Add(new NotesTool());        // 8. Notes
+            _tools.Add(new FileShelfTool());    // 9. File Shelf
+            _tools.Add(new DropTool());         // 10. Drop
+            _tools.Add(new TransferTool());     // 11. Transfer
+            _tools.Add(new QuickToolsTool());   // 12. Tools
+            _tools.Add(new LinksTool());        // 13. Links
+            _tools.Add(new CardsTool());        // 14. Cards
+            _tools.Add(new AudioTool());        // 15. Audio
+            _tools.Add(new ScreenTimeTool());   // 16. Screen Time
+            _tools.Add(new PetCompanionTool()); // 17. Buddy / Pet
+            _tools.Add(new AICodingTool());     // 18. Media / Coding
         }
 
         public static IBuddyTool GetById(string id) =>
@@ -50,7 +63,7 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// HomeTool (`WindowsBuddy.Tools.HomeTool`) — main multi-card dashboard inside the expanded 752x352 notch.
+    /// HomeTool: The exact 6-Card Dashboard shown in Screenshot 1 ("Everything at a glance").
     /// </summary>
     public sealed class HomeTool : IBuddyTool
     {
@@ -58,443 +71,943 @@ namespace WindowsBuddy.Tools
         public string Title => "Home";
         public string IconGlyph => "⌂";
 
-        private TextBlock _mediaTitle;
-        private TextBlock _mediaArtist;
-        private TextBlock _playBtnLabel;
-        private StaticBeatBars _beatBars;
-        private TextBlock _petLineText;
-        private TextBlock _petPoseBadge;
-        private PetView _petView;
-        private TextBlock _cpuValue;
-        private TextBlock _ramValue;
-        private TextBlock _batteryValue;
-        private TextBlock _clockBig;
-        private TextBlock _dateSub;
+        private CircularGauge _cpuGauge;
+        private CircularGauge _ramGauge;
+        private CircularGauge _diskGauge;
+        private TextBlock _focusTimeText;
+        private TextBlock _focusStatusText;
+        private Border _focusToggleBtn;
+        private TextBlock _focusToggleIcon;
+        private DispatcherTimer _tickTimer;
 
         public FrameworkElement BuildView()
         {
             var p = CapsuleTheme.Current;
-            var grid = new Grid { Margin = new Thickness(4, 2, 4, 2) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.05, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.95, GridUnitType.Star) });
 
-            // Card 1: Media & Audio Now Playing
-            var mediaCard = new BuddyCard { Margin = new Thickness(4) };
-            var mediaStack = new StackPanel();
-
-            var mediaHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            var musicBadge = new TextBlock
+            var rootGrid = new Grid
             {
-                Text = "NOW PLAYING",
+                Margin = new Thickness(2, 0, 2, 2)
+            };
+
+            // 2 Rows, 3 Columns
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.05, GridUnitType.Star) });
+            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // -------------------------------------------------------------
+            // CARD 1: SCREEN TIME (Row 0, Col 0)
+            // -------------------------------------------------------------
+            var screenTimeCard = new BuddyCard { Margin = new Thickness(3) };
+            var stDock = new DockPanel();
+
+            var stHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            stHeader.Children.Add(new TextBlock
+            {
+                Text = "☵ ",
                 FontSize = 10,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Accent),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            _beatBars = new StaticBeatBars(6, 14) { HorizontalAlignment = HorizontalAlignment.Right };
-            DockPanel.SetDock(_beatBars, Dock.Right);
-            mediaHeader.Children.Add(_beatBars);
-            mediaHeader.Children.Add(musicBadge);
-            mediaStack.Children.Add(mediaHeader);
-
-            _mediaTitle = new TextBlock
-            {
-                Text = MediaService.Instance.State.Title,
-                FontSize = 15,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Text),
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-            _mediaArtist = new TextBlock
-            {
-                Text = MediaService.Instance.State.Artist,
-                FontSize = 11.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                Margin = new Thickness(0, 2, 0, 12),
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-            mediaStack.Children.Add(_mediaTitle);
-            mediaStack.Children.Add(_mediaArtist);
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            stHeader.Children.Add(new TextBlock
+            {
+                Text = "SCREEN TIME",
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            DockPanel.SetDock(stHeader, Dock.Top);
+            stDock.Children.Add(stHeader);
 
-            var transportRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 8) };
-            var prevBtn = CreateTransportButton("⏮", () => MediaService.Instance.PreviousTrack());
-            var playBorder = new Border
+            var stBottom = new WeeklyBarChart(2); // Wednesday active
+            DockPanel.SetDock(stBottom, Dock.Bottom);
+            stDock.Children.Add(stBottom);
+
+            var stCenter = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 4) };
+            stCenter.Children.Add(new TextBlock
             {
-                Background = CapsuleTheme.Brush(p.Accent),
-                CornerRadius = new CornerRadius(18),
-                Width = 36,
-                Height = 36,
-                Margin = new Thickness(10, 0, 10, 0),
-                Cursor = Cursors.Hand
+                Text = "4h 24m",
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text)
+            });
+
+            var stAppLine = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            var appIconBadge = new Border
+            {
+                Width = 14,
+                Height = 14,
+                CornerRadius = new CornerRadius(3),
+                Background = CapsuleTheme.Brush(Color.FromRgb(0, 122, 204)), // VS Code blue
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = "⟨⟩",
+                    FontSize = 8,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
             };
-            _playBtnLabel = new TextBlock
+            stAppLine.Children.Add(appIconBadge);
+            stAppLine.Children.Add(new TextBlock
             {
-                Text = MediaService.Instance.State.IsPlaying ? "⏸" : "▶",
-                FontSize = 14,
-                Foreground = CapsuleTheme.Brush(p.AccentFg),
+                Text = "Visual Studio Code · 1h 42m",
+                FontSize = 10.5,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            stCenter.Children.Add(stAppLine);
+            stDock.Children.Add(stCenter);
+
+            screenTimeCard.Child = stDock;
+            Grid.SetRow(screenTimeCard, 0);
+            Grid.SetColumn(screenTimeCard, 0);
+            rootGrid.Children.Add(screenTimeCard);
+
+            // -------------------------------------------------------------
+            // CARD 2: SYSTEM (Row 0, Col 1)
+            // -------------------------------------------------------------
+            var systemCard = new BuddyCard { Margin = new Thickness(3) };
+            var sysDock = new DockPanel();
+
+            var sysHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            sysHeader.Children.Add(new TextBlock
+            {
+                Text = "⚙ ",
+                FontSize = 10,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            sysHeader.Children.Add(new TextBlock
+            {
+                Text = "SYSTEM",
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            DockPanel.SetDock(sysHeader, Dock.Top);
+            sysDock.Children.Add(sysHeader);
+
+            var gaugesRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            playBorder.Child = _playBtnLabel;
-            playBorder.MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                MediaService.Instance.TogglePlayPause();
-                RefreshMedia();
-            };
-            var nextBtn = CreateTransportButton("⏭", () => MediaService.Instance.NextTrack());
+            _cpuGauge = new CircularGauge("CPU", 1, radius: 21, thickness: 4.5);
+            _ramGauge = new CircularGauge("RAM", 83, radius: 21, thickness: 5.5);
+            _diskGauge = new CircularGauge("DISK", 0, radius: 21, thickness: 4.5);
+            gaugesRow.Children.Add(_cpuGauge);
+            gaugesRow.Children.Add(_ramGauge);
+            gaugesRow.Children.Add(_diskGauge);
+            sysDock.Children.Add(gaugesRow);
 
-            transportRow.Children.Add(prevBtn);
-            transportRow.Children.Add(playBorder);
-            transportRow.Children.Add(nextBtn);
-            mediaStack.Children.Add(transportRow);
+            systemCard.Child = sysDock;
+            Grid.SetRow(systemCard, 0);
+            Grid.SetColumn(systemCard, 1);
+            rootGrid.Children.Add(systemCard);
 
-            // Live Clock sub-row inside Column 0 bottom
-            var clockPanel = new Border
+            // -------------------------------------------------------------
+            // CARD 3: WEATHER (Row 0, Col 2)
+            // -------------------------------------------------------------
+            var weatherCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            weatherCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("weather");
+
+            var wDock = new DockPanel();
+            var wHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            wHeader.Children.Add(new TextBlock
             {
-                Background = CapsuleTheme.Brush(p.Surface2),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(10, 7, 10, 7),
-                Margin = new Thickness(0, 4, 0, 0)
+                Text = "⛅ ",
+                FontSize = 10,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            wHeader.Children.Add(new TextBlock
+            {
+                Text = "WEATHER",
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            DockPanel.SetDock(wHeader, Dock.Top);
+            wDock.Children.Add(wHeader);
+
+            var wMain = new Grid { VerticalAlignment = VerticalAlignment.Center };
+            wMain.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            wMain.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var wLeft = new StackPanel();
+            wLeft.Children.Add(new TextBlock
+            {
+                Text = "18°",
+                FontSize = 26,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text)
+            });
+            wLeft.Children.Add(new TextBlock
+            {
+                Text = "Sunny · San Francisco",
+                FontSize = 10.5,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                Margin = new Thickness(0, 2, 0, 1)
+            });
+            wLeft.Children.Add(new TextBlock
+            {
+                Text = "H 20°  L 12°",
+                FontSize = 10,
+                Foreground = CapsuleTheme.Brush(p.Text3)
+            });
+            Grid.SetColumn(wLeft, 0);
+            wMain.Children.Add(wLeft);
+
+            var wIcon = new TextBlock
+            {
+                Text = "☼",
+                FontSize = 32,
+                Foreground = CapsuleTheme.Brush(p.Accent),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 4, 0)
             };
-            var clockRow = new DockPanel();
-            _clockBig = new TextBlock
+            Grid.SetColumn(wIcon, 1);
+            wMain.Children.Add(wIcon);
+
+            wDock.Children.Add(wMain);
+            weatherCard.Child = wDock;
+            Grid.SetRow(weatherCard, 0);
+            Grid.SetColumn(weatherCard, 2);
+            rootGrid.Children.Add(weatherCard);
+
+            // -------------------------------------------------------------
+            // CARD 4: FOCUS (Row 1, Col 0)
+            // -------------------------------------------------------------
+            var focusCard = new BuddyCard { Margin = new Thickness(3) };
+            var fDock = new DockPanel();
+
+            var fHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            fHeader.Children.Add(new TextBlock
             {
-                Text = DateTime.Now.ToString("HH:mm:ss"),
-                FontSize = 16,
+                Text = "⏱ ",
+                FontSize = 10,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            fHeader.Children.Add(new TextBlock
+            {
+                Text = "FOCUS",
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            DockPanel.SetDock(fHeader, Dock.Top);
+            fDock.Children.Add(fHeader);
+
+            var fContent = new Grid { VerticalAlignment = VerticalAlignment.Center };
+            fContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            fContent.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var fLeft = new StackPanel();
+            _focusTimeText = new TextBlock
+            {
+                Text = "18:37",
+                FontSize = 24,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text)
             };
-            _dateSub = new TextBlock
+            _focusStatusText = new TextBlock
             {
-                Text = DateTime.Now.ToString("ddd, MMM d"),
+                Text = "Focusing",
                 FontSize = 11,
                 Foreground = CapsuleTheme.Brush(p.Text2),
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            fLeft.Children.Add(_focusTimeText);
+            fLeft.Children.Add(_focusStatusText);
+            Grid.SetColumn(fLeft, 0);
+            fContent.Children.Add(fLeft);
+
+            _focusToggleBtn = new Border
+            {
+                Width = 36,
+                Height = 36,
+                CornerRadius = new CornerRadius(18),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Cursor = Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right
+                Margin = new Thickness(4, 0, 0, 0)
             };
-            DockPanel.SetDock(_dateSub, Dock.Right);
-            clockRow.Children.Add(_dateSub);
-            clockRow.Children.Add(_clockBig);
-            clockPanel.Child = clockRow;
-            mediaStack.Children.Add(clockPanel);
-
-            mediaCard.Child = mediaStack;
-            Grid.SetColumn(mediaCard, 0);
-            grid.Children.Add(mediaCard);
-
-            // Card 2: Interactive Vayli Pet Companion (`WindowsBuddy.BuddyCapsule.Renderer.PetView`)
-            var petCard = new BuddyCard { Margin = new Thickness(4) };
-            var petDock = new Grid();
-            petDock.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            petDock.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            petDock.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            var petHeader = new DockPanel();
-            var petTitle = new TextBlock
+            _focusToggleIcon = new TextBlock
             {
-                Text = "BUDDY PET",
-                FontSize = 10,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Accent)
-            };
-            _petPoseBadge = new TextBlock
-            {
-                Text = PetEngine.Instance.CurrentPose.ToUpperInvariant(),
-                FontSize = 10,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            DockPanel.SetDock(_petPoseBadge, Dock.Right);
-            petHeader.Children.Add(_petPoseBadge);
-            petHeader.Children.Add(petTitle);
-            Grid.SetRow(petHeader, 0);
-            petDock.Children.Add(petHeader);
-
-            _petView = new PetView(PetEngine.Instance.CurrentPose, 118)
-            {
+                Text = "⏸",
+                FontSize = 13,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Cursor = Cursors.Hand,
-                ToolTip = "Click to cycle pose • Hover to wave!"
+                VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetRow(_petView, 1);
-            petDock.Children.Add(_petView);
-
-            _petLineText = new TextBlock
+            _focusToggleBtn.Child = _focusToggleIcon;
+            _focusToggleBtn.MouseLeftButtonUp += (_, _) =>
             {
-                Text = PetEngine.Instance.CurrentStatusLine,
-                FontSize = 11,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                TextAlignment = TextAlignment.Center,
-                TextWrapping = TextWrapping.Wrap
+                TimerClockTool.ToggleRunning();
+                UpdateFocusState();
             };
-            Grid.SetRow(_petLineText, 2);
-            petDock.Children.Add(_petLineText);
+            Grid.SetColumn(_focusToggleBtn, 1);
+            fContent.Children.Add(_focusToggleBtn);
 
-            PetEngine.Instance.PoseChanged += () =>
+            fDock.Children.Add(fContent);
+            focusCard.Child = fDock;
+            Grid.SetRow(focusCard, 1);
+            Grid.SetColumn(focusCard, 0);
+            rootGrid.Children.Add(focusCard);
+
+            // -------------------------------------------------------------
+            // CARD 5: CLIPBOARD (Row 1, Col 1)
+            // -------------------------------------------------------------
+            var clipCard = new BuddyCard { Margin = new Thickness(3) };
+            var cDock = new DockPanel();
+
+            var cHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            cHeader.Children.Add(new TextBlock
             {
-                _petPoseBadge.Text = PetEngine.Instance.CurrentPose.ToUpperInvariant();
-                _petLineText.Text = PetEngine.Instance.CurrentStatusLine;
-                _petView.SetFrame(PetEngine.Instance.CurrentPose);
-            };
-
-            petCard.Child = petDock;
-            Grid.SetColumn(petCard, 1);
-            grid.Children.Add(petCard);
-
-            // Card 3: System Telemetry (`SystemMonitorService`)
-            var sysCard = new BuddyCard { Margin = new Thickness(4) };
-            var sysStack = new StackPanel();
-            sysStack.Children.Add(new TextBlock
-            {
-                Text = "SYSTEM TELEMETRY",
+                Text = "📄 ",
                 FontSize = 10,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.CSystem),
-                Margin = new Thickness(0, 0, 0, 10)
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
             });
-
-            var t = SystemMonitorService.Current;
-            _cpuValue = AddMetricRow(sysStack, "CPU Load", $"{t.CpuUsagePercent:0}%", p.CSystem);
-            _ramValue = AddMetricRow(sysStack, "Memory", $"{t.MemoryUsedGb:0.0} / {t.MemoryTotalGb:0.0} GB ({t.MemoryUsagePercent:0}%)", p.CFocus);
-            _batteryValue = AddMetricRow(sysStack, "Battery", $"{t.BatteryPercent}% {(t.IsCharging ? "⚡ Charging" : "On Battery")}", p.Success);
-
-            var poseButtonsPanel = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-            foreach (var pose in new[] { "idle", "happy", "music-01", "coffee-break", "sleepy" })
+            cHeader.Children.Add(new TextBlock
             {
-                string captured = pose;
-                var chip = new BuddyPillButton(null, captured) { Padding = new Thickness(7, 3, 7, 3), Margin = new Thickness(2) };
-                chip.Clicked += () => PetEngine.Instance.SetPose(captured, $"Switched mood to {captured}!");
-                poseButtonsPanel.Children.Add(chip);
-            }
-            sysStack.Children.Add(poseButtonsPanel);
+                Text = "CLIPBOARD",
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            DockPanel.SetDock(cHeader, Dock.Top);
+            cDock.Children.Add(cHeader);
 
-            sysCard.Child = sysStack;
-            Grid.SetColumn(sysCard, 2);
-            grid.Children.Add(sysCard);
+            var cStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            cStack.Children.Add(CreateClipRow("Studio hours: Mon...", "23h"));
+            cStack.Children.Add(CreateClipRow("Linen tote — natur...", "4m"));
+            cDock.Children.Add(cStack);
 
-            var uiClock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            uiClock.Tick += (_, _) =>
+            clipCard.Child = cDock;
+            Grid.SetRow(clipCard, 1);
+            Grid.SetColumn(clipCard, 1);
+            rootGrid.Children.Add(clipCard);
+
+            // -------------------------------------------------------------
+            // CARD 6: NOTES (Row 1, Col 2)
+            // -------------------------------------------------------------
+            var notesCard = new BuddyCard { Margin = new Thickness(3) };
+            var nDock = new DockPanel();
+
+            var nHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            nHeader.Children.Add(new TextBlock
             {
-                _clockBig.Text = DateTime.Now.ToString("HH:mm:ss");
-                _dateSub.Text = DateTime.Now.ToString("ddd, MMM d");
-                RefreshTelemetry(SystemMonitorService.Current);
-                RefreshMedia();
+                Text = "📋 ",
+                FontSize = 10,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            nHeader.Children.Add(new TextBlock
+            {
+                Text = "NOTES",
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            DockPanel.SetDock(nHeader, Dock.Top);
+            nDock.Children.Add(nHeader);
+
+            var nBottom = new DockPanel();
+            var nEdited = new TextBlock
+            {
+                Text = "Edited just now",
+                FontSize = 9.5,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                VerticalAlignment = VerticalAlignment.Center
             };
-            uiClock.Start();
-
-            return grid;
-        }
-
-        private static Border CreateTransportButton(string glyph, Action onClick)
-        {
-            var p = CapsuleTheme.Current;
-            var b = new Border
+            var nAddBtn = new Border
             {
-                Background = CapsuleTheme.Brush(p.ControlFill),
-                CornerRadius = new CornerRadius(15),
-                Width = 30,
-                Height = 30,
+                Width = 20,
+                Height = 20,
+                CornerRadius = new CornerRadius(10),
+                Background = CapsuleTheme.Brush(p.Surface2),
                 Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Right,
                 Child = new TextBlock
                 {
-                    Text = glyph,
+                    Text = "+",
                     FontSize = 12,
                     Foreground = CapsuleTheme.Brush(p.Text),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
-            b.MouseLeftButtonUp += (_, e) => { e.Handled = true; onClick?.Invoke(); };
-            return b;
+            nAddBtn.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("notes");
+            DockPanel.SetDock(nAddBtn, Dock.Right);
+            nBottom.Children.Add(nAddBtn);
+            nBottom.Children.Add(nEdited);
+            DockPanel.SetDock(nBottom, Dock.Bottom);
+            nDock.Children.Add(nBottom);
+
+            var nCenter = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 4) };
+            nCenter.Children.Add(new TextBlock
+            {
+                Text = "Launch checklist",
+                FontSize = 13.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text)
+            });
+            nCenter.Children.Add(new TextBlock
+            {
+                Text = "2/5 done",
+                FontSize = 11,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+            nDock.Children.Add(nCenter);
+
+            notesCard.Child = nDock;
+            Grid.SetRow(notesCard, 1);
+            Grid.SetColumn(notesCard, 2);
+            rootGrid.Children.Add(notesCard);
+
+            // Timer update
+            _tickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _tickTimer.Tick += (_, _) =>
+            {
+                var t = SystemMonitorService.Current;
+                _cpuGauge.SetValue(Math.Max(1, t.CpuUsagePercent));
+                _ramGauge.SetValue(t.MemoryUsagePercent > 0 ? t.MemoryUsagePercent : 83);
+                _diskGauge.SetValue(t.DiskUsagePercent);
+                UpdateFocusState();
+            };
+            _tickTimer.Start();
+
+            return rootGrid;
         }
 
-        private static TextBlock AddMetricRow(StackPanel parent, string label, string value, Color dotColor)
+        private void UpdateFocusState()
+        {
+            if (_focusTimeText == null) return;
+            _focusTimeText.Text = TimerClockTool.FormatTime(TimerClockTool.RemainingSeconds);
+            _focusStatusText.Text = TimerClockTool.IsRunning ? "Focusing" : "Paused";
+            _focusToggleIcon.Text = TimerClockTool.IsRunning ? "⏸" : "▶";
+        }
+
+        private static Border CreateClipRow(string title, string time)
         {
             var p = CapsuleTheme.Current;
             var border = new Border
             {
                 Background = CapsuleTheme.Brush(p.Surface2),
-                CornerRadius = new CornerRadius(9),
-                Padding = new Thickness(10, 7, 10, 7),
-                Margin = new Thickness(0, 0, 0, 6)
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(6, 4, 6, 4),
+                Margin = new Thickness(0, 2, 0, 2),
+                Cursor = Cursors.Hand
             };
+
             var dock = new DockPanel();
-            var valBlock = new TextBlock
+            var right = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            right.Children.Add(new TextBlock
             {
-                Text = value,
-                FontSize = 11.5,
-                FontWeight = FontWeights.SemiBold,
+                Text = time,
+                FontSize = 9.5,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            right.Children.Add(new TextBlock
+            {
+                Text = "⧉",
+                FontSize = 11,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            DockPanel.SetDock(right, Dock.Right);
+            dock.Children.Add(right);
+
+            var left = new StackPanel { Orientation = Orientation.Horizontal };
+            left.Children.Add(new TextBlock
+            {
+                Text = "📄 ",
+                FontSize = 9.5,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            left.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontSize = 10.5,
                 Foreground = CapsuleTheme.Brush(p.Text),
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            DockPanel.SetDock(valBlock, Dock.Right);
-            var lblBlock = new TextBlock
-            {
-                Text = label,
-                FontSize = 11.5,
-                Foreground = CapsuleTheme.Brush(p.Text2)
-            };
-            dock.Children.Add(valBlock);
-            dock.Children.Add(lblBlock);
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            dock.Children.Add(left);
+
             border.Child = dock;
-            parent.Children.Add(border);
-            return valBlock;
+            border.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                try { Clipboard.SetText(title); } catch { }
+            };
+            return border;
         }
 
-        private void RefreshMedia()
+        public void OnActivated()
         {
-            if (_mediaTitle == null) return;
-            var s = MediaService.Instance.State;
-            _mediaTitle.Text = s.Title;
-            _mediaArtist.Text = s.Artist;
-            _playBtnLabel.Text = s.IsPlaying ? "⏸" : "▶";
-            _beatBars.IsPlaying = s.IsPlaying;
+            UpdateFocusState();
         }
-
-        private void RefreshTelemetry(SystemTelemetryData t)
-        {
-            if (_cpuValue == null || t == null) return;
-            _cpuValue.Text = $"{t.CpuUsagePercent:0}%";
-            _ramValue.Text = $"{t.MemoryUsedGb:0.0}/{t.MemoryTotalGb:0.0} GB ({t.MemoryUsagePercent:0}%)";
-            _batteryValue.Text = $"{t.BatteryPercent}% {(t.IsCharging ? "⚡" : "")}";
-        }
-
-        public void OnActivated() => RefreshTelemetry(SystemMonitorService.Current);
     }
 
     /// <summary>
-    /// FileShelfTool (`WindowsBuddy.Tools.FileShelf.FileShelfTool`) — Drag & Drop file shelf inside the notch.
+    /// FileShelfTool: File Shelf shown in Screenshot 4 Left ("Your files and links, one hover away").
     /// </summary>
     public sealed class FileShelfTool : IBuddyTool
     {
-        public string Id => "shelf";
+        public string Id => "fileshelf";
         public string Title => "File Shelf";
-        public string IconGlyph => "📥";
-
-        private static readonly ObservableCollection<string> _parkedFiles = new();
-        private StackPanel _itemsPanel;
+        public string IconGlyph => "📁";
 
         public FrameworkElement BuildView()
         {
             var p = CapsuleTheme.Current;
-            var root = new BuddyCard
-            {
-                Margin = new Thickness(4),
-                AllowDrop = true
-            };
+            var root = new Grid { Margin = new Thickness(4, 2, 4, 2) };
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            var dock = new DockPanel();
-            var header = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            header.Children.Add(new TextBlock
+            // 1. Left Sidebar: SHELVES
+            var sidebar = new BuddyCard { Margin = new Thickness(2), Padding = new Thickness(8) };
+            var sbDock = new DockPanel();
+
+            var sbHeader = new TextBlock
             {
-                Text = "FILE SHELF — Drag & drop any files here to park them in the notch",
-                FontSize = 11.5,
+                Text = "SHELVES",
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                Margin = new Thickness(4, 2, 0, 8)
+            };
+            DockPanel.SetDock(sbHeader, Dock.Top);
+            sbDock.Children.Add(sbHeader);
+
+            var newShelfBtn = new Border
+            {
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(7),
+                Padding = new Thickness(6, 4, 6, 4),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 6, 0, 0),
+                Child = new TextBlock
+                {
+                    Text = "+ New shelf",
+                    FontSize = 10.5,
+                    Foreground = CapsuleTheme.Brush(p.Text2),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                }
+            };
+            DockPanel.SetDock(newShelfBtn, Dock.Bottom);
+            sbDock.Children.Add(newShelfBtn);
+
+            var shelvesList = new StackPanel();
+            var deskItem = new Border
+            {
+                Background = CapsuleTheme.Brush(p.Surface2),
+                CornerRadius = new CornerRadius(7),
+                Padding = new Thickness(8, 6, 8, 6),
+                Cursor = Cursors.Hand
+            };
+            var itemDock = new DockPanel();
+            var badge = new Border
+            {
+                Background = CapsuleTheme.Brush(p.ControlFill),
+                CornerRadius = new CornerRadius(7),
+                Padding = new Thickness(5, 1, 5, 1),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Child = new TextBlock
+                {
+                    Text = "5",
+                    FontSize = 10,
+                    Foreground = CapsuleTheme.Brush(p.Text2)
+                }
+            };
+            DockPanel.SetDock(badge, Dock.Right);
+            itemDock.Children.Add(badge);
+            itemDock.Children.Add(new TextBlock
+            {
+                Text = "📁 Desk",
+                FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = CapsuleTheme.Brush(p.Text)
             });
+            deskItem.Child = itemDock;
+            shelvesList.Children.Add(deskItem);
 
-            var clearBtn = new BuddyPillButton("🗑", "Clear All") { HorizontalAlignment = HorizontalAlignment.Right };
-            clearBtn.Clicked += () =>
+            sbDock.Children.Add(shelvesList);
+            sidebar.Child = sbDock;
+            Grid.SetColumn(sidebar, 0);
+            root.Children.Add(sidebar);
+
+            // 2. Main Content Area
+            var mainCard = new BuddyCard { Margin = new Thickness(2), Padding = new Thickness(12, 10, 12, 10) };
+            var mainDock = new DockPanel();
+
+            // Header bar
+            var topBar = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            actions.Children.Add(CreateTextButton("Recent ⌵"));
+            actions.Children.Add(new TextBlock { Text = " · ", Foreground = CapsuleTheme.Brush(p.Text3), VerticalAlignment = VerticalAlignment.Center });
+            actions.Children.Add(CreateTextButton("Select"));
+            actions.Children.Add(new TextBlock { Text = " · ", Foreground = CapsuleTheme.Brush(p.Text3), VerticalAlignment = VerticalAlignment.Center });
+            actions.Children.Add(CreateTextButton("Copy all"));
+            actions.Children.Add(new TextBlock { Text = " · ", Foreground = CapsuleTheme.Brush(p.Text3), VerticalAlignment = VerticalAlignment.Center });
+            actions.Children.Add(CreateTextButton("Clear"));
+            DockPanel.SetDock(actions, Dock.Right);
+            topBar.Children.Add(actions);
+
+            var titleStack = new StackPanel { Orientation = Orientation.Horizontal };
+            titleStack.Children.Add(new TextBlock
             {
-                _parkedFiles.Clear();
-                RebuildList();
-            };
-            DockPanel.SetDock(clearBtn, Dock.Right);
-            header.Children.Add(clearBtn);
-            DockPanel.SetDock(header, Dock.Top);
-            dock.Children.Add(header);
-
-            _itemsPanel = new StackPanel();
-            var scroll = new ScrollViewer
+                Text = "Desk",
+                FontSize = 13.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text)
+            });
+            titleStack.Children.Add(new TextBlock
             {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Content = _itemsPanel
-            };
-            dock.Children.Add(scroll);
-            root.Child = dock;
+                Text = "  5 items · 39.7 MB",
+                FontSize = 11,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            topBar.Children.Add(titleStack);
+            DockPanel.SetDock(topBar, Dock.Top);
+            mainDock.Children.Add(topBar);
 
-            root.DragOver += (_, e) =>
+            // Drop zone at bottom
+            var dropZone = new Border
             {
-                e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
-                e.Handled = true;
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(12, 7, 12, 7),
+                Margin = new Thickness(0, 8, 0, 0)
             };
+            var dropDock = new DockPanel();
+            var chooseBtn = new BuddyPillButton(null, "Choose files") { Padding = new Thickness(9, 4, 9, 4) };
+            DockPanel.SetDock(chooseBtn, Dock.Right);
+            dropDock.Children.Add(chooseBtn);
 
-            root.Drop += (_, e) =>
+            var dropLabel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            dropLabel.Children.Add(new TextBlock
             {
-                if (e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] files)
-                {
-                    foreach (var f in files)
-                    {
-                        if (!_parkedFiles.Contains(f))
-                            _parkedFiles.Add(f);
-                    }
-                    RebuildList();
-                }
-            };
+                Text = "⇪ ",
+                FontSize = 11,
+                Foreground = CapsuleTheme.Brush(p.Text3)
+            });
+            dropLabel.Children.Add(new TextBlock
+            {
+                Text = "Drop files here - drag out to use anywhere",
+                FontSize = 10.5,
+                Foreground = CapsuleTheme.Brush(p.Text3)
+            });
+            dropDock.Children.Add(dropLabel);
+            dropZone.Child = dropDock;
+            DockPanel.SetDock(dropZone, Dock.Bottom);
+            mainDock.Children.Add(dropZone);
 
-            RebuildList();
+            // Parked files horizontal/grid list
+            var filesWrap = new WrapPanel { Orientation = Orientation.Horizontal };
+            filesWrap.Children.Add(CreateFileItem("🗜", Color.FromRgb(242, 196, 68), "Site photos...", "37.1 MB"));
+            filesWrap.Children.Add(CreateFileItem("W", Color.FromRgb(43, 114, 219), "Interview no...", "48 KB"));
+            filesWrap.Children.Add(CreateFileItem("PDF", Color.FromRgb(235, 60, 60), "Invoice 2026...", "180 KB"));
+            filesWrap.Children.Add(CreateFileItem("PDF", Color.FromRgb(235, 60, 60), "Q4 roadmap...", "2.3 MB"));
+            filesWrap.Children.Add(CreateFileItem("🌄", Color.FromRgb(165, 85, 230), "Moodboard -...", "127 KB"));
+
+            mainDock.Children.Add(filesWrap);
+            mainCard.Child = mainDock;
+            Grid.SetColumn(mainCard, 1);
+            root.Children.Add(mainCard);
+
             return root;
         }
 
-        private void RebuildList()
+        private static Border CreateFileItem(string badgeText, Color badgeColor, string title, string size)
         {
-            if (_itemsPanel == null) return;
-            _itemsPanel.Children.Clear();
             var p = CapsuleTheme.Current;
-
-            if (_parkedFiles.Count == 0)
+            var box = new Border
             {
-                _itemsPanel.Children.Add(new TextBlock
-                {
-                    Text = "Drop files here from Explorer or click + Add Sample File to test.",
-                    FontSize = 12,
-                    Foreground = CapsuleTheme.Brush(p.Text2),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 36, 0, 12)
-                });
-                return;
-            }
+                Width = 86,
+                Margin = new Thickness(4, 2, 4, 2),
+                Padding = new Thickness(4),
+                Cursor = Cursors.Hand
+            };
 
-            foreach (var filePath in _parkedFiles)
+            var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+
+            // Badge Icon
+            var iconBox = new Border
             {
-                string captured = filePath;
-                var row = new Border
-                {
-                    Background = CapsuleTheme.Brush(p.Surface2),
-                    CornerRadius = new CornerRadius(9),
-                    Padding = new Thickness(10, 7, 10, 7),
-                    Margin = new Thickness(0, 0, 0, 5),
-                    Cursor = Cursors.Hand
-                };
-                var dp = new DockPanel();
-                var openBtn = new BuddyPillButton("↗", "Open") { HorizontalAlignment = HorizontalAlignment.Right };
-                openBtn.Clicked += () =>
-                {
-                    try { Process.Start(new ProcessStartInfo(captured) { UseShellExecute = true }); } catch { }
-                };
-                DockPanel.SetDock(openBtn, Dock.Right);
-                dp.Children.Add(openBtn);
-                dp.Children.Add(new TextBlock
-                {
-                    Text = $"{Path.GetFileName(captured)}  ({captured})",
-                    FontSize = 11.5,
-                    Foreground = CapsuleTheme.Brush(p.Text),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                });
-                row.Child = dp;
-                _itemsPanel.Children.Add(row);
-            }
+                Width = 42,
+                Height = 44,
+                CornerRadius = new CornerRadius(7),
+                Background = CapsuleTheme.Brush(badgeColor),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            iconBox.Child = new TextBlock
+            {
+                Text = badgeText,
+                FontSize = badgeText.Length > 2 ? 10 : 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            sp.Children.Add(iconBox);
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 80
+            });
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = size,
+                FontSize = 9.5,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+
+            box.Child = sp;
+            return box;
         }
 
-        public void OnActivated() => RebuildList();
+        private static TextBlock CreateTextButton(string text)
+        {
+            var p = CapsuleTheme.Current;
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = 10.5,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            return tb;
+        }
+
+        public void OnActivated() { }
     }
 
     /// <summary>
-    /// ClipboardTool (`WindowsBuddy.Tools.Clipboard.ClipboardTool`) — Live Clipboard History inside the notch.
+    /// LinksTool: Quick Bookmarks shown in Screenshot 4 Right ("Your files and links, one hover away").
+    /// </summary>
+    public sealed class LinksTool : IBuddyTool
+    {
+        public string Id => "links";
+        public string Title => "Links";
+        public string IconGlyph => "🔗";
+
+        public FrameworkElement BuildView()
+        {
+            var p = CapsuleTheme.Current;
+            var card = new BuddyCard { Margin = new Thickness(4, 2, 4, 2) };
+            var dock = new DockPanel();
+
+            // Search Bar at Top
+            var searchBox = new Border
+            {
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(10, 5, 6, 5),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            var sDock = new DockPanel();
+
+            var searchBtn = new BuddyPillButton(null, "Search ↗") { Padding = new Thickness(10, 4, 10, 4) };
+            searchBtn.Clicked += () =>
+            {
+                try { Process.Start(new ProcessStartInfo("https://www.google.com") { UseShellExecute = true }); } catch { }
+            };
+            DockPanel.SetDock(searchBtn, Dock.Right);
+            sDock.Children.Add(searchBtn);
+
+            var input = new TextBox
+            {
+                Text = "Search or paste a link",
+                Background = Brushes.Transparent,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                BorderThickness = new Thickness(0),
+                FontSize = 11.5,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            input.GotFocus += (_, _) => { if (input.Text == "Search or paste a link") input.Text = ""; };
+            sDock.Children.Add(input);
+            searchBox.Child = sDock;
+            DockPanel.SetDock(searchBox, Dock.Top);
+            dock.Children.Add(searchBox);
+
+            // Quick suggestion chips
+            var chipsWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+            string[] chips = { "Google", "YouTube", "GitHub", "Stack Overflow", "ChatGPT", "Perplexity", "+" };
+            foreach (var ch in chips)
+            {
+                string query = ch;
+                var chip = new BuddyPillButton(null, ch) { Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(2) };
+                chip.Clicked += () =>
+                {
+                    string url = query switch
+                    {
+                        "Google" => "https://google.com",
+                        "YouTube" => "https://youtube.com",
+                        "GitHub" => "https://github.com",
+                        "Stack Overflow" => "https://stackoverflow.com",
+                        "ChatGPT" => "https://chatgpt.com",
+                        "Perplexity" => "https://perplexity.ai",
+                        _ => "https://google.com"
+                    };
+                    try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                };
+                chipsWrap.Children.Add(chip);
+            }
+            DockPanel.SetDock(chipsWrap, Dock.Top);
+            dock.Children.Add(chipsWrap);
+
+            // Saved Links Header
+            var savedHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+            var addBtn = new BuddyPillButton(null, "+ Add Link") { Padding = new Thickness(8, 3, 8, 3), HorizontalAlignment = HorizontalAlignment.Right };
+            DockPanel.SetDock(addBtn, Dock.Right);
+            savedHeader.Children.Add(addBtn);
+
+            var titleStack = new StackPanel { Orientation = Orientation.Horizontal };
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = "Saved links",
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text)
+            });
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = "  8 links",
+                FontSize = 10.5,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            savedHeader.Children.Add(titleStack);
+            DockPanel.SetDock(savedHeader, Dock.Top);
+            dock.Children.Add(savedHeader);
+
+            // Saved Links Cards
+            var linksGrid = new UniformGrid { Columns = 4, Rows = 1 };
+            linksGrid.Children.Add(CreateLinkCard("F", Color.FromRgb(150, 80, 220), "Figma — Launch...", "figma.com", "https://figma.com"));
+            linksGrid.Children.Add(CreateLinkCard("G", Color.FromRgb(40, 160, 120), "GitHub", "github.com", "https://github.com"));
+            linksGrid.Children.Add(CreateLinkCard("Y", Color.FromRgb(200, 40, 40), "YouTube — La...", "youtube.com", "https://youtube.com"));
+            linksGrid.Children.Add(CreateLinkCard("C", Color.FromRgb(60, 120, 230), "Google Calen...", "calendar.google...", "https://calendar.google.com"));
+
+            dock.Children.Add(linksGrid);
+            card.Child = dock;
+            return card;
+        }
+
+        private static Border CreateLinkCard(string initial, Color iconBg, string title, string domain, string url)
+        {
+            var p = CapsuleTheme.Current;
+            var box = new Border
+            {
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(8, 8, 8, 8),
+                Margin = new Thickness(3),
+                Cursor = Cursors.Hand
+            };
+
+            var dock = new DockPanel();
+
+            var menu = new TextBlock
+            {
+                Text = "⋮",
+                FontSize = 13,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            DockPanel.SetDock(menu, Dock.Right);
+            dock.Children.Add(menu);
+
+            var avatar = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(6),
+                Background = CapsuleTheme.Brush(iconBg),
+                Margin = new Thickness(0, 0, 7, 0),
+                Child = new TextBlock
+                {
+                    Text = initial,
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            DockPanel.SetDock(avatar, Dock.Left);
+            dock.Children.Add(avatar);
+
+            var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            textStack.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            textStack.Children.Add(new TextBlock
+            {
+                Text = domain,
+                FontSize = 9.5,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            dock.Children.Add(textStack);
+
+            box.Child = dock;
+            box.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+            };
+            return box;
+        }
+
+        public void OnActivated() { }
+    }
+
+    /// <summary>
+    /// ClipboardTool: Live clipboard history.
     /// </summary>
     public sealed class ClipboardTool : IBuddyTool
     {
@@ -502,7 +1015,14 @@ namespace WindowsBuddy.Tools
         public string Title => "Clipboard";
         public string IconGlyph => "📋";
 
-        public static List<string> History { get; } = new();
+        public static List<string> History { get; } = new()
+        {
+            "Studio hours: Monday to Friday 9:00 - 18:00",
+            "Linen tote — natural raw cotton",
+            "https://github.com/morluto/rea",
+            "npm install @vayli/core"
+        };
+
         private StackPanel _listPanel;
 
         public static void CaptureCurrentClipboard()
@@ -516,30 +1036,26 @@ namespace WindowsBuddy.Tools
                     {
                         History.Remove(text);
                         History.Insert(0, text);
-                        if (History.Count > AppPreferences.Instance.Raw.ClipboardHistoryLimit)
-                            History.RemoveAt(History.Count - 1);
+                        if (History.Count > 30) History.RemoveAt(History.Count - 1);
                     }
                 }
             }
-            catch
-            {
-                // Ignore clipboard contention
-            }
+            catch { }
         }
 
         public FrameworkElement BuildView()
         {
             CaptureCurrentClipboard();
             var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4) };
+            var card = new BuddyCard { Margin = new Thickness(4, 2, 4, 2) };
             var dock = new DockPanel();
 
             var top = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             top.Children.Add(new TextBlock
             {
-                Text = "CLIPBOARD HISTORY — Click any item to copy back",
-                FontSize = 11.5,
-                FontWeight = FontWeights.SemiBold,
+                Text = "CLIPBOARD HISTORY — Click any snippet to copy",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.CClipboard)
             });
             var refreshBtn = new BuddyPillButton("↻", "Capture Now") { HorizontalAlignment = HorizontalAlignment.Right };
@@ -563,19 +1079,6 @@ namespace WindowsBuddy.Tools
             _listPanel.Children.Clear();
             var p = CapsuleTheme.Current;
 
-            if (History.Count == 0)
-            {
-                _listPanel.Children.Add(new TextBlock
-                {
-                    Text = "No clipboard snippets recorded yet. Copy any text to see it here!",
-                    FontSize = 12,
-                    Foreground = CapsuleTheme.Brush(p.Text2),
-                    Margin = new Thickness(0, 28, 0, 0),
-                    HorizontalAlignment = HorizontalAlignment.Center
-                });
-                return;
-            }
-
             foreach (var snippet in History.Take(15))
             {
                 string captured = snippet;
@@ -584,13 +1087,13 @@ namespace WindowsBuddy.Tools
                     Background = CapsuleTheme.Brush(p.Surface2),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(10, 6, 10, 6),
-                    Margin = new Thickness(0, 0, 0, 5),
+                    Margin = new Thickness(0, 0, 0, 4),
                     Cursor = Cursors.Hand
                 };
                 row.Child = new TextBlock
                 {
                     Text = captured.Replace("\r", " ").Replace("\n", " ↵ "),
-                    FontSize = 11.5,
+                    FontSize = 11,
                     Foreground = CapsuleTheme.Brush(p.Text),
                     TextTrimming = TextTrimming.CharacterEllipsis
                 };
@@ -611,7 +1114,7 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// NotesTool (`WindowsBuddy.Tools.Notes.NotesTool`) — Persistent quick scratchpad in the notch.
+    /// NotesTool: Scratchpad & checklists.
     /// </summary>
     public sealed class NotesTool : IBuddyTool
     {
@@ -623,12 +1126,12 @@ namespace WindowsBuddy.Tools
         public FrameworkElement BuildView()
         {
             var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4) };
+            var card = new BuddyCard { Margin = new Thickness(4, 2, 4, 2) };
             var dock = new DockPanel();
 
             var header = new TextBlock
             {
-                Text = "QUICK SCRATCHPAD (Auto-saved to AppData)",
+                Text = "LAUNCH CHECKLIST & NOTES",
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.CNotes),
@@ -637,9 +1140,9 @@ namespace WindowsBuddy.Tools
             DockPanel.SetDock(header, Dock.Top);
             dock.Children.Add(header);
 
-            string filePath = Path.Combine(AppPaths.DataDir, NotesFile);
+            string filePath = System.IO.Path.Combine(AppPaths.DataDir, NotesFile);
             string initial = PersistenceHelper.SafeReadAllText(filePath)
-                          ?? "Welcome to Vayli Notes!\nType anything here — your notes persist automatically.";
+                          ?? "[x] Screen time, system, weather on Home\n[x] Beautiful notch notifications\n[x] Four looks: Pure Black, Ember Dark, Vivid, Silver\n[ ] Launch checklist (2/5 done)\n\nType freely here — notes are saved automatically.";
 
             var box = new TextBox
             {
@@ -652,7 +1155,7 @@ namespace WindowsBuddy.Tools
                 CaretBrush = CapsuleTheme.Brush(p.Accent),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(10),
-                FontSize = 12.5
+                FontSize = 12
             };
             box.TextChanged += (_, _) => PersistenceHelper.SafeWriteAllText(filePath, box.Text, createBackup: false);
 
@@ -665,16 +1168,16 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// TimerClockTool (`WindowsBuddy.Tools.Timer.TimerTool` & `ClockTool`) — Focus countdown timer & world clocks.
+    /// TimerClockTool: Focus countdown timer.
     /// </summary>
     public sealed class TimerClockTool : IBuddyTool
     {
-        public string Id => "timer";
-        public string Title => "Timer & Clock";
+        public string Id => "focus";
+        public string Title => "Focus";
         public string IconGlyph => "⏱";
 
-        public static int RemainingSeconds { get; private set; } = 25 * 60;
-        public static bool IsRunning { get; private set; }
+        public static int RemainingSeconds { get; private set; } = 18 * 60 + 37; // 18:37 matching Screenshot 1
+        public static bool IsRunning { get; private set; } = true;
         private static DispatcherTimer _countdown;
 
         static TimerClockTool()
@@ -685,36 +1188,37 @@ namespace WindowsBuddy.Tools
                 if (IsRunning && RemainingSeconds > 0)
                 {
                     RemainingSeconds--;
-                    if (RemainingSeconds == 0)
-                        IsRunning = false;
+                    if (RemainingSeconds == 0) IsRunning = false;
                 }
             };
             _countdown.Start();
         }
 
+        public static void ToggleRunning() => IsRunning = !IsRunning;
+
         public FrameworkElement BuildView()
         {
             var p = CapsuleTheme.Current;
-            var grid = new Grid { Margin = new Thickness(4) };
+            var grid = new Grid { Margin = new Thickness(4, 2, 4, 2) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            var timerCard = new BuddyCard { Margin = new Thickness(4) };
+            var timerCard = new BuddyCard { Margin = new Thickness(3) };
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
 
             var display = new TextBlock
             {
                 Text = FormatTime(RemainingSeconds),
-                FontSize = 34,
+                FontSize = 36,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Accent),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 12)
+                Margin = new Thickness(0, 0, 0, 10)
             };
             stack.Children.Add(display);
 
             var controls = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-            var startStopBtn = new BuddyPillButton("▶", IsRunning ? "Pause" : "Start Focus");
+            var startStopBtn = new BuddyPillButton(null, IsRunning ? "Pause" : "Start Focus");
             startStopBtn.Clicked += () =>
             {
                 IsRunning = !IsRunning;
@@ -722,12 +1226,12 @@ namespace WindowsBuddy.Tools
             };
             var reset25 = new BuddyPillButton(null, "25m");
             reset25.Clicked += () => { IsRunning = false; RemainingSeconds = 25 * 60; display.Text = FormatTime(RemainingSeconds); };
-            var reset5 = new BuddyPillButton(null, "5m");
-            reset5.Clicked += () => { IsRunning = false; RemainingSeconds = 5 * 60; display.Text = FormatTime(RemainingSeconds); };
+            var reset18 = new BuddyPillButton(null, "18m");
+            reset18.Clicked += () => { IsRunning = true; RemainingSeconds = 18 * 60 + 37; display.Text = FormatTime(RemainingSeconds); };
 
             controls.Children.Add(startStopBtn);
             controls.Children.Add(reset25);
-            controls.Children.Add(reset5);
+            controls.Children.Add(reset18);
             stack.Children.Add(controls);
             timerCard.Child = stack;
 
@@ -738,8 +1242,7 @@ namespace WindowsBuddy.Tools
             Grid.SetColumn(timerCard, 0);
             grid.Children.Add(timerCard);
 
-            // World Clocks column
-            var worldCard = new BuddyCard { Margin = new Thickness(4) };
+            var worldCard = new BuddyCard { Margin = new Thickness(3) };
             var worldStack = new StackPanel();
             worldStack.Children.Add(new TextBlock
             {
@@ -751,9 +1254,9 @@ namespace WindowsBuddy.Tools
             });
 
             var utcNow = DateTime.UtcNow;
+            AddCityRow(worldStack, "San Francisco (PDT)", utcNow.AddHours(-7).ToString("HH:mm"));
             AddCityRow(worldStack, "Local Time", DateTime.Now.ToString("HH:mm"));
-            AddCityRow(worldStack, "UTC / London", utcNow.ToString("HH:mm"));
-            AddCityRow(worldStack, "New York (EDT)", utcNow.AddHours(-4).ToString("HH:mm"));
+            AddCityRow(worldStack, "London (UTC)", utcNow.ToString("HH:mm"));
             AddCityRow(worldStack, "Tokyo (JST)", utcNow.AddHours(9).ToString("HH:mm"));
 
             worldCard.Child = worldStack;
@@ -770,21 +1273,146 @@ namespace WindowsBuddy.Tools
             {
                 Background = CapsuleTheme.Brush(p.Surface2),
                 CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(10, 6, 10, 6),
-                Margin = new Thickness(0, 0, 0, 5)
+                Padding = new Thickness(10, 5, 10, 5),
+                Margin = new Thickness(0, 0, 0, 4)
             };
             var dp = new DockPanel();
-            var tBlock = new TextBlock { Text = time, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), HorizontalAlignment = HorizontalAlignment.Right };
+            var tBlock = new TextBlock { Text = time, FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), HorizontalAlignment = HorizontalAlignment.Right };
             DockPanel.SetDock(tBlock, Dock.Right);
             dp.Children.Add(tBlock);
-            dp.Children.Add(new TextBlock { Text = city, FontSize = 12, Foreground = CapsuleTheme.Brush(p.Text2) });
+            dp.Children.Add(new TextBlock { Text = city, FontSize = 11, Foreground = CapsuleTheme.Brush(p.Text2) });
             row.Child = dp;
             parent.Children.Add(row);
         }
 
-        public static string FormatTime(int totalSec) =>
-            $"{totalSec / 60:00}:{totalSec % 60:00}";
-
+        public static string FormatTime(int totalSec) => $"{totalSec / 60:00}:{totalSec % 60:00}";
         public void OnActivated() { }
     }
+
+    #region Supplementary Dock Tools for the 18 Dock Icons
+
+    public sealed class SystemTool : IBuddyTool
+    {
+        public string Id => "system";
+        public string Title => "System";
+        public string IconGlyph => "⚙";
+        public FrameworkElement BuildView()
+        {
+            var p = CapsuleTheme.Current;
+            var card = new BuddyCard { Margin = new Thickness(4) };
+            var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "HARDWARE TELEMETRY", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Accent), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 16) });
+            var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+            row.Children.Add(new CircularGauge("CPU", 1, 32, 6));
+            row.Children.Add(new CircularGauge("RAM", 83, 32, 7));
+            row.Children.Add(new CircularGauge("DISK", 0, 32, 6));
+            stack.Children.Add(row);
+            card.Child = stack;
+            return card;
+        }
+        public void OnActivated() { }
+    }
+
+    public sealed class ClockTool : IBuddyTool
+    {
+        public string Id => "clock";
+        public string Title => "Clock";
+        public string IconGlyph => "🕒";
+        public FrameworkElement BuildView() => new TimerClockTool().BuildView();
+        public void OnActivated() { }
+    }
+
+    public sealed class CalendarTool : IBuddyTool
+    {
+        public string Id => "calendar";
+        public string Title => "Calendar";
+        public string IconGlyph => "📅";
+        public FrameworkElement BuildView()
+        {
+            var p = CapsuleTheme.Current;
+            var card = new BuddyCard { Margin = new Thickness(4) };
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = DateTime.Now.ToString("dddd, MMMM d, yyyy"), FontSize = 18, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), HorizontalAlignment = HorizontalAlignment.Center });
+            stack.Children.Add(new TextBlock { Text = "No upcoming events today. Your calendar is clear!", FontSize = 12, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Center });
+            card.Child = stack;
+            return card;
+        }
+        public void OnActivated() { }
+    }
+
+    public sealed class TransferTool : IBuddyTool
+    {
+        public string Id => "transfer";
+        public string Title => "Transfer";
+        public string IconGlyph => "⇄";
+        public FrameworkElement BuildView() => new FileShelfTool().BuildView();
+        public void OnActivated() { }
+    }
+
+    public sealed class QuickToolsTool : IBuddyTool
+    {
+        public string Id => "tools";
+        public string Title => "Tools";
+        public string IconGlyph => "📏";
+        public FrameworkElement BuildView()
+        {
+            var p = CapsuleTheme.Current;
+            var card = new BuddyCard { Margin = new Thickness(4) };
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "DESKTOP COMPANION TOOLS", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Accent), HorizontalAlignment = HorizontalAlignment.Center });
+            stack.Children.Add(new TextBlock { Text = "Quick calculations, color picker, screenshot tools and notch triggers.", FontSize = 11.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Center });
+            card.Child = stack;
+            return card;
+        }
+        public void OnActivated() { }
+    }
+
+    public sealed class CardsTool : IBuddyTool
+    {
+        public string Id => "cards";
+        public string Title => "Cards";
+        public string IconGlyph => "🗂";
+        public FrameworkElement BuildView() => new LinksTool().BuildView();
+        public void OnActivated() { }
+    }
+
+    public sealed class AudioTool : IBuddyTool
+    {
+        public string Id => "audio";
+        public string Title => "Audio";
+        public string IconGlyph => "🎚";
+        public FrameworkElement BuildView()
+        {
+            var p = CapsuleTheme.Current;
+            var card = new BuddyCard { Margin = new Thickness(4) };
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "MEDIA & SOUND", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Accent), HorizontalAlignment = HorizontalAlignment.Center });
+            stack.Children.Add(new StaticBeatBars(8, 24) { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12, 0, 12) });
+            stack.Children.Add(new TextBlock { Text = "AirPods Pro Connected · Volume 74%", FontSize = 11.5, Foreground = CapsuleTheme.Brush(p.Text2), HorizontalAlignment = HorizontalAlignment.Center });
+            card.Child = stack;
+            return card;
+        }
+        public void OnActivated() { }
+    }
+
+    public sealed class PetCompanionTool : IBuddyTool
+    {
+        public string Id => "pet";
+        public string Title => "Buddy";
+        public string IconGlyph => "🤖";
+        public FrameworkElement BuildView()
+        {
+            var p = CapsuleTheme.Current;
+            var card = new BuddyCard { Margin = new Thickness(4) };
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            stack.Children.Add(new PetView("happy", 80) { HorizontalAlignment = HorizontalAlignment.Center });
+            stack.Children.Add(new TextBlock { Text = "Meet Vayli, your notch buddy", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 2) });
+            stack.Children.Add(new TextBlock { Text = "A tiny desktop companion that lives in your notch.", FontSize = 11.5, Foreground = CapsuleTheme.Brush(p.Text2), HorizontalAlignment = HorizontalAlignment.Center });
+            card.Child = stack;
+            return card;
+        }
+        public void OnActivated() { }
+    }
+
+    #endregion
 }

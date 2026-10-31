@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Media;
 using WindowsBuddy.Services;
 
@@ -6,31 +8,31 @@ namespace WindowsBuddy.BuddyCapsule.Theme
 {
     public sealed class ThemePalette
     {
-        public string Id { get; set; } = "obsidian-dark";
-        public string DisplayName { get; set; } = "Obsidian Dark";
+        public string Id { get; set; } = "pure-black";
+        public string DisplayName { get; set; } = "Pure Black";
         public bool IsLight { get; set; } = false;
         public bool UseIconTiles { get; set; } = true;
 
-        public Color Bg { get; set; } = Color.FromRgb(10, 10, 12);
-        public Color Surface { get; set; } = Color.FromRgb(19, 19, 23);
-        public Color Surface2 { get; set; } = Color.FromRgb(27, 27, 33);
-        public Color Surface3 { get; set; } = Color.FromRgb(36, 36, 44);
-        public Color Overlay { get; set; } = Color.FromArgb(230, 14, 14, 18);
-        public Color Border { get; set; } = Color.FromArgb(38, 255, 255, 255);
-        public Color BorderStrong { get; set; } = Color.FromArgb(72, 255, 255, 255);
+        public Color Bg { get; set; } = Color.FromRgb(0, 0, 0);
+        public Color Surface { get; set; } = Color.FromRgb(14, 14, 16);
+        public Color Surface2 { get; set; } = Color.FromRgb(22, 22, 26);
+        public Color Surface3 { get; set; } = Color.FromRgb(32, 32, 38);
+        public Color Overlay { get; set; } = Color.FromArgb(230, 10, 10, 12);
+        public Color Border { get; set; } = Color.FromArgb(36, 255, 255, 255);
+        public Color BorderStrong { get; set; } = Color.FromArgb(68, 255, 255, 255);
 
-        public Color Text { get; set; } = Color.FromRgb(245, 245, 247);
-        public Color Text2 { get; set; } = Color.FromRgb(174, 174, 182);
-        public Color Text3 { get; set; } = Color.FromRgb(118, 118, 128);
-        public Color TextDisabled { get; set; } = Color.FromRgb(78, 78, 86);
+        public Color Text { get; set; } = Color.FromRgb(250, 250, 252);
+        public Color Text2 { get; set; } = Color.FromRgb(142, 142, 147);
+        public Color Text3 { get; set; } = Color.FromRgb(99, 99, 102);
+        public Color TextDisabled { get; set; } = Color.FromRgb(65, 65, 70);
 
         public Color Icon { get; set; } = Color.FromRgb(240, 240, 245);
-        public Color IconMuted { get; set; } = Color.FromRgb(142, 142, 152);
+        public Color IconMuted { get; set; } = Color.FromRgb(135, 135, 145);
 
-        public Color Accent { get; set; } = Color.FromRgb(48, 209, 88);   // #30D158 Vayli signature emerald
-        public Color AccentFg { get; set; } = Color.FromRgb(8, 20, 12);
-        public Color AccentSoft { get; set; } = Color.FromArgb(42, 48, 209, 88);
-        public Color AccentStrong { get; set; } = Color.FromRgb(56, 229, 98);
+        public Color Accent { get; set; } = Color.FromRgb(255, 255, 255); // Pure Black monochrome
+        public Color AccentFg { get; set; } = Color.FromRgb(10, 10, 12);
+        public Color AccentSoft { get; set; } = Color.FromArgb(36, 255, 255, 255);
+        public Color AccentStrong { get; set; } = Color.FromRgb(255, 255, 255);
 
         public Color CScreen { get; set; } = Color.FromRgb(94, 92, 230);
         public Color CSystem { get; set; } = Color.FromRgb(10, 132, 255);
@@ -44,13 +46,124 @@ namespace WindowsBuddy.BuddyCapsule.Theme
         public Color Danger { get; set; } = Color.FromRgb(255, 69, 58);
         public Color Info { get; set; } = Color.FromRgb(10, 132, 255);
 
-        public Color DockPill { get; set; } = Color.FromRgb(28, 28, 35);
-        public Color ControlFill { get; set; } = Color.FromArgb(24, 255, 255, 255);
+        public Color DockPill { get; set; } = Color.FromRgb(18, 18, 22);
+        public Color ControlFill { get; set; } = Color.FromArgb(20, 255, 255, 255);
         public Color ControlFillHover { get; set; } = Color.FromArgb(42, 255, 255, 255);
-        public Color PlayInk { get; set; } = Color.FromRgb(48, 209, 88);
+        public Color PlayInk { get; set; } = Color.FromRgb(255, 255, 255);
         public Color SunInk { get; set; } = Color.FromRgb(255, 214, 10);
 
         public ThemePalette Clone() => (ThemePalette)MemberwiseClone();
+
+        #region 4 Official Preset Looks (Screenshot 5: Pure Black, Ember Dark, Vivid, Silver)
+
+        public static readonly ThemePalette PureBlack = new ThemePalette
+        {
+            Id = "pure-black",
+            DisplayName = "Pure Black",
+            IsLight = false,
+            Bg = Color.FromRgb(0, 0, 0),
+            Surface = Color.FromRgb(14, 14, 16),
+            Surface2 = Color.FromRgb(22, 22, 26),
+            Surface3 = Color.FromRgb(32, 32, 38),
+            Overlay = Color.FromArgb(235, 8, 8, 10),
+            Border = Color.FromArgb(32, 255, 255, 255),
+            BorderStrong = Color.FromArgb(64, 255, 255, 255),
+            Text = Color.FromRgb(252, 252, 254),
+            Text2 = Color.FromRgb(142, 142, 147),
+            Text3 = Color.FromRgb(99, 99, 102),
+            Accent = Color.FromRgb(255, 255, 255),
+            AccentFg = Color.FromRgb(0, 0, 0),
+            AccentSoft = Color.FromArgb(32, 255, 255, 255),
+            AccentStrong = Color.FromRgb(255, 255, 255),
+            DockPill = Color.FromRgb(16, 16, 18),
+            ControlFill = Color.FromArgb(20, 255, 255, 255),
+            ControlFillHover = Color.FromArgb(40, 255, 255, 255)
+        };
+
+        public static readonly ThemePalette EmberDark = new ThemePalette
+        {
+            Id = "ember-dark",
+            DisplayName = "Ember Dark",
+            IsLight = false,
+            Bg = Color.FromRgb(13, 14, 17),
+            Surface = Color.FromRgb(20, 21, 26),
+            Surface2 = Color.FromRgb(28, 30, 37),
+            Surface3 = Color.FromRgb(38, 40, 50),
+            Overlay = Color.FromArgb(235, 12, 13, 16),
+            Border = Color.FromArgb(36, 255, 255, 255),
+            BorderStrong = Color.FromArgb(80, 255, 122, 0),
+            Text = Color.FromRgb(252, 252, 254),
+            Text2 = Color.FromRgb(150, 150, 160),
+            Text3 = Color.FromRgb(105, 105, 115),
+            Accent = Color.FromRgb(255, 122, 0), // Ember Orange #FF7A00
+            AccentFg = Color.FromRgb(20, 8, 0),
+            AccentSoft = Color.FromArgb(50, 255, 122, 0),
+            AccentStrong = Color.FromRgb(255, 145, 36),
+            DockPill = Color.FromRgb(22, 23, 28),
+            ControlFill = Color.FromArgb(24, 255, 255, 255),
+            ControlFillHover = Color.FromArgb(50, 255, 122, 0)
+        };
+
+        public static readonly ThemePalette Vivid = new ThemePalette
+        {
+            Id = "vivid",
+            DisplayName = "Vivid",
+            IsLight = false,
+            Bg = Color.FromRgb(10, 13, 20),
+            Surface = Color.FromRgb(16, 21, 32),
+            Surface2 = Color.FromRgb(24, 32, 48),
+            Surface3 = Color.FromRgb(32, 44, 66),
+            Overlay = Color.FromArgb(235, 8, 12, 18),
+            Border = Color.FromArgb(40, 255, 255, 255),
+            BorderStrong = Color.FromArgb(80, 10, 132, 255),
+            Text = Color.FromRgb(252, 252, 254),
+            Text2 = Color.FromRgb(140, 160, 185),
+            Text3 = Color.FromRgb(95, 115, 140),
+            Accent = Color.FromRgb(10, 132, 255), // Electric Blue #0A84FF
+            AccentFg = Color.FromRgb(2, 14, 30),
+            AccentSoft = Color.FromArgb(50, 10, 132, 255),
+            AccentStrong = Color.FromRgb(56, 158, 255),
+            DockPill = Color.FromRgb(18, 24, 38),
+            ControlFill = Color.FromArgb(24, 255, 255, 255),
+            ControlFillHover = Color.FromArgb(50, 10, 132, 255)
+        };
+
+        public static readonly ThemePalette Silver = new ThemePalette
+        {
+            Id = "silver",
+            DisplayName = "Silver",
+            IsLight = true,
+            Bg = Color.FromRgb(238, 240, 244),
+            Surface = Color.FromRgb(255, 255, 255),
+            Surface2 = Color.FromRgb(244, 245, 248),
+            Surface3 = Color.FromRgb(230, 232, 238),
+            Overlay = Color.FromArgb(240, 248, 249, 252),
+            Border = Color.FromArgb(35, 0, 0, 0),
+            BorderStrong = Color.FromArgb(65, 0, 0, 0),
+            Text = Color.FromRgb(24, 24, 28),
+            Text2 = Color.FromRgb(100, 100, 110),
+            Text3 = Color.FromRgb(140, 140, 150),
+            TextDisabled = Color.FromRgb(185, 185, 195),
+            Icon = Color.FromRgb(28, 28, 32),
+            IconMuted = Color.FromRgb(110, 110, 120),
+            Accent = Color.FromRgb(28, 28, 32),
+            AccentFg = Color.FromRgb(255, 255, 255),
+            AccentSoft = Color.FromArgb(24, 0, 0, 0),
+            AccentStrong = Color.FromRgb(0, 0, 0),
+            DockPill = Color.FromRgb(242, 243, 246),
+            ControlFill = Color.FromArgb(18, 0, 0, 0),
+            ControlFillHover = Color.FromArgb(32, 0, 0, 0)
+        };
+
+        public static readonly IReadOnlyList<ThemePalette> AllPresets = new[]
+        {
+            PureBlack,
+            EmberDark,
+            Vivid,
+            Silver
+        };
+
+        #endregion
     }
 
     public static class CapsuleTheme
@@ -69,22 +182,50 @@ namespace WindowsBuddy.BuddyCapsule.Theme
 
         public static ThemePalette BuildFromPreferences()
         {
-            var palette = new ThemePalette();
-            string hex = AppPreferences.Instance.Accent;
-            if (!string.IsNullOrWhiteSpace(hex))
+            string themeName = AppPreferences.Instance.Theme;
+            var preset = ThemePalette.AllPresets.FirstOrDefault(p =>
+                string.Equals(p.DisplayName, themeName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Id, themeName, StringComparison.OrdinalIgnoreCase));
+
+            if (preset != null)
+                return preset.Clone();
+
+            // Default to Pure Black if not set or legacy
+            return ThemePalette.PureBlack.Clone();
+        }
+
+        public static void CycleTheme()
+        {
+            var presets = ThemePalette.AllPresets;
+            int currentIndex = -1;
+            for (int i = 0; i < presets.Count; i++)
             {
-                try
+                if (string.Equals(presets[i].Id, Current.Id, StringComparison.OrdinalIgnoreCase))
                 {
-                    var converted = (Color)ColorConverter.ConvertFromString(hex);
-                    palette.Accent = converted;
-                    palette.AccentSoft = Color.FromArgb(46, converted.R, converted.G, converted.B);
-                }
-                catch
-                {
-                    // Keep default emerald
+                    currentIndex = i;
+                    break;
                 }
             }
-            return palette;
+
+            int nextIndex = (currentIndex + 1) % presets.Count;
+            var nextTheme = presets[nextIndex];
+            AppPreferences.Instance.Theme = nextTheme.DisplayName;
+            Current = nextTheme.Clone();
+            ThemeChanged?.Invoke();
+        }
+
+        public static void SetTheme(string idOrName)
+        {
+            var preset = ThemePalette.AllPresets.FirstOrDefault(p =>
+                string.Equals(p.DisplayName, idOrName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Id, idOrName, StringComparison.OrdinalIgnoreCase));
+
+            if (preset != null)
+            {
+                AppPreferences.Instance.Theme = preset.DisplayName;
+                Current = preset.Clone();
+                ThemeChanged?.Invoke();
+            }
         }
 
         public static SolidColorBrush Brush(Color c)

@@ -15,6 +15,7 @@ namespace WindowsBuddy.Services
         public double MemoryUsagePercent { get; set; }
         public double MemoryUsedGb { get; set; }
         public double MemoryTotalGb { get; set; }
+        public double DiskUsagePercent { get; set; } = 0;
         public bool NetworkConnected { get; set; } = true;
         public string NetworkName { get; set; } = "Connected";
         public int MasterVolumePercent { get; set; } = 68;
