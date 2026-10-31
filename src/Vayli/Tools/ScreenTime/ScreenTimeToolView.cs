@@ -179,18 +179,38 @@ namespace WindowsBuddy.Tools.ScreenTime
             };
             limitSubRow.Children.Add(_limitLabelText);
 
-            var pencilBtn = new TextBlock
+            var pencilBorder = new Border
             {
-                Text = "✎",
-                FontSize = 11.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
+                Width = 20,
+                Height = 20,
+                CornerRadius = new CornerRadius(10),
+                Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
-                VerticalAlignment = VerticalAlignment.Center
+                ToolTip = "Change Daily Limit",
+                Margin = new Thickness(4, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = "✎",
+                    FontSize = 11.5,
+                    Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
+                }
             };
-            pencilBtn.MouseEnter += (_, _) => pencilBtn.Foreground = Brushes.White;
-            pencilBtn.MouseLeave += (_, _) => pencilBtn.Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190));
-            pencilBtn.MouseLeftButtonUp += (_, _) => ShowLimitPicker();
-            limitSubRow.Children.Add(pencilBtn);
+            pencilBorder.MouseEnter += (_, _) =>
+            {
+                pencilBorder.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
+                if (pencilBorder.Child is TextBlock tb) tb.Foreground = Brushes.White;
+            };
+            pencilBorder.MouseLeave += (_, _) =>
+            {
+                pencilBorder.Background = Brushes.Transparent;
+                if (pencilBorder.Child is TextBlock tb) tb.Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190));
+            };
+            pencilBorder.MouseLeftButtonUp += (_, _) => ShowLimitPicker();
+            limitSubRow.Children.Add(pencilBorder);
 
             m2TextStack.Children.Add(limitSubRow);
             m2.Children.Add(m2TextStack);
@@ -306,20 +326,40 @@ namespace WindowsBuddy.Tools.ScreenTime
             DockPanel.SetDock(title, Dock.Left);
             headerDock.Children.Add(title);
 
+            var refreshBorder = new Border
+            {
+                Width = 24,
+                Height = 24,
+                CornerRadius = new CornerRadius(12),
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand,
+                ToolTip = "Refresh App Usage",
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
             _refreshBtn = new TextBlock
             {
                 Text = "⟳",
                 FontSize = 13.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
-                HorizontalAlignment = HorizontalAlignment.Right,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                Cursor = Cursors.Hand
+                TextAlignment = TextAlignment.Center
             };
-            _refreshBtn.MouseEnter += (_, _) => _refreshBtn.Foreground = Brushes.White;
-            _refreshBtn.MouseLeave += (_, _) => _refreshBtn.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
-            _refreshBtn.MouseLeftButtonUp += (_, _) => RefreshUI();
-            DockPanel.SetDock(_refreshBtn, Dock.Right);
-            headerDock.Children.Add(_refreshBtn);
+            refreshBorder.Child = _refreshBtn;
+            refreshBorder.MouseEnter += (_, _) =>
+            {
+                refreshBorder.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
+                _refreshBtn.Foreground = Brushes.White;
+            };
+            refreshBorder.MouseLeave += (_, _) =>
+            {
+                refreshBorder.Background = Brushes.Transparent;
+                _refreshBtn.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
+            };
+            refreshBorder.MouseLeftButtonUp += (_, _) => RefreshUI();
+            DockPanel.SetDock(refreshBorder, Dock.Right);
+            headerDock.Children.Add(refreshBorder);
 
             DockPanel.SetDock(headerDock, Dock.Top);
             dock.Children.Add(headerDock);

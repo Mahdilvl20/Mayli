@@ -73,14 +73,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public SystemToolView()
         {
-            Width = GridW;
-            Height = GridH;
             Background = Brushes.Transparent;
 
             _rootGrid = new Grid();
-            _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(RowH) });
+            _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(ColumnGap) });
-            _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(RowH) });
+            _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
             _rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             _rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ColumnGap) });

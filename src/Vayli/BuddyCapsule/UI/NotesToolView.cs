@@ -45,8 +45,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public NotesToolView()
         {
-            Width = GridW;
-            Height = GridH;
             Background = Brushes.Transparent;
 
             _rootGrid = new Grid();
@@ -98,6 +96,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     _searchBox.Text = string.Empty;
                 }
             };
+            searchBtn.MouseEnter += (_, _) => searchBtn.Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
+            searchBtn.MouseLeave += (_, _) => searchBtn.Background = Brushes.Transparent;
             headerIcons.Children.Add(searchBtn);
 
             var addBtn = new Border
@@ -118,6 +118,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
+            addBtn.MouseEnter += (_, _) => addBtn.Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
+            addBtn.MouseLeave += (_, _) => addBtn.Background = Brushes.Transparent;
             addBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -187,17 +189,31 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FontSize = 12.0,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 6)
+                Margin = new Thickness(0, 0, 0, 8)
             });
-            var newNoteBtn = new TextBlock
+            var newNoteBtn = new Border
             {
-                Text = "New note",
-                FontSize = 13.0,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Background = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(46, 255, 255, 255)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(14, 6, 14, 6),
                 Cursor = Cursors.Hand,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
+            var newNoteText = new TextBlock
+            {
+                Text = "New note",
+                FontSize = 12.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
+            newNoteBtn.Child = newNoteText;
+            newNoteBtn.MouseEnter += (_, _) => newNoteBtn.Background = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255));
+            newNoteBtn.MouseLeave += (_, _) => newNoteBtn.Background = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
             newNoteBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;

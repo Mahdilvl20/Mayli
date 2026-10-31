@@ -235,7 +235,12 @@ namespace WindowsBuddy.Tools.Message
                 Padding = new Thickness(14, 5, 14, 5),
                 Cursor = Cursors.Hand
             };
-            var flashStack = new StackPanel { Orientation = Orientation.Horizontal };
+            var flashStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
             flashStack.Children.Add(new TextBlock
             {
                 Text = "⚡",
@@ -470,7 +475,9 @@ namespace WindowsBuddy.Tools.Message
                 Text = label,
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(140, 140, 150)),
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
             };
             pill.Child = text;
 
@@ -779,7 +786,9 @@ namespace WindowsBuddy.Tools.Message
                 Text = label,
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(140, 140, 150)),
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
             };
             pill.Child = text;
 

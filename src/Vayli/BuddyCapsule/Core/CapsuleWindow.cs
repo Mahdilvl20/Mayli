@@ -1105,26 +1105,27 @@ namespace WindowsBuddy.BuddyCapsule.Core
             var p = CapsuleTheme.Current;
             var border = new Border
             {
-                Width = 24,
-                Height = 24,
-                CornerRadius = new CornerRadius(12),
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(13),
                 Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
                 ToolTip = tooltip,
-                Margin = new Thickness(2, 0, 2, 0),
+                Margin = new Thickness(3, 0, 3, 0),
                 Child = new TextBlock
                 {
                     Text = glyph,
-                    FontSize = 12,
+                    FontSize = 13,
                     Foreground = CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
                 }
             };
             border.MouseEnter += (_, _) =>
             {
-                border.Background = CapsuleTheme.Brush(CapsuleTheme.Current.ControlFillHover);
-                if (border.Child is TextBlock tb) tb.Foreground = CapsuleTheme.Brush(CapsuleTheme.Current.Text);
+                border.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
+                if (border.Child is TextBlock tb) tb.Foreground = Brushes.White;
             };
             border.MouseLeave += (_, _) =>
             {
@@ -1275,8 +1276,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 var itemContainer = new Grid
                 {
-                    Width = 30,
-                    Height = 28,
+                    Width = 32,
+                    Height = 30,
                     Cursor = Cursors.Hand,
                     ToolTip = tool.Id switch
                     {
@@ -1298,10 +1299,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 var circleHighlight = new Border
                 {
-                    Width = 26,
-                    Height = 26,
-                    CornerRadius = new CornerRadius(13),
-                    Background = CapsuleTheme.Brush(isActive ? (p.IsLight ? Color.FromArgb(40, 0, 0, 0) : Color.FromArgb(60, 255, 255, 255)) : Colors.Transparent),
+                    Width = 28,
+                    Height = 28,
+                    CornerRadius = new CornerRadius(14),
+                    Background = isActive ? Brushes.White : Brushes.Transparent,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -1310,31 +1311,21 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 var iconText = new TextBlock
                 {
                     Text = tool.IconGlyph,
-                    FontSize = 12,
-                    Foreground = CapsuleTheme.Brush(isActive ? (p.IsLight ? p.Text : Colors.White) : p.IconMuted),
+                    FontSize = 13,
+                    FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
+                    Foreground = isActive ? Brushes.Black : CapsuleTheme.Brush(p.IconMuted),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
                 };
                 itemContainer.Children.Add(iconText);
-
-                var activeDot = new Ellipse
-                {
-                    Width = 3,
-                    Height = 3,
-                    Fill = CapsuleTheme.Brush(p.Accent),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Bottom,
-                    Margin = new Thickness(0, 0, 0, 1),
-                    Visibility = isActive ? Visibility.Visible : Visibility.Collapsed
-                };
-                itemContainer.Children.Add(activeDot);
 
                 itemContainer.MouseEnter += (_, _) =>
                 {
                     if (!string.Equals(id, _activeToolId, StringComparison.OrdinalIgnoreCase))
                     {
-                        circleHighlight.Background = CapsuleTheme.Brush(p.ControlFillHover);
-                        iconText.Foreground = CapsuleTheme.Brush(p.Text);
+                        circleHighlight.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
+                        iconText.Foreground = Brushes.White;
                     }
                 };
                 itemContainer.MouseLeave += (_, _) =>
@@ -1359,7 +1350,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             var divider = new Border
             {
                 Width = 1,
-                Height = 14,
+                Height = 16,
                 Background = CapsuleTheme.Brush(p.Border),
                 Margin = new Thickness(4, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center
@@ -1368,19 +1359,31 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             var plusBtn = new Border
             {
-                Width = 24,
-                Height = 24,
-                CornerRadius = new CornerRadius(12),
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(14),
+                Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
                 ToolTip = "Add / Customize Tools",
                 Child = new TextBlock
                 {
                     Text = "+",
-                    FontSize = 13,
+                    FontSize = 14,
                     Foreground = CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
                 }
+            };
+            plusBtn.MouseEnter += (_, _) =>
+            {
+                plusBtn.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
+                if (plusBtn.Child is TextBlock tb) tb.Foreground = Brushes.White;
+            };
+            plusBtn.MouseLeave += (_, _) =>
+            {
+                plusBtn.Background = Brushes.Transparent;
+                if (plusBtn.Child is TextBlock tb) tb.Foreground = CapsuleTheme.Brush(p.Text2);
             };
             plusBtn.MouseLeftButtonUp += (_, _) => SettingsWindow.ShowSingleton();
             _navTabsPanel.Children.Add(plusBtn);
@@ -1447,7 +1450,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         Text = "°C",
                         FontSize = 11,
                         FontWeight = !svc.UseFahrenheit ? FontWeights.Bold : FontWeights.Normal,
-                        Foreground = !svc.UseFahrenheit ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                        Foreground = !svc.UseFahrenheit ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextAlignment = TextAlignment.Center
                     }
                 };
 
@@ -1462,7 +1468,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         Text = "°F",
                         FontSize = 11,
                         FontWeight = svc.UseFahrenheit ? FontWeights.Bold : FontWeights.Normal,
-                        Foreground = svc.UseFahrenheit ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                        Foreground = svc.UseFahrenheit ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextAlignment = TextAlignment.Center
                     }
                 };
 
@@ -1492,10 +1501,16 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     CornerRadius = new CornerRadius(12),
                     Height = 24,
                     Padding = new Thickness(8, 2, 10, 2),
+                    Margin = new Thickness(6, 0, 0, 0),
                     Cursor = Cursors.Hand,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                var citySp = new StackPanel { Orientation = Orientation.Horizontal };
+                var citySp = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
                 citySp.Children.Add(new TextBlock
                 {
                     Text = "📍",

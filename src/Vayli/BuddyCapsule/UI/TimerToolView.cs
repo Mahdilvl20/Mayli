@@ -55,8 +55,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public TimerToolView()
         {
-            Width = GridW;
-            Height = GridH;
             Background = Brushes.Transparent;
 
             _rootGrid = new Grid();
@@ -200,6 +198,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
+            _resetBtn.MouseEnter += (_, _) => _resetBtn.Background = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255));
+            _resetBtn.MouseLeave += (_, _) => _resetBtn.Background = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
             _resetBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -227,6 +227,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Margin = new Thickness(14, 0, 14, 0),
                 Child = _playIcon
             };
+            _playBtn.MouseEnter += (_, _) => _playBtn.Background = new SolidColorBrush(Color.FromRgb(255, 90, 40));
+            _playBtn.MouseLeave += (_, _) => _playBtn.Background = new SolidColorBrush(Color.FromRgb(230, 74, 25));
             _playBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -251,6 +253,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
+            _skipBtn.MouseEnter += (_, _) => _skipBtn.Background = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255));
+            _skipBtn.MouseLeave += (_, _) => _skipBtn.Background = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
             _skipBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -438,9 +442,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
                 }
             };
+            minus.MouseEnter += (_, _) => { if (minus.Child is TextBlock tb) tb.Foreground = Brushes.White; };
+            minus.MouseLeave += (_, _) => { if (minus.Child is TextBlock tb) tb.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)); };
             minus.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -462,9 +469,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
                 }
             };
+            plus.MouseEnter += (_, _) => { if (plus.Child is TextBlock tb) tb.Foreground = Brushes.White; };
+            plus.MouseLeave += (_, _) => { if (plus.Child is TextBlock tb) tb.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)); };
             plus.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -480,7 +490,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
             };
             dock.Children.Add(labelBlock);
 

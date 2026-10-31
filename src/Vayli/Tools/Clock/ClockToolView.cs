@@ -309,7 +309,9 @@ namespace WindowsBuddy.Tools.Clock
                 FontSize = 10.5,
                 FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal,
                 Foreground = isSelected ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147)),
-                VerticalAlignment = VerticalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
             };
             btn.Child = txt;
 

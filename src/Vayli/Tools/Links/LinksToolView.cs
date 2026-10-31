@@ -74,7 +74,10 @@ namespace WindowsBuddy.Tools.Links
                 Text = "Search ↗",
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
             };
             searchBtn.Child = searchBtnText;
             searchBtn.MouseEnter += (_, _) => searchBtn.Background = new SolidColorBrush(Color.FromRgb(255, 90, 40));
@@ -243,7 +246,10 @@ namespace WindowsBuddy.Tools.Links
                 Text = "+ Add Link",
                 FontSize = 11.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
             };
             addBtn.Child = addText;
             addBtn.MouseEnter += (_, _) => addBtn.Background = new SolidColorBrush(Color.FromRgb(255, 90, 40));

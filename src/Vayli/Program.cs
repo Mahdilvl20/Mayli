@@ -34,6 +34,8 @@ namespace WindowsBuddy
                     ShutdownMode = ShutdownMode.OnExplicitShutdown
                 };
 
+                WindowsBuddy.BuddyCapsule.Theme.ModernScrollbarStyles.ApplyToApplication(app);
+
                 InitializeTrayIcon(app);
 
                 _capsuleWindow = new CapsuleWindow();

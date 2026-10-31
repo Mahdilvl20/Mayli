@@ -48,8 +48,6 @@ namespace WindowsBuddy.Tools.Clipboard
 
         public ClipboardToolView()
         {
-            Width = GridW;
-            Height = GridH;
             Background = Brushes.Transparent;
 
             _rootGrid = new Grid();
