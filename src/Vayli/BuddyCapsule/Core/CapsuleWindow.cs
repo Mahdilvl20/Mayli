@@ -135,6 +135,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             ResizeMode = ResizeMode.NoResize;
             Width = StableEnvelopeWidth;
             Height = StableEnvelopeHeight;
+            Icon = EmbeddedAssetLoader.LoadBitmap("Vayli.Brand.mark-128.png");
 
             PositionAtTopCenter();
 
@@ -205,6 +206,16 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             Grid.SetColumn(_collapsedClockText, 0);
             _collapsedNormalView.Children.Add(_collapsedClockText);
+
+            var collapsedOrb = new CuteOrbPetView(initialMood: OrbMood.Idle, size: 21)
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Vayli Notch Buddy ✨ (Click to emote / کلیک کنید برای تغییر حالت)"
+            };
+            collapsedOrb.Clicked += () => PetEngine.Instance.CycleNextMood();
+            Grid.SetColumn(collapsedOrb, 1);
+            _collapsedNormalView.Children.Add(collapsedOrb);
 
             _collapsedBatteryGlyph = new BatteryStatusGlyph();
             _collapsedBatteryGlyph.SetBattery(SystemMonitorService.Current.BatteryPercent);
@@ -482,26 +493,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             var leftBrand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-            var squircleIcon = new Border
+            var headerOrb = new CuteOrbPetView(initialMood: OrbMood.Idle, size: 22)
             {
-                Width = 22,
-                Height = 22,
-                CornerRadius = new CornerRadius(6),
-                Background = CapsuleTheme.Brush(p.IsLight ? Color.FromRgb(28, 28, 32) : Color.FromRgb(250, 250, 252)),
                 Margin = new Thickness(0, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = "••",
-                    FontSize = 11,
-                    FontWeight = FontWeights.ExtraBold,
-                    Foreground = CapsuleTheme.Brush(p.IsLight ? Colors.White : Colors.Black),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, -2, 0, 0)
-                }
+                ToolTip = "Vayli Companion Orb ✨ (Click to emote / کلیک کنید برای تغییر حالت)"
             };
-            leftBrand.Children.Add(squircleIcon);
+            headerOrb.Clicked += () => PetEngine.Instance.CycleNextMood();
+            leftBrand.Children.Add(headerOrb);
 
             _headerTitleText = new TextBlock
             {

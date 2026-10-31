@@ -36,6 +36,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private bool _isActive;
         public event Action Clicked;
         public string ToolId { get; set; }
+        public string Text { get; set; }
 
         public bool IsActive
         {
@@ -50,6 +51,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public BuddyPillButton(string iconGlyph, string text, string toolId = null)
         {
             ToolId = toolId;
+            Text = text;
             CornerRadius = new CornerRadius(13);
             Padding = new Thickness(10, 5, 10, 5);
             Margin = new Thickness(2, 0, 2, 0);

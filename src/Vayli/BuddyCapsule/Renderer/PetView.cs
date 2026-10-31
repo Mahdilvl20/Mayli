@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -20,17 +21,86 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
     {
         private static readonly string[] AvailablePoses =
         {
-            "idle", "wave-01", "wave-02", "wave-03", "happy", "peek",
-            "music-01", "music-02", "coffee-break", "charging", "sleepy", "sleeping", "low-battery"
+            "idle", "happy", "angry", "frown", "love", "wink", "surprised", "sleepy", "sad", "thinking",
+            "wave-01", "wave-02", "wave-03", "peek", "music-01", "music-02", "coffee-break", "charging", "sleeping"
         };
 
-        private static readonly string[] CompanionLines =
+        private static readonly Dictionary<OrbMood, string[]> MoodLines = new()
         {
-            "Ready at the top of your screen ✨",
-            "Need a quick timer or file shelf? Drop anything here!",
-            "Hydration check: take a sip of water 💧",
-            "All systems running smoothly ⚡",
-            "Listening to the beat 🎵"
+            {
+                OrbMood.Idle, new[]
+                {
+                    "آماده در بالای صفحه شما ✨",
+                    "Ready at the top of your screen ✨",
+                    "All systems running smoothly ⚡",
+                    "یک روز پرانرژی و متمرکز داشته باشید 🚀"
+                }
+            },
+            {
+                OrbMood.Happy, new[]
+                {
+                    "وایلی خیلی خوشحاله! همه چی عالی پیش میره 🌟",
+                    "Vayli is super happy today! Keep going!",
+                    "لبخند بزن، امروز روز توئه! 😊✨",
+                    "Awesome work! You are rocking it 🎯"
+                }
+            },
+            {
+                OrbMood.Angry, new[]
+                {
+                    "وایلی اخم کرده! کی اذیتش کرده؟! 😠",
+                    "Hmph! Grumpy Vayli is not amused 😤",
+                    "اخم وایلی رو ببین! گوگولی ولی عصبانی 💢",
+                    "Don't poke too hard, I'm meditating! ⚡"
+                }
+            },
+            {
+                OrbMood.Love, new[]
+                {
+                    "وایلی عاشقتونه! گوگولی مگولی 💖",
+                    "Vayli loves you! Keep being awesome ✨",
+                    "یک عالمه عشق و انرژی مثبت براتون! 🌸",
+                    "Best companion ever! (◕‿◕)♡"
+                }
+            },
+            {
+                OrbMood.Wink, new[]
+                {
+                    "یه چشمک گوگولی برای انرژی امروز 😉",
+                    "Wink! Let's get things done together ✨",
+                    "همه چی تحت کنترله دوست من! 😎"
+                }
+            },
+            {
+                OrbMood.Surprised, new[]
+                {
+                    "وای! این دیگه چی بود؟! 😲",
+                    "Woah! That was unexpected and exciting!",
+                    "دیدم چیکار کردی! فوق‌العاده بود ⚡"
+                }
+            },
+            {
+                OrbMood.Sleepy, new[]
+                {
+                    "وایلی خوابش میاد... هیسسس 😴",
+                    "Feeling cozy and sleepy... Zzz 💤",
+                    "شاید وقت یه استراحت کوتاه و نوشیدن آبه 💧"
+                }
+            },
+            {
+                OrbMood.Sad, new[]
+                {
+                    "یه کم پکر شدم... بغلم کن 🥺",
+                    "Feeling a bit blue today... but we got this 💙"
+                }
+            },
+            {
+                OrbMood.Thinking, new[]
+                {
+                    "دارم عمیقاً فکر می‌کنم... 🤔",
+                    "Deep in thought, processing the universe 🌌"
+                }
+            }
         };
 
         public static PetEngine Instance { get; } = new PetEngine();
@@ -38,8 +108,11 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
         private readonly Dictionary<string, PetPoseMetadata> _poseMeta = new(StringComparer.OrdinalIgnoreCase);
         private readonly Random _rng = new();
 
+        public OrbMood CurrentMood { get; private set; } = OrbMood.Idle;
         public string CurrentPose { get; private set; } = "idle";
-        public string CurrentStatusLine { get; private set; } = CompanionLines[0];
+        public string CurrentStatusLine { get; private set; } = "آماده در بالای صفحه شما ✨";
+
+        public event Action<OrbMood> MoodChanged;
         public event Action PoseChanged;
 
         private PetEngine()
@@ -87,203 +160,143 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
             return new PetPoseMetadata();
         }
 
-        public void SetPose(string pose, string statusLine = null)
+        public void SetMood(OrbMood mood, string statusLine = null)
         {
-            CurrentPose = string.IsNullOrWhiteSpace(pose) ? "idle" : pose;
+            CurrentMood = mood;
+            CurrentPose = mood.ToString().ToLowerInvariant();
+
             if (!string.IsNullOrWhiteSpace(statusLine))
+            {
                 CurrentStatusLine = statusLine;
+            }
+            else
+            {
+                CurrentStatusLine = PickRandomLine(mood);
+            }
+
+            MoodChanged?.Invoke(mood);
             PoseChanged?.Invoke();
         }
 
-        public void CycleFunPose()
+        public void SetPose(string pose, string statusLine = null)
         {
-            string[] cycle = { "idle", "happy", "wave-01", "music-01", "coffee-break", "peek", "charging", "sleepy" };
-            int idx = Array.IndexOf(cycle, CurrentPose);
-            string next = cycle[(idx + 1) % cycle.Length];
-            string line = CompanionLines[_rng.Next(CompanionLines.Length)];
-            SetPose(next, line);
+            CurrentPose = string.IsNullOrWhiteSpace(pose) ? "idle" : pose;
+            CurrentMood = ParseMood(CurrentPose);
+
+            if (!string.IsNullOrWhiteSpace(statusLine))
+            {
+                CurrentStatusLine = statusLine;
+            }
+            else
+            {
+                CurrentStatusLine = PickRandomLine(CurrentMood);
+            }
+
+            MoodChanged?.Invoke(CurrentMood);
+            PoseChanged?.Invoke();
+        }
+
+        public void CycleNextMood()
+        {
+            OrbMood[] cycle =
+            {
+                OrbMood.Idle,
+                OrbMood.Happy,
+                OrbMood.Love,
+                OrbMood.Wink,
+                OrbMood.Surprised,
+                OrbMood.Angry,
+                OrbMood.Sleepy
+            };
+            int idx = Array.IndexOf(cycle, CurrentMood);
+            OrbMood next = cycle[(idx + 1) % cycle.Length];
+            SetMood(next);
+        }
+
+        public void CycleFunPose() => CycleNextMood();
+
+        private string PickRandomLine(OrbMood mood)
+        {
+            if (MoodLines.TryGetValue(mood, out var lines) && lines.Length > 0)
+            {
+                return lines[_rng.Next(lines.Length)];
+            }
+            return "Vayli is with you ✨";
+        }
+
+        public static OrbMood ParseMood(string poseName)
+        {
+            if (string.IsNullOrWhiteSpace(poseName)) return OrbMood.Idle;
+            string lower = poseName.Trim().ToLowerInvariant();
+            return lower switch
+            {
+                "happy" => OrbMood.Happy,
+                "angry" or "frown" or "grumpy" => OrbMood.Angry,
+                "love" or "heart" or "romantic" => OrbMood.Love,
+                "wink" or "winking" => OrbMood.Wink,
+                "surprised" or "shocked" or "curious" => OrbMood.Surprised,
+                "sleepy" or "sleeping" or "charging" or "low-battery" => OrbMood.Sleepy,
+                "sad" => OrbMood.Sad,
+                "thinking" or "coffee-break" => OrbMood.Thinking,
+                "music-01" or "music-02" or "wave-01" or "wave-02" or "wave-03" => OrbMood.Happy,
+                _ => OrbMood.Idle
+            };
         }
     }
 
     /// <summary>
-    /// Renders the official Vayli clay robot pet (`Vayli.Pet.body.<pose>.png` + `Vayli.Pet.props.<pose>.png`)
-    /// with live #30D158 glowing eyes inside the Blender Cycles `eye_safe_quad` that blink and follow the cursor.
+    /// Renders the vector-animated interactive companion Pet (the glowing expressive Orb).
+    /// Fully animatable with moods (frown, happy, wink, love, surprised, sleepy),
+    /// mouse gaze tracking, organic breathing and bounce physics, and particle effects.
     /// </summary>
     public class PetView : Grid
     {
-        private readonly Image _bodyImage;
-        private readonly Image _propsImage;
-        private readonly Canvas _eyeCanvas;
-        private readonly Rectangle _leftEye;
-        private readonly Rectangle _rightEye;
-        private readonly DispatcherTimer _blinkTimer;
-        private readonly DispatcherTimer _waveTimer;
-        private readonly double _renderSize;
-        private string _pose;
-        private int _waveStep;
-        private bool _isBlinking;
+        public CuteOrbPetView Orb { get; }
 
         public PetView(string initialPose = "idle", double size = 64)
         {
-            _renderSize = size;
             Width = size;
             Height = size;
             ClipToBounds = false;
 
-            _bodyImage = new Image
+            var mood = PetEngine.ParseMood(initialPose);
+            Orb = new CuteOrbPetView(mood, size)
             {
-                Width = size,
-                Height = size,
-                Stretch = Stretch.Uniform
-            };
-            RenderOptions.SetBitmapScalingMode(_bodyImage, BitmapScalingMode.HighQuality);
-
-            _eyeCanvas = new Canvas
-            {
-                Width = size,
-                Height = size,
-                IsHitTestVisible = false
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
 
-            var eyeBrush = new SolidColorBrush(Color.FromRgb(48, 209, 88)); // #30D158 emission output from Vayli.Pet.eye-areas.json
-            eyeBrush.Freeze();
+            // Sync with global engine
+            PetEngine.Instance.MoodChanged += onEngineMoodChanged;
 
-            _leftEye = new Rectangle
+            Orb.Clicked += () =>
             {
-                Fill = eyeBrush,
-                RadiusX = 2.5,
-                RadiusY = 2.5
-            };
-            _rightEye = new Rectangle
-            {
-                Fill = eyeBrush,
-                RadiusX = 2.5,
-                RadiusY = 2.5
-            };
-            _eyeCanvas.Children.Add(_leftEye);
-            _eyeCanvas.Children.Add(_rightEye);
-
-            _propsImage = new Image
-            {
-                Width = size,
-                Height = size,
-                Stretch = Stretch.Uniform,
-                IsHitTestVisible = false
-            };
-            RenderOptions.SetBitmapScalingMode(_propsImage, BitmapScalingMode.HighQuality);
-
-            Children.Add(_bodyImage);
-            Children.Add(_eyeCanvas);
-            Children.Add(_propsImage);
-
-            SetFrame(initialPose);
-
-            _blinkTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(220) };
-            int tickCounter = 0;
-            _blinkTimer.Tick += (_, _) =>
-            {
-                tickCounter++;
-                _isBlinking = (tickCounter % 16 == 0);
-                UpdateEyesFromCursor();
-            };
-            _blinkTimer.Start();
-
-            _waveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
-            _waveTimer.Tick += (_, _) =>
-            {
-                _waveStep++;
-                string[] waveFrames = { "wave-01", "wave-02", "wave-03", "wave-02", "idle" };
-                if (_waveStep < waveFrames.Length)
-                {
-                    SetFrame(waveFrames[_waveStep]);
-                }
-                else
-                {
-                    _waveTimer.Stop();
-                    SetFrame(PetEngine.Instance.CurrentPose);
-                }
+                PetEngine.Instance.CycleNextMood();
             };
 
-            MouseEnter += (_, _) => TriggerWave();
-            MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                PetEngine.Instance.CycleFunPose();
-                SetFrame(PetEngine.Instance.CurrentPose);
-            };
+            Children.Add(Orb);
+        }
+
+        private void onEngineMoodChanged(OrbMood mood)
+        {
+            Orb.SetMood(mood);
         }
 
         public void TriggerWave()
         {
-            if (_waveTimer.IsEnabled) return;
-            _waveStep = 0;
-            SetFrame("wave-01");
-            _waveTimer.Start();
+            Orb.Poke();
+            Orb.SetMood(OrbMood.Wink);
         }
 
         public void SetFrame(string pose)
         {
-            _pose = string.IsNullOrWhiteSpace(pose) ? "idle" : pose;
-            _bodyImage.Source = EmbeddedAssetLoader.LoadBitmap($"Vayli.Pet.body.{_pose}.png")
-                             ?? EmbeddedAssetLoader.LoadBitmap("Vayli.Pet.body.idle.png");
-            _propsImage.Source = EmbeddedAssetLoader.LoadBitmap($"Vayli.Pet.props.{_pose}.png");
-            UpdateEyesFromCursor();
+            var mood = PetEngine.ParseMood(pose);
+            Orb.SetMood(mood);
         }
 
-        private void UpdateEyesFromCursor()
+        public void SetMood(OrbMood mood)
         {
-            if (_pose == "sleeping")
-            {
-                _leftEye.Visibility = Visibility.Hidden;
-                _rightEye.Visibility = Visibility.Hidden;
-                return;
-            }
-
-            _leftEye.Visibility = Visibility.Visible;
-            _rightEye.Visibility = Visibility.Visible;
-
-            var meta = PetEngine.Instance.GetMetadata(_pose);
-            double scale = _renderSize / 512.0;
-            Rect quad = new Rect(
-                meta.EyeQuad.X * scale,
-                meta.EyeQuad.Y * scale,
-                meta.EyeQuad.Width * scale,
-                meta.EyeQuad.Height * scale);
-
-            double eyeW = Math.Max(2.2, quad.Width * 0.16);
-            double eyeH = _isBlinking || _pose == "sleepy"
-                ? Math.Max(1.2, quad.Height * 0.12)
-                : Math.Max(3.2, quad.Height * 0.42);
-
-            double offsetX = 0;
-            double offsetY = 0;
-            if (NativeMethods.GetCursorPos(out var pt))
-            {
-                double screenW = Math.Max(1, SystemParameters.PrimaryScreenWidth);
-                double screenH = Math.Max(1, SystemParameters.PrimaryScreenHeight);
-                double nx = (pt.X / screenW - 0.5) * 2.0;
-                double ny = (pt.Y / screenH - 0.15) * 2.0;
-                offsetX = Math.Clamp(nx, -1, 1) * (quad.Width * 0.12);
-                offsetY = Math.Clamp(ny, -1, 1) * (quad.Height * 0.14);
-            }
-
-            double centerY = quad.Top + (quad.Height - eyeH) * 0.5 + offsetY;
-            double leftX = quad.Left + quad.Width * 0.24 - eyeW * 0.5 + offsetX;
-            double rightX = quad.Left + quad.Width * 0.76 - eyeW * 0.5 + offsetX;
-
-            _leftEye.Width = eyeW;
-            _leftEye.Height = eyeH;
-            _leftEye.RadiusX = eyeW * 0.45;
-            _leftEye.RadiusY = eyeW * 0.45;
-            Canvas.SetLeft(_leftEye, leftX);
-            Canvas.SetTop(_leftEye, centerY);
-
-            _rightEye.Width = eyeW;
-            _rightEye.Height = eyeH;
-            _rightEye.RadiusX = eyeW * 0.45;
-            _rightEye.RadiusY = eyeW * 0.45;
-            Canvas.SetLeft(_rightEye, rightX);
-            Canvas.SetTop(_rightEye, centerY);
+            Orb.SetMood(mood);
         }
     }
 }

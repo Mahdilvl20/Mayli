@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 128 128"
+     width="128" height="128">
+
+  <defs>
+    <radialGradient id="orbGradient"
+                    cx="35%" cy="25%" r="75%">
+      <stop offset="0%" stop-color="#B9F7FF"/>
+      <stop offset="35%" stop-color="#54D8E8"/>
+      <stop offset="70%" stop-color="#6475E8"/>
+      <stop offset="100%" stop-color="#30245F"/>
+    </radialGradient>
+
+    <radialGradient id="orbGlow">
+      <stop offset="0%" stop-color="#63E9FF"
+            stop-opacity=".35"/>
+      <stop offset="100%" stop-color="#63E9FF"
+            stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="eyeGradient"
+                    x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#17263D"/>
+      <stop offset="100%" stop-color="#080D1B"/>
+    </linearGradient>
+
+    <filter id="glow" x="-60%" y="-60%"
+            width="220%" height="220%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient glow -->
+  <circle cx="64" cy="64" r="55"
+          fill="url(#orbGlow)" filter="url(#glow)"/>
+
+  <!-- Orb body -->
+  <circle id="orb" cx="64" cy="64" r="48"
+          fill="url(#orbGradient)"/>
+
+  <!-- Soft highlight -->
+  <ellipse cx="45" cy="34" rx="23" ry="12"
+           fill="#FFFFFF" opacity=".22"
+           transform="rotate(-30 45 34)"/>
+
+  <!-- Face -->
+  <g id="face">
+
+    <!-- Eyebrows (hidden by default) -->
+    <g id="eyebrows" opacity="0">
+      <path id="left-brow"
+            d="M34 43 Q44 36 53 43"
+            fill="none" stroke="#15213A"
+            stroke-width="4" stroke-linecap="round"/>
+
+      <path id="right-brow"
+            d="M75 43 Q84 36 94 43"
+            fill="none" stroke="#15213A"
+            stroke-width="4" stroke-linecap="round"/>
+    </g>
+
+    <!-- Left eye -->
+    <g id="left-eye">
+      <ellipse cx="46" cy="61" rx="8" ry="12"
+               fill="url(#eyeGradient)"/>
+      <circle cx="43" cy="56" r="2.5"
+              fill="#FFFFFF" opacity=".9"/>
+    </g>
+
+    <!-- Right eye -->
+    <g id="right-eye">
+      <ellipse cx="82" cy="61" rx="8" ry="12"
+               fill="url(#eyeGradient)"/>
+      <circle cx="79" cy="56" r="2.5"
+              fill="#FFFFFF" opacity=".9"/>
+    </g>
+
+  </g>
+</svg>

@@ -6,6 +6,7 @@ using System.Windows.Media;
 using WindowsBuddy.BuddyCapsule.Renderer;
 using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.BuddyCapsule.UI;
+using WindowsBuddy.Core;
 using WindowsBuddy.Services;
 
 namespace WindowsBuddy.UI.Settings
@@ -29,33 +30,208 @@ namespace WindowsBuddy.UI.Settings
         public SettingsWindow()
         {
             var p = CapsuleTheme.Current;
-            Title = "Vayli Settings — Notch Personalization";
-            Width = 560;
-            Height = 470;
+            Title = "Vayli Settings — Notch & Buddy Personalization";
+            Width = 600;
+            Height = 640;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = CapsuleTheme.Brush(p.Bg);
             Foreground = CapsuleTheme.Brush(p.Text);
-            ResizeMode = ResizeMode.CanMinimize;
+            ResizeMode = ResizeMode.CanResize;
+            Icon = EmbeddedAssetLoader.LoadBitmap("Vayli.Brand.mark-128.png");
 
-            var root = new StackPanel { Margin = new Thickness(22) };
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
 
-            root.Children.Add(new TextBlock
+            var root = new StackPanel { Margin = new Thickness(24) };
+
+            // Header with App Title and Brand subtitle
+            var headerStack = new StackPanel { Margin = new Thickness(0, 0, 0, 16) };
+            headerStack.Children.Add(new TextBlock
             {
                 Text = "Vayli — The Notch for Windows",
                 FontSize = 20,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text)
             });
-            root.Children.Add(new TextBlock
+            headerStack.Children.Add(new TextBlock
             {
-                Text = "Reconstructed from REA static binary analysis (v1.1.57.0 • WindowsBuddy)",
+                Text = "Interactive Dynamic Island & Expressive Vector Orb Companion",
                 FontSize = 12,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                Margin = new Thickness(0, 2, 0, 18)
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            root.Children.Add(headerStack);
+
+            // =========================================================
+            // Section 1: Expressive Orb Companion (گوگولی مگولی)
+            // =========================================================
+            var orbCard = new BuddyCard { Margin = new Thickness(0, 0, 0, 14) };
+            var orbStack = new StackPanel();
+
+            orbStack.Children.Add(new TextBlock
+            {
+                Text = "VAYLI BUDDY ORB & EXPRESSIONS (آیکون و حالت‌های متحرک)",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Accent),
+                Margin = new Thickness(0, 0, 0, 10)
             });
 
-            // Section 1: Notch Silhouette Style
-            var styleCard = new BuddyCard { Margin = new Thickness(0, 0, 0, 12) };
+            // Live Interactive Orb Preview & Status Line
+            var previewCenter = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 12)
+            };
+
+            var liveOrb = new CuteOrbPetView(PetEngine.Instance.CurrentMood, 92)
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip = "Click me to emote / کلیک کنید برای تغییر حالت یا قلقلک!"
+            };
+            previewCenter.Children.Add(liveOrb);
+
+            var statusLineText = new TextBlock
+            {
+                Text = PetEngine.Instance.CurrentStatusLine,
+                FontSize = 12.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8, 0, 2),
+                TextAlignment = TextAlignment.Center
+            };
+            previewCenter.Children.Add(statusLineText);
+
+            var hintText = new TextBlock
+            {
+                Text = "روی آیکون کلیک کنید تا واکنش نشون بده یا از دکمه‌های زیر برای تغییر احساسات استفاده کنید",
+                FontSize = 10.5,
+                Foreground = CapsuleTheme.Brush(p.Text3),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            previewCenter.Children.Add(hintText);
+            orbStack.Children.Add(previewCenter);
+
+            // Mood Buttons Row
+            var moodsRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
+            var moods = new (string Glyph, string Name, OrbMood Mood)[]
+            {
+                ("🌟", "عادی (Idle)", OrbMood.Idle),
+                ("😊", "شاد (Happy)", OrbMood.Happy),
+                ("😠", "اخم (Angry)", OrbMood.Angry),
+                ("💖", "دلبر (Love)", OrbMood.Love),
+                ("😉", "چشمک (Wink)", OrbMood.Wink),
+                ("😲", "تعجب (Surprised)", OrbMood.Surprised),
+                ("😴", "خواب‌آلود (Sleepy)", OrbMood.Sleepy),
+                ("🥺", "مظلوم (Sad)", OrbMood.Sad),
+                ("🤔", "متفکر (Thinking)", OrbMood.Thinking)
+            };
+
+            foreach (var m in moods)
+            {
+                var capturedMood = m.Mood;
+                var pill = new BuddyPillButton(m.Glyph, m.Name)
+                {
+                    IsActive = (PetEngine.Instance.CurrentMood == capturedMood),
+                    Margin = new Thickness(2, 3, 2, 3)
+                };
+                pill.Clicked += () =>
+                {
+                    PetEngine.Instance.SetMood(capturedMood);
+                    liveOrb.SetMood(capturedMood);
+                    statusLineText.Text = PetEngine.Instance.CurrentStatusLine;
+
+                    foreach (var child in moodsRow.Children)
+                        if (child is BuddyPillButton pb) pb.IsActive = (pb == pill);
+                };
+                moodsRow.Children.Add(pill);
+            }
+            orbStack.Children.Add(moodsRow);
+
+            // Action Buttons: Poke & Particle Burst
+            var actionRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 4, 0, 8)
+            };
+
+            var pokeBtn = new BuddyPillButton("🐾", "قلقلک و پرش (Poke & Squish)");
+            pokeBtn.Clicked += () =>
+            {
+                liveOrb.Poke();
+                statusLineText.Text = "قلقلکم اومد! (◕‿◕)✨";
+            };
+            actionRow.Children.Add(pokeBtn);
+
+            var burstBtn = new BuddyPillButton("✨", "انفجار قلب و جرقه (Burst)");
+            burstBtn.Clicked += () =>
+            {
+                liveOrb.SpawnHeartBurst();
+                liveOrb.SpawnSparkleBurst();
+                statusLineText.Text = "یک عالمه عشق و درخشش! 💖🌟";
+            };
+            actionRow.Children.Add(burstBtn);
+            orbStack.Children.Add(actionRow);
+
+            // Real-time listener for global mood changes
+            PetEngine.Instance.MoodChanged += mood =>
+            {
+                liveOrb.SetMood(mood);
+                statusLineText.Text = PetEngine.Instance.CurrentStatusLine;
+                foreach (var child in moodsRow.Children)
+                {
+                    if (child is BuddyPillButton pb)
+                    {
+                        pb.IsActive = pb.Text.Contains(mood.ToString(), StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+            };
+
+            // Behavior Toggles for Orb
+            var cursorCheck = new CheckBox
+            {
+                Content = "تعقیب هوشمند نشانگر ماوس (Gaze tracking follows cursor)",
+                IsChecked = liveOrb.FollowCursor,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                Margin = new Thickness(0, 4, 0, 4)
+            };
+            cursorCheck.Checked += (_, _) => liveOrb.FollowCursor = true;
+            cursorCheck.Unchecked += (_, _) => liveOrb.FollowCursor = false;
+            orbStack.Children.Add(cursorCheck);
+
+            var breathingCheck = new CheckBox
+            {
+                Content = "شناور بودن و تنفس طبیعی (Organic floating & breathing)",
+                IsChecked = liveOrb.EnableBreathing,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                Margin = new Thickness(0, 2, 0, 4)
+            };
+            breathingCheck.Checked += (_, _) => liveOrb.EnableBreathing = true;
+            breathingCheck.Unchecked += (_, _) => liveOrb.EnableBreathing = false;
+            orbStack.Children.Add(breathingCheck);
+
+            var particlesCheck = new CheckBox
+            {
+                Content = "ذرات معلق گوگولی: قلب‌ها، جرقه‌ها و Zzz (Floating emotion particles)",
+                IsChecked = liveOrb.EnableParticles,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                Margin = new Thickness(0, 2, 0, 4)
+            };
+            particlesCheck.Checked += (_, _) => liveOrb.EnableParticles = true;
+            particlesCheck.Unchecked += (_, _) => liveOrb.EnableParticles = false;
+            orbStack.Children.Add(particlesCheck);
+
+            orbCard.Child = orbStack;
+            root.Children.Add(orbCard);
+
+            // =========================================================
+            // Section 2: Notch Silhouette Style
+            // =========================================================
+            var styleCard = new BuddyCard { Margin = new Thickness(0, 0, 0, 14) };
             var styleStack = new StackPanel();
             styleStack.Children.Add(new TextBlock
             {
@@ -86,8 +262,10 @@ namespace WindowsBuddy.UI.Settings
             styleCard.Child = styleStack;
             root.Children.Add(styleCard);
 
-            // Section 2: Accent Color Swatches
-            var colorCard = new BuddyCard { Margin = new Thickness(0, 0, 0, 12) };
+            // =========================================================
+            // Section 3: Accent Color Swatches
+            // =========================================================
+            var colorCard = new BuddyCard { Margin = new Thickness(0, 0, 0, 14) };
             var colorStack = new StackPanel();
             colorStack.Children.Add(new TextBlock
             {
@@ -101,6 +279,7 @@ namespace WindowsBuddy.UI.Settings
             var swatchRow = new WrapPanel();
             var swatches = new (string Name, string Hex)[]
             {
+                ("Vayli Cyan", "#54D8E8"),
                 ("Vayli Emerald", "#30D158"),
                 ("Electric Blue", "#0A84FF"),
                 ("Cyber Violet", "#BF5AF2"),
@@ -118,12 +297,14 @@ namespace WindowsBuddy.UI.Settings
             colorCard.Child = colorStack;
             root.Children.Add(colorCard);
 
-            // Section 3: Interaction & Pet Companion
-            var behaviorCard = new BuddyCard { Margin = new Thickness(0, 0, 0, 12) };
+            // =========================================================
+            // Section 4: Interaction Preferences
+            // =========================================================
+            var behaviorCard = new BuddyCard { Margin = new Thickness(0, 0, 0, 14) };
             var behaviorStack = new StackPanel();
             behaviorStack.Children.Add(new TextBlock
             {
-                Text = "INTERACTION & PET COMPANION",
+                Text = "NOTCH INTERACTION",
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Accent),
@@ -135,25 +316,17 @@ namespace WindowsBuddy.UI.Settings
                 Content = "Require click to open notch (disable auto-open on hover)",
                 IsChecked = AppPreferences.Instance.OpensOnClick,
                 Foreground = CapsuleTheme.Brush(p.Text),
-                Margin = new Thickness(0, 0, 0, 8)
+                Margin = new Thickness(0, 0, 0, 4)
             };
             openModeCheck.Checked += (_, _) => AppPreferences.Instance.OpensOnClick = true;
             openModeCheck.Unchecked += (_, _) => AppPreferences.Instance.OpensOnClick = false;
             behaviorStack.Children.Add(openModeCheck);
 
-            var poseRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
-            foreach (var pose in new[] { "idle", "happy", "wave-01", "music-01", "coffee-break", "charging", "sleeping" })
-            {
-                string captured = pose;
-                var btn = new BuddyPillButton("🐾", captured);
-                btn.Clicked += () => PetEngine.Instance.SetPose(captured, $"Pose changed to {captured} from Settings");
-                poseRow.Children.Add(btn);
-            }
-            behaviorStack.Children.Add(poseRow);
             behaviorCard.Child = behaviorStack;
             root.Children.Add(behaviorCard);
 
-            Content = root;
+            scrollViewer.Content = root;
+            Content = scrollViewer;
         }
     }
 }

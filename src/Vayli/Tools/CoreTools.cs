@@ -1399,15 +1399,79 @@ namespace WindowsBuddy.Tools
     {
         public string Id => "pet";
         public string Title => "Buddy";
-        public string IconGlyph => "🤖";
+        public string IconGlyph => "✨";
         public FrameworkElement BuildView()
         {
             var p = CapsuleTheme.Current;
             var card = new BuddyCard { Margin = new Thickness(4) };
-            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-            stack.Children.Add(new PetView("happy", 80) { HorizontalAlignment = HorizontalAlignment.Center });
-            stack.Children.Add(new TextBlock { Text = "Meet Vayli, your notch buddy", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 2) });
-            stack.Children.Add(new TextBlock { Text = "A tiny desktop companion that lives in your notch.", FontSize = 11.5, Foreground = CapsuleTheme.Brush(p.Text2), HorizontalAlignment = HorizontalAlignment.Center });
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(16) };
+
+            var petView = new PetView("happy", 88)
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 8),
+                ToolTip = "Click me! / کلیک کنید تا واکنش نشون بدم"
+            };
+            stack.Children.Add(petView);
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Vayli Orb Companion",
+                FontSize = 14.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 2)
+            });
+
+            var quoteText = new TextBlock
+            {
+                Text = PetEngine.Instance.CurrentStatusLine,
+                FontSize = 12,
+                Foreground = CapsuleTheme.Brush(p.Accent),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 10),
+                TextAlignment = TextAlignment.Center
+            };
+            stack.Children.Add(quoteText);
+
+            PetEngine.Instance.MoodChanged += _ =>
+            {
+                quoteText.Text = PetEngine.Instance.CurrentStatusLine;
+            };
+
+            var moodRow = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
+            var quickMoods = new (string Glyph, string Label, OrbMood Mood)[]
+            {
+                ("😊", "شاد", OrbMood.Happy),
+                ("😠", "اخم", OrbMood.Angry),
+                ("💖", "دلبر", OrbMood.Love),
+                ("😉", "چشمک", OrbMood.Wink),
+                ("😴", "خواب", OrbMood.Sleepy),
+                ("🌟", "عادی", OrbMood.Idle)
+            };
+
+            foreach (var qm in quickMoods)
+            {
+                var captured = qm.Mood;
+                var btn = new BuddyPillButton(qm.Glyph, qm.Label) { Margin = new Thickness(2) };
+                btn.Clicked += () =>
+                {
+                    PetEngine.Instance.SetMood(captured);
+                    petView.SetMood(captured);
+                };
+                moodRow.Children.Add(btn);
+            }
+
+            var pokeBtn = new BuddyPillButton("🐾", "قلقلک") { Margin = new Thickness(2) };
+            pokeBtn.Clicked += () =>
+            {
+                petView.Orb.Poke();
+                petView.Orb.SpawnSparkleBurst();
+            };
+            moodRow.Children.Add(pokeBtn);
+
+            stack.Children.Add(moodRow);
             card.Child = stack;
             return card;
         }

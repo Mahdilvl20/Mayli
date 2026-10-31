@@ -72,3 +72,11 @@
   - [x] پیاده‌سازی اسکرابر و اکولایزر موج صوتی پیوسته در [BuddyControls.WaveformProgressBar](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/UI/BuddyControls.cs) با ۴۲ ستون موج صوتی (Waveform) با تفکیک بخش پخش‌شده سفید و باقی‌مانده محو
   - [x] تنظیم ابعاد اختصاصی کپسول آهنگ در [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) به `336x46` و هاله نور ملایم EdgeLight دور ناچ
   - [x] ثبت کامیت (`70db54e`) و تایید بیلد کامل Release با ۰ خطا و ۰ هشدار
+
+- [x] **تسک ۱۲: جایگزینی آیکون برنامه با گوی وکتور درخشان و پیاده‌سازی پت انیمیشنی با حالات گوگولی (اخم، شاد، دلبر، پلک و تعقیب ماوس)**
+  - [x] رندر وکتور مستر SVG به آیکون‌های استاندارد ویندوز در تمام ابعاد (`16x16` تا `256x256`) در [Vayli.Brand.tray-dark.ico](file:///F:/Vayli_Project/src/Vayli/Resources/Vayli.Brand.tray-dark.ico)، [Vayli.Brand.tray-light.ico](file:///F:/Vayli_Project/src/Vayli/Resources/Vayli.Brand.tray-light.ico) و فایل‌های PNG کیفیت بالا (`128`, `256`, `512`) و تنظیم در [Vayli.csproj](file:///F:/Vayli_Project/src/Vayli/Vayli.csproj)
+  - [x] پیاده‌سازی موتور کاراکتر وکتور متحرک در [CuteOrbPetView.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Renderer/CuteOrbPetView.cs) با فیزیک ارگانیک تنفس، شناوری، چشمک و پلک زدن خودکار، و پرتاب ذرات معلق (قلب، جرقه، Zzz)
+  - [x] پیاده‌سازی حالات چهره زنده (`OrbMood`): اخم و عصبانی با ابروهای شیب‌دار تند و دهان برآمده، شاد با کمان‌های کیوت `^ ^` و لپ‌های گل‌انداخته صورتی، دلبر با چشم‌های قلبی `♥ ♥`، چشمک، تعجب و خواب‌آلود
+  - [x] ره‌گیری سه‌بعدی کرسر ماوس (3D Spherical Gaze Tracking) و فیزیک ارتجاعی اسکوئیش هنگام کلیک و نوازش
+  - [x] ادغام گوی متحرک در مرکز ناچ بسته (`_collapsedNormalView`)، هدر کپسول باز (`headerOrb`)، ویجت داشبورد ([CoreTools.cs](file:///F:/Vayli_Project/src/Vayli/Tools/CoreTools.cs))، تنظیمات با پیش‌نمایش تعاملی ([SettingsWindow.cs](file:///F:/Vayli_Project/src/Vayli/UI/Settings/SettingsWindow.cs)) و منوی System Tray در [Program.cs](file:///F:/Vayli_Project/src/Vayli/Program.cs)
+  - [x] تایید بیلد کامل Release با ۰ خطا و ۰ هشدار

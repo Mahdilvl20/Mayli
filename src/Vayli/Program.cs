@@ -4,6 +4,7 @@ using System.Threading;
 using System.Windows;
 using Forms = System.Windows.Forms;
 using WindowsBuddy.BuddyCapsule.Core;
+using WindowsBuddy.BuddyCapsule.Renderer;
 using WindowsBuddy.Core;
 using WindowsBuddy.Services;
 using WindowsBuddy.UI.Settings;
@@ -81,6 +82,19 @@ namespace WindowsBuddy
             var menu = new Forms.ContextMenuStrip();
             menu.Items.Add("Toggle Notch (Ctrl+Alt+N)", null, (_, _) => _capsuleWindow?.ToggleFromExternal());
             menu.Items.Add("Settings...", null, (_, _) => SettingsWindow.ShowSingleton());
+            menu.Items.Add(new Forms.ToolStripSeparator());
+
+            var moodMenu = new Forms.ToolStripMenuItem("Vayli Mood / حالت گوگولی 🐾");
+            moodMenu.DropDownItems.Add("🌟 عادی (Idle)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Idle));
+            moodMenu.DropDownItems.Add("😊 شاد (Happy)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Happy));
+            moodMenu.DropDownItems.Add("😠 اخم (Angry / Grumpy)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Angry));
+            moodMenu.DropDownItems.Add("💖 دلبر (Love)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Love));
+            moodMenu.DropDownItems.Add("😉 چشمک (Wink)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Wink));
+            moodMenu.DropDownItems.Add("😲 تعجب (Surprised)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Surprised));
+            moodMenu.DropDownItems.Add("😴 خواب‌آلود (Sleepy)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Sleepy));
+            menu.Items.Add(moodMenu);
+
+            menu.Items.Add("Cycle Mood (تغییر حالت)", null, (_, _) => PetEngine.Instance.CycleNextMood());
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add("Exit Vayli", null, (_, _) => app.Shutdown());
 
