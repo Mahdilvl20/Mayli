@@ -1309,17 +1309,28 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private readonly Image _imageControl;
         private readonly Border _fallbackArtwork;
 
-        public AlbumArtThumbnail(double size = 23.0, double cornerRadius = 5.0)
+        public AlbumArtThumbnail(double size = 23.0, double cornerRadius = 6.0)
         {
             Width = size;
             Height = size;
             CornerRadius = new CornerRadius(cornerRadius);
             ClipToBounds = true;
             Background = CapsuleTheme.Brush(Color.FromRgb(22, 23, 28));
+            BorderBrush = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
+            BorderThickness = new Thickness(1);
             VerticalAlignment = VerticalAlignment.Center;
             Margin = new Thickness(0, 0, size > 30 ? 10 : 8, 0);
 
             var grid = new Grid();
+            var updateClip = new Action(() =>
+            {
+                double w = ActualWidth > 0 ? ActualWidth : size;
+                double h = ActualHeight > 0 ? ActualHeight : size;
+                grid.Clip = new RectangleGeometry(new Rect(0, 0, w, h), cornerRadius, cornerRadius);
+            });
+            updateClip();
+            SizeChanged += (_, _) => updateClip();
+
             var canvas = new Canvas { Width = 23, Height = 23 };
 
             var shoulders = new Path
@@ -1348,6 +1359,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             _fallbackArtwork = new Border
             {
+                CornerRadius = new CornerRadius(cornerRadius),
                 Background = new LinearGradientBrush
                 {
                     StartPoint = new Point(0, 0),
@@ -1367,6 +1379,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Stretch = Stretch.UniformToFill,
                 Visibility = Visibility.Collapsed
             };
+            RenderOptions.SetBitmapScalingMode(_imageControl, BitmapScalingMode.HighQuality);
             grid.Children.Add(_imageControl);
 
             Child = grid;

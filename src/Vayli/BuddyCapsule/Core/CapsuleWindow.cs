@@ -295,7 +295,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             topRowDock.Children.Add(_miniEqualizer);
 
             var leftInfo = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            _albumArtThumb = new AlbumArtThumbnail(23.0, 5.0);
+            _albumArtThumb = new AlbumArtThumbnail(24.0, 6.0);
             leftInfo.Children.Add(_albumArtThumb);
 
             _mediaTrackText = new TextBlock
@@ -363,7 +363,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _wideAlbumArtThumb = new AlbumArtThumbnail(42.0, 8.0)
+            _wideAlbumArtThumb = new AlbumArtThumbnail(44.0, 10.0)
             {
                 Margin = new Thickness(0, 0, 10, 0),
                 VerticalAlignment = VerticalAlignment.Center
