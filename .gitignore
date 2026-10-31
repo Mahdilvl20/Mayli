@@ -6,3 +6,4 @@ obj/
 *.cache
 TestResults/
 publish/
+dist/
