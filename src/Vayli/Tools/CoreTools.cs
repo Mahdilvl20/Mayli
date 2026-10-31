@@ -49,7 +49,7 @@ namespace WindowsBuddy.Tools
             _tools.Add(new ClockTool());        // 9. Clock
             _tools.Add(new QuickToolsTool());   // 10. Quick Tools
             _tools.Add(new LinksTool());        // 11. Links
-            _tools.Add(new CardsTool());        // 12. Cards
+            _tools.Add(new MessageBannerTool()); // 12. Message (Notch banner)
             _tools.Add(new AudioTool());        // 13. Audio
             _tools.Add(new ScreenTimeTool());   // 14. Screen Time
             _tools.Add(new CalendarTool());     // 15. Calendar
@@ -749,12 +749,15 @@ namespace WindowsBuddy.Tools
         public void OnActivated() { }
     }
 
-    public sealed class CardsTool : IBuddyTool
+    /// <summary>
+    /// MessageBannerTool: Notch Banner tool matching Vayli 1:1 with live preview, animations, colors and notch flash.
+    /// </summary>
+    public sealed class MessageBannerTool : IBuddyTool
     {
-        public string Id => "cards";
-        public string Title => "Cards";
-        public string IconGlyph => "🗂";
-        public FrameworkElement BuildView() => new LinksTool().BuildView();
+        public string Id => "message";
+        public string Title => "Message";
+        public string IconGlyph => "🪪";
+        public FrameworkElement BuildView() => new WindowsBuddy.Tools.Message.MessageToolView();
         public void OnActivated() { }
     }
 

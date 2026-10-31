@@ -96,6 +96,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly TextBlock _bannerTitle;
         private readonly TextBlock _bannerSubtitle;
 
+        // 4. Collapsed Message Banner View (Flashed from Message tool)
+        private readonly Grid _collapsedMessageView;
+        private readonly TextBlock _messageNotchText;
+        private readonly DispatcherTimer _messageDismissTimer;
+        private DispatcherTimer _messageTypeOnTimer;
+        private bool _isMessageActive = false;
+        private bool _isMessagePinned = false;
+
         private readonly DispatcherTimer _morphTimer;
         private readonly DispatcherTimer _clockTimer;
         private readonly DispatcherTimer _spectrumTimer;
@@ -504,6 +512,34 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedBannerView.Children.Add(bannerDock);
             _collapsedContent.Children.Add(_collapsedBannerView);
 
+            // View 4: Collapsed Message Banner View (Flashed from Message tool)
+            _collapsedMessageView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
+            var msgDock = new DockPanel();
+            var msgIcon = new TextBlock
+            {
+                Text = "⚡",
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(Color.FromRgb(245, 166, 35)),
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            DockPanel.SetDock(msgIcon, Dock.Left);
+            msgDock.Children.Add(msgIcon);
+
+            _messageNotchText = new TextBlock
+            {
+                Text = "",
+                FontSize = 12.0,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 400
+            };
+            msgDock.Children.Add(_messageNotchText);
+            _collapsedMessageView.Children.Add(msgDock);
+            _collapsedContent.Children.Add(_collapsedMessageView);
+
             // -------------------------------------------------------------
             // Expanded Content (752 x 352)
             // -------------------------------------------------------------
@@ -722,8 +758,21 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 _bannerDismissTimer.Stop();
                 _isBannerActive = false;
+                if (_isMessagePinned)
+                {
+                    _isMessageActive = true;
+                }
                 UpdateCollapsedViewState();
             };
+
+            // Message Banner Dismissal Timer
+            _messageDismissTimer = new DispatcherTimer();
+            _messageDismissTimer.Tick += (_, _) => OnMessageDismissed();
+
+            // Hook Message Tool Flash and TakeDown
+            var msgService = WindowsBuddy.Tools.Message.MessageService.Instance;
+            msgService.FlashRequested += OnMessageFlashRequested;
+            msgService.TakeDownRequested += OnMessageTakeDownRequested;
 
             // Hook Real-time Notch Action Events (Real Clipboard, Bluetooth & Media!)
             var actionService = RealtimeNotchActionService.Instance;
@@ -901,8 +950,18 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
+                _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = BannerCollapsedWidth;
+                _currentBaseCollapsedHeight = BannerCollapsedHeight;
+            }
+            else if (_isMessageActive)
+            {
+                _collapsedNormalView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
+                _collapsedBannerView.Visibility = Visibility.Collapsed;
+                _collapsedMessageView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedHeight = BannerCollapsedHeight;
             }
             else if (_isMusicActive && _isMediaWideActive)
@@ -910,6 +969,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = MediaWideCollapsedWidth;
                 _currentBaseCollapsedHeight = MediaWideCollapsedHeight;
@@ -919,6 +979,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
+                _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = MediaCollapsedWidth;
                 _currentBaseCollapsedHeight = MediaCollapsedHeight;
@@ -933,6 +994,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
+                _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = CollapsedWidth;
                 _currentBaseCollapsedHeight = CollapsedHeight;
@@ -943,6 +1005,68 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _targetProgress = 0.0;
                 _morphTimer.Start();
             }
+        }
+
+        private void OnMessageFlashRequested(WindowsBuddy.Tools.Message.MessageSettings settings)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                _isMessageActive = true;
+                _isMessagePinned = settings.RepeatEnabled;
+
+                string text = string.IsNullOrWhiteSpace(settings.Text) ? "Hello from Vayli!" : settings.Text;
+                _messageNotchText.Text = text;
+                _messageNotchText.Foreground = WindowsBuddy.Tools.Message.MessageRenderer.GetForegroundBrush(settings.ColorHex, settings.Finish);
+
+                double estimatedWidth = Math.Clamp(text.Length * 8.2 + 80.0, 260.0, 480.0);
+                _currentBaseCollapsedWidth = estimatedWidth;
+                _currentBaseCollapsedHeight = BannerCollapsedHeight;
+
+                UpdateCollapsedViewState();
+
+                WindowsBuddy.Tools.Message.MessageRenderer.AnimateElement(
+                    _messageNotchText,
+                    _messageNotchText,
+                    text,
+                    settings.Animation,
+                    settings.Speed,
+                    _messageTypeOnTimer,
+                    out _messageTypeOnTimer);
+
+                _messageDismissTimer.Stop();
+                if (!settings.RepeatEnabled)
+                {
+                    _messageDismissTimer.Interval = settings.DurationSpan;
+                    _messageDismissTimer.Start();
+                }
+
+                if (_morphProgress > 0.4)
+                {
+                    _targetProgress = 0.0;
+                    _morphTimer.Start();
+                }
+            });
+        }
+
+        private void OnMessageTakeDownRequested()
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                _isMessageActive = false;
+                _isMessagePinned = false;
+                _messageDismissTimer.Stop();
+                _messageTypeOnTimer?.Stop();
+                UpdateCollapsedViewState();
+            });
+        }
+
+        private void OnMessageDismissed()
+        {
+            _messageDismissTimer.Stop();
+            _isMessageActive = false;
+            _messageTypeOnTimer?.Stop();
+            WindowsBuddy.Tools.Message.MessageService.Instance.NotifyNotchExpired();
+            UpdateCollapsedViewState();
         }
 
         #endregion
@@ -1138,6 +1262,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "clock" => "Clock  Alt+9",
                         "units" => "Units  Alt+0",
                         "links" => "Links  Alt+L",
+                        "message" => "Message  Alt+M",
                         _ => tool.Title
                     }
                 };
@@ -1248,6 +1373,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "units" => "Conversion",
                 "fileshelf" => "Parked files",
                 "links" => "Quick Bookmarks",
+                "message" => "Notch banner",
                 "focus" => "Focus & intervals",
                 "clipboard" => $"{WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Count} items",
                 "notes" => $"{WindowsBuddy.Tools.Notes.NotesService.Instance.Notes.Count} notes",
