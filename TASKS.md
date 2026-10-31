@@ -57,3 +57,11 @@
   - [x] ارتقای داک ناوبری پایینی در [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) با ۱۸ ابزار متناظر، دایره هایلایت و نقطه سفید زیر تب فعال
   - [x] پیاده‌سازی بنرهای نوتیفیکیشن داینامیک ناچ (`Copied · Image`, `Screenshot saved`, `AirPods Pro Connected`) و پیام‌های کاراکتر ربات وایلی (`Good morning, Alex!`)
   - [x] ثبت کامیت (`581a9cc`) و تایید بیلد کامل Release با ۰ خطا و ۰ هشدار
+
+- [x] **تسک ۱۰: واقعی‌سازی کامل اکشن‌های ناچ ویندوز (Dynamic Island Real-Time Events)**
+  - [x] پیاده‌سازی سرویس مرکزی رویدادهای زنده سیستم‌عامل در [RealtimeNotchActionService.cs](file:///F:/Vayli_Project/src/Vayli/Services/RealtimeNotchActionService.cs)
+  - [x] تشخیص زنده پخش موزیک: بررسی سرویس‌های پخش زنده (Spotify، مرورگرها، YouTube و مدیا پلیر) و تغییر ناچ در حالت بسته به پلیر پویا (`290x35`) با نمایش نام ترک، خواننده و میله‌های ضرب‌آهنگ متحرک (`StaticBeatBars`)
+  - [x] تشخیص زنده اتصال بلوتوث: لیسنر سخت‌افزاری `WM_DEVICECHANGE` (`0x0219`) و کوئری رجیستری برای تجهیزات هندزفری و بلوتوث و نمایش فوری بنر ناچ (`AirPods Pro / QCY-T13 Connected`) با ابعاد کپسول عریض (`340x38`)
+  - [x] تشخیص زنده کپی متن و عکس: هوک سراسری `WM_CLIPBOARDUPDATE` و تفکیک تصاویر (`Copied · Image`)، متن‌ها (`Copied · "<متن>"`) و فایل‌ها به همراه مانیتورینگ پوشهٔ اسکرین‌شات‌ها (`Screenshot saved`)
+  - [x] اتصال انیمیشن مورف پویا در [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) با تنظیم بازگشت خودکار کپسول به ابعاد عادی پس از اتمام نوتیفیکیشن
+  - [x] ثبت کامیت (`e70644e`) و تایید بیلد کامل Release با ۰ خطا و ۰ هشدار
