@@ -883,8 +883,8 @@ namespace WindowsBuddy.Tools
     {
         public string Id => "clock";
         public string Title => "Clock";
-        public string IconGlyph => "🕒";
-        public FrameworkElement BuildView() => new TimerClockTool().BuildView();
+        public string IconGlyph => "🕐";
+        public FrameworkElement BuildView() => new WindowsBuddy.Tools.Clock.ClockToolView();
         public void OnActivated() { }
     }
 

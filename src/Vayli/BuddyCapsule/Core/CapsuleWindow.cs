@@ -1135,6 +1135,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "fileshelf" => "File Shelf  Alt+6",
                         "drop" => "Drop  Alt+7",
                         "weather" => "Weather  Alt+8",
+                        "clock" => "Clock  Alt+9",
                         _ => tool.Title
                     }
                 };
@@ -1241,6 +1242,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "home" => DateTime.Now.ToString("dddd, d MMM"),
                 "system" => "Power · Network · Audio",
                 "weather" => WindowsBuddy.Tools.Weather.WeatherService.Instance.Prefs.City,
+                "clock" => "Local Time & Date",
                 "fileshelf" => "Parked files",
                 "links" => "Quick Bookmarks",
                 "focus" => "Focus & intervals",
