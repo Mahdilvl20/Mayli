@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -31,8 +32,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
     {
         public const double CollapsedWidth = 228.0;
         public const double CollapsedHeight = 35.0;
-        public const double MediaCollapsedWidth = 308.0;
+        public const double MediaCollapsedWidth = 296.0;
         public const double MediaCollapsedHeight = 45.0;
+        public const double MediaWideCollapsedWidth = 380.0;
+        public const double MediaWideCollapsedHeight = 75.0;
+        public const double MediaWideDurationSeconds = 4.0;
         public const double BannerCollapsedWidth = 330.0;
         public const double BannerCollapsedHeight = 38.0;
         public const double ExpandedWidth = 752.0;
@@ -65,13 +69,24 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly BatteryStatusGlyph _collapsedBatteryGlyph;
         private readonly TextBlock _collapsedBatteryText;
 
-        // 2. Collapsed Live Media View (Music Playing - Exact match to user video & screenshot)
+        // 2A. Collapsed Compact Live Media View (296 x 45 - Normal Music Playing)
         private readonly Grid _collapsedMediaView;
         private readonly AlbumArtThumbnail _albumArtThumb;
         private readonly TextBlock _mediaTrackText;
         private readonly TextBlock _mediaArtistText;
         private readonly MiniEqualizerControl _miniEqualizer;
         private readonly WaveformProgressBar _waveformProgress;
+
+        // 2B. Collapsed Wide Live Media Card (380 x 75 - Track Switch / Next Song 4s Popup)
+        private readonly Grid _collapsedMediaWideView;
+        private readonly AlbumArtThumbnail _wideAlbumArtThumb;
+        private readonly TextBlock _wideMediaTrackText;
+        private readonly TextBlock _wideMediaArtistText;
+        private readonly Border _wideProgressTrack;
+        private readonly Border _wideProgressFill;
+        private readonly TextBlock _wideRemainingText;
+        private readonly MediaTransportControlsBar _wideTransportControls;
+        private readonly WaveformProgressBar _wideWaveformProgress;
 
         // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth)
         private readonly Grid _collapsedBannerView;
@@ -82,9 +97,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly DispatcherTimer _morphTimer;
         private readonly DispatcherTimer _clockTimer;
         private readonly DispatcherTimer _spectrumTimer;
+        private readonly DispatcherTimer _mediaWideDismissTimer;
         private readonly DispatcherTimer _bannerDismissTimer;
         private readonly float[] _fftBands28 = new float[AudioSpectrumService.Bands];
-        private readonly float[] _mappedBars40 = new float[WaveformProgressBar.BarCount];
+        private readonly float[] _mappedBars40 = new float[WaveformProgressBar.CompactBarCount];
+        private readonly float[] _mappedBars56 = new float[WaveformProgressBar.WideBarCount];
         private readonly float[] _miniBars4 = new float[4];
         private double _spectrumPhase;
 
@@ -94,6 +111,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private bool _isBannerActive = false;
         private bool _isMusicActive = false;
+        private bool _isMediaWideActive = false;
+        private double _mediaPosSeconds = 0.0;
+        private double _mediaDurSeconds = 202.0;
+        private DateTime _lastMediaTimelineSyncUtc = DateTime.UtcNow;
         private double _currentBaseCollapsedWidth = CollapsedWidth;
         private double _currentBaseCollapsedHeight = CollapsedHeight;
         private double _displayedCollapsedWidth = CollapsedWidth;
@@ -202,12 +223,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedNormalView.Children.Add(_collapsedBatteryText);
             _collapsedContent.Children.Add(_collapsedNormalView);
 
-            // View 2: Live Media Playback View (matching the exact user video & screenshot)
+            // View 2A: Compact Live Media Playback View (296 x 45, matching video 00:00-00:06 & 00:11-00:19)
             _collapsedMediaView = new Grid
             {
                 Visibility = Visibility.Collapsed,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 1, 0, 1)
+                Margin = new Thickness(0, 1, 0, 1),
+                RenderTransform = new TranslateTransform(0, 0)
             };
             _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -225,7 +247,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             topRowDock.Children.Add(_miniEqualizer);
 
             var leftInfo = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            _albumArtThumb = new AlbumArtThumbnail();
+            _albumArtThumb = new AlbumArtThumbnail(23.0, 5.0);
             leftInfo.Children.Add(_albumArtThumb);
 
             _mediaTrackText = new TextBlock
@@ -234,7 +256,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 FontSize = 12.0,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text),
-                MaxWidth = 140,
+                MaxWidth = 135,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -253,7 +275,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 Text = "ZOYA",
                 FontSize = 11.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                MaxWidth = 95,
+                MaxWidth = 90,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -264,11 +286,145 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedMediaView.Children.Add(topRowDock);
 
             // Row 1: Full-width 40-bar Symmetrical Audio Spectrum
-            _waveformProgress = new WaveformProgressBar();
+            _waveformProgress = new WaveformProgressBar(WaveformProgressBar.CompactBarCount);
             Grid.SetRow(_waveformProgress, 1);
             _collapsedMediaView.Children.Add(_waveformProgress);
 
+            // Right-clicking compact media pill shows the 4-second Wide Music Card on demand
+            _collapsedMediaView.MouseRightButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                ActivateMediaWideCard();
+            };
+
             _collapsedContent.Children.Add(_collapsedMediaView);
+
+            // View 2B: Wide Music Card on Track Switch / Next Song (380 x 75 for 4.0s, matching video 00:07-00:10)
+            _collapsedMediaWideView = new Grid
+            {
+                Visibility = Visibility.Collapsed,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2, 2, 2, 1),
+                RenderTransform = new TranslateTransform(0, 0)
+            };
+            _collapsedMediaWideView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            _collapsedMediaWideView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var wideTopGrid = new Grid { Margin = new Thickness(1, 1, 1, 4) };
+            wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            _wideAlbumArtThumb = new AlbumArtThumbnail(42.0, 8.0)
+            {
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(_wideAlbumArtThumb, 0);
+            wideTopGrid.Children.Add(_wideAlbumArtThumb);
+
+            var wideCenterStack = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0)
+            };
+
+            _wideMediaTrackText = new TextBlock
+            {
+                Text = "Nobody Else",
+                FontSize = 12.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            wideCenterStack.Children.Add(_wideMediaTrackText);
+
+            _wideMediaArtistText = new TextBlock
+            {
+                Text = "Moeaike",
+                FontSize = 11.0,
+                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Margin = new Thickness(0, 1, 0, 6),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            wideCenterStack.Children.Add(_wideMediaArtistText);
+
+            // Horizontal Progress Scrubber Bar (White filled left + dark translucent track right)
+            _wideProgressTrack = new Border
+            {
+                Height = 3.5,
+                CornerRadius = new CornerRadius(1.75),
+                Background = new SolidColorBrush(Color.FromArgb(62, 255, 255, 255)),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(0, 0, 4, 0)
+            };
+            _wideProgressFill = new Border
+            {
+                Height = 3.5,
+                Width = 28.0,
+                CornerRadius = new CornerRadius(1.75),
+                Background = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            _wideProgressTrack.Child = _wideProgressFill;
+            _wideProgressTrack.SizeChanged += (_, _) => UpdateMediaTimelineVisuals();
+            wideCenterStack.Children.Add(_wideProgressTrack);
+
+            Grid.SetColumn(wideCenterStack, 1);
+            wideTopGrid.Children.Add(wideCenterStack);
+
+            var wideRightStack = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            _wideRemainingText = new TextBlock
+            {
+                Text = "-3:22",
+                FontSize = 11.0,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(152, 152, 160)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 2, 4)
+            };
+            wideRightStack.Children.Add(_wideRemainingText);
+
+            _wideTransportControls = new MediaTransportControlsBar(
+                onPrev: () =>
+                {
+                    ResetMediaWideTimer();
+                    MediaService.Instance.PreviousTrack();
+                },
+                onPlayPause: () =>
+                {
+                    ResetMediaWideTimer();
+                    MediaService.Instance.TogglePlayPause();
+                },
+                onNext: () =>
+                {
+                    ResetMediaWideTimer();
+                    MediaService.Instance.NextTrack();
+                })
+            {
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            wideRightStack.Children.Add(_wideTransportControls);
+
+            Grid.SetColumn(wideRightStack, 2);
+            wideTopGrid.Children.Add(wideRightStack);
+
+            Grid.SetRow(wideTopGrid, 0);
+            _collapsedMediaWideView.Children.Add(wideTopGrid);
+
+            // Row 1: Full-width 56-bar Symmetrical Audio Spectrum
+            _wideWaveformProgress = new WaveformProgressBar(WaveformProgressBar.WideBarCount);
+            Grid.SetRow(_wideWaveformProgress, 1);
+            _collapsedMediaWideView.Children.Add(_wideWaveformProgress);
+
+            _collapsedContent.Children.Add(_collapsedMediaWideView);
 
             // View 3: Dynamic Banner View (Screenshot 2: Copied, Screenshot saved, AirPods Pro Connected)
             _collapsedBannerView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
@@ -480,6 +636,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedBatteryGlyph.SetBattery(sys.BatteryPercent);
                 _collapsedBatteryText.Text = $"{sys.BatteryPercent}";
                 _headerBatteryText.Text = $"{sys.BatteryPercent}% ⚡";
+
+                if (_isMusicActive)
+                {
+                    UpdateMediaTimelineVisuals();
+                }
             };
             _clockTimer.Start();
 
@@ -491,13 +652,33 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _spectrumPhase += 0.085;
 
                 AudioSpectrumService.Instance.Read(_fftBands28, out bool isAudioLive);
-                AudioSpectrumService.MapBands(_fftBands28, _mappedBars40, WaveformProgressBar.BarCount);
                 AudioSpectrumService.ComputeMiniBars(_fftBands28, _miniBars4, _spectrumPhase);
-
                 _miniEqualizer.SetLevels(_miniBars4, _isMusicActive);
-                _waveformProgress.SetSpectrumLevels(_mappedBars40, _isMusicActive, isAudioLive, _spectrumPhase);
+
+                if (_isMediaWideActive)
+                {
+                    AudioSpectrumService.MapBands(_fftBands28, _mappedBars56, WaveformProgressBar.WideBarCount);
+                    _wideWaveformProgress.SetSpectrumLevels(_mappedBars56, _isMusicActive, isAudioLive, _spectrumPhase);
+                }
+                else
+                {
+                    AudioSpectrumService.MapBands(_fftBands28, _mappedBars40, WaveformProgressBar.CompactBarCount);
+                    _waveformProgress.SetSpectrumLevels(_mappedBars40, _isMusicActive, isAudioLive, _spectrumPhase);
+                }
             };
             _spectrumTimer.Start();
+
+            // 4-Second Wide Music Card Dismissal Timer (Track Switch / Next Song Popup)
+            _mediaWideDismissTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(MediaWideDurationSeconds) };
+            _mediaWideDismissTimer.Tick += (_, _) =>
+            {
+                _mediaWideDismissTimer.Stop();
+                if (_isMediaWideActive)
+                {
+                    _isMediaWideActive = false;
+                    UpdateCollapsedViewState(animateCompactEntrance: true);
+                }
+            };
 
             // Notification Banner Dismissal Timer
             _bannerDismissTimer = new DispatcherTimer();
@@ -534,6 +715,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 // Display banner view
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Visible;
 
                 _currentBaseCollapsedWidth = BannerCollapsedWidth;
@@ -555,10 +737,12 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             Dispatcher.InvokeAsync(() =>
             {
+                bool wasPlaying = _isMusicActive;
                 _isMusicActive = snapshot.IsPlaying;
                 string track = string.IsNullOrWhiteSpace(snapshot.Title) ? "Future Calling" : snapshot.Title;
                 string artist = string.IsNullOrWhiteSpace(snapshot.Artist) ? "ZOYA" : snapshot.Artist;
 
+                // Compact media view (296 x 45)
                 _mediaTrackText.Text = track;
                 _mediaArtistText.Text = artist;
                 _miniEqualizer.IsPlaying = snapshot.IsPlaying;
@@ -566,35 +750,153 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _waveformProgress.SetBeatColor(snapshot.BeatColor);
                 _albumArtThumb.SetArtwork(snapshot.Artwork, artist);
 
+                // Wide media card view (380 x 75)
+                _wideMediaTrackText.Text = track;
+                _wideMediaArtistText.Text = artist;
+                _wideTransportControls.SetPlaying(snapshot.IsPlaying);
+                _wideWaveformProgress.SetBeatColor(snapshot.BeatColor);
+                _wideAlbumArtThumb.SetArtwork(snapshot.Artwork, artist);
+
+                // Timeline sync for live remaining countdown (-3:22) and progress scrubber
+                if (snapshot.DurationSeconds > 1.0)
+                {
+                    _mediaDurSeconds = snapshot.DurationSeconds;
+                    _mediaPosSeconds = Math.Clamp(snapshot.PositionSeconds, 0.0, _mediaDurSeconds);
+                    _lastMediaTimelineSyncUtc = DateTime.UtcNow;
+                }
+                else if (snapshot.IsTrackSwitch)
+                {
+                    _mediaDurSeconds = 202.0;
+                    _mediaPosSeconds = 0.0;
+                    _lastMediaTimelineSyncUtc = DateTime.UtcNow;
+                }
+                UpdateMediaTimelineVisuals();
+
+                if (!_isMusicActive)
+                {
+                    _isMediaWideActive = false;
+                    _mediaWideDismissTimer.Stop();
+                }
+                else if (snapshot.IsTrackSwitch)
+                {
+                    ActivateMediaWideCard();
+                    return;
+                }
+
                 if (!_isBannerActive)
                 {
-                    UpdateCollapsedViewState();
+                    UpdateCollapsedViewState(animateCompactEntrance: !wasPlaying && _isMusicActive && !_isMediaWideActive);
                 }
             });
         }
 
-        private void UpdateCollapsedViewState()
+        private void ActivateMediaWideCard()
+        {
+            if (!_isMusicActive) return;
+            _isMediaWideActive = true;
+            ResetMediaWideTimer();
+            UpdateMediaTimelineVisuals();
+
+            if (!_isBannerActive)
+            {
+                UpdateCollapsedViewState();
+                AnimateViewEntrance(_collapsedMediaWideView, -7.0);
+            }
+        }
+
+        private void ResetMediaWideTimer()
+        {
+            _mediaWideDismissTimer.Stop();
+            _mediaWideDismissTimer.Interval = TimeSpan.FromSeconds(MediaWideDurationSeconds);
+            _mediaWideDismissTimer.Start();
+        }
+
+        private void UpdateMediaTimelineVisuals()
+        {
+            double elapsedSinceSync = _isMusicActive
+                ? Math.Max(0.0, (DateTime.UtcNow - _lastMediaTimelineSyncUtc).TotalSeconds)
+                : 0.0;
+
+            double dur = _mediaDurSeconds > 1.0 ? _mediaDurSeconds : 202.0;
+            double pos = Math.Clamp(_mediaPosSeconds + elapsedSinceSync, 0.0, dur);
+            double remaining = Math.Max(0.0, dur - pos);
+
+            _wideRemainingText.Text = FormatRemaining(remaining);
+
+            double trackWidth = _wideProgressTrack.ActualWidth > 10.0 ? _wideProgressTrack.ActualWidth : 156.0;
+            double ratio = dur > 0.1 ? Math.Clamp(pos / dur, 0.04, 1.0) : 0.12;
+            _wideProgressFill.Width = Math.Max(6.0, trackWidth * ratio);
+        }
+
+        private static string FormatRemaining(double remainingSeconds)
+        {
+            int totalSec = Math.Max(0, (int)Math.Round(remainingSeconds));
+            int mins = totalSec / 60;
+            int secs = totalSec % 60;
+            return $"-{mins}:{secs:D2}";
+        }
+
+        private static void AnimateViewEntrance(FrameworkElement view, double fromY)
+        {
+            if (view.RenderTransform is not TranslateTransform tt)
+            {
+                tt = new TranslateTransform(0, 0);
+                view.RenderTransform = tt;
+            }
+
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var slideAnim = new DoubleAnimation(fromY, 0.0, TimeSpan.FromMilliseconds(260))
+            {
+                EasingFunction = ease
+            };
+            var fadeAnim = new DoubleAnimation(0.2, 1.0, TimeSpan.FromMilliseconds(220))
+            {
+                EasingFunction = ease
+            };
+
+            tt.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            view.BeginAnimation(OpacityProperty, fadeAnim);
+        }
+
+        private void UpdateCollapsedViewState(bool animateCompactEntrance = false)
         {
             if (_isBannerActive)
             {
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = BannerCollapsedWidth;
                 _currentBaseCollapsedHeight = BannerCollapsedHeight;
+            }
+            else if (_isMusicActive && _isMediaWideActive)
+            {
+                _collapsedNormalView.Visibility = Visibility.Collapsed;
+                _collapsedBannerView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Visible;
+                _currentBaseCollapsedWidth = MediaWideCollapsedWidth;
+                _currentBaseCollapsedHeight = MediaWideCollapsedHeight;
             }
             else if (_isMusicActive)
             {
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = MediaCollapsedWidth;
                 _currentBaseCollapsedHeight = MediaCollapsedHeight;
+
+                if (animateCompactEntrance)
+                {
+                    AnimateViewEntrance(_collapsedMediaView, 5.0);
+                }
             }
             else
             {
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = CollapsedWidth;
                 _currentBaseCollapsedHeight = CollapsedHeight;

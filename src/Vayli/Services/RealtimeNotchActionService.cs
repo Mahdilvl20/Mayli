@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -27,6 +28,9 @@ namespace WindowsBuddy.Services
         public string Title { get; set; } = "";
         public string Artist { get; set; } = "";
         public bool IsPlaying { get; set; }
+        public bool IsTrackSwitch { get; set; }
+        public double PositionSeconds { get; set; }
+        public double DurationSeconds { get; set; }
         public BitmapSource Artwork { get; set; }
         public Color BeatColor { get; set; } = Color.FromRgb(245, 245, 250);
     }
@@ -35,7 +39,7 @@ namespace WindowsBuddy.Services
     /// RealtimeNotchActionService: Orchestrates real-time Windows events for the notch:
     /// 1. Real Clipboard & Screenshot events (Text, Image, Files, Screenshot saved)
     /// 2. Real Bluetooth & Audio device connection events (AirPods Pro, QCY-T13, Headsets)
-    /// 3. Real Windows GSMTC Media Session + Album Art Thumbnail + Dominant Color Extraction
+    /// 3. Real Windows GSMTC Media Session + Timeline + Album Art Thumbnail + Dominant Color Extraction
     /// </summary>
     public sealed class RealtimeNotchActionService
     {
@@ -63,7 +67,6 @@ namespace WindowsBuddy.Services
 
         private RealtimeNotchActionService()
         {
-            // Ensure real-time loopback FFT analyzer is running
             _ = AudioSpectrumService.Instance;
 
             StartGsmtcBackgroundWorker();
@@ -314,7 +317,7 @@ namespace WindowsBuddy.Services
 
         #endregion
 
-        #region 3. Real Windows GSMTC Media Session + Album Cover Art + Dominant Color
+        #region 3. Real Windows GSMTC Media Session + Timeline + Album Cover Art + Dominant Color
 
         private void StartGsmtcBackgroundWorker()
         {
@@ -347,6 +350,16 @@ while ($true) {
         if ($null -ne $session) {
             $info = $session.GetPlaybackInfo()
             $status = $info.PlaybackStatus.ToString()
+            $tl = $session.GetTimelineProperties()
+            $posSec = [Math]::Max(0.0, $tl.Position.TotalSeconds)
+            if ($status -eq 'Playing' -and $tl.LastUpdatedTime.Year -gt 2000) {
+                $elapsed = ([DateTimeOffset]::UtcNow - $tl.LastUpdatedTime.ToUniversalTime()).TotalSeconds
+                if ($elapsed -gt 0 -and $elapsed -lt 300) { $posSec += $elapsed }
+            }
+            $durSec = [Math]::Max(0.0, $tl.EndTime.TotalSeconds)
+            $posStr = $posSec.ToString('F1', [System.Globalization.CultureInfo]::InvariantCulture)
+            $durStr = $durSec.ToString('F1', [System.Globalization.CultureInfo]::InvariantCulture)
+
             $props = Await ($session.TryGetMediaPropertiesAsync()) $propsType
             $title = if ($props.Title) { $props.Title.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
             $artist = if ($props.Artist) { $props.Artist.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
@@ -368,14 +381,14 @@ while ($true) {
                 }
                 $b64 = $cachedB64
             }
-            [Console]::WriteLine(""GSMTC`t$status`t$title`t$artist`t$b64"")
+            [Console]::WriteLine(""GSMTC`t$status`t$title`t$artist`t$posStr`t$durStr`t$b64"")
         } else {
-            [Console]::WriteLine(""GSMTC`tStopped`t`t`t"")
+            [Console]::WriteLine(""GSMTC`tStopped`t`t`t0`t0`t"")
         }
     } catch {
-        [Console]::WriteLine(""GSMTC`tError`t`t`t"")
+        [Console]::WriteLine(""GSMTC`tError`t`t`t0`t0`t"")
     }
-    Start-Sleep -Milliseconds 950
+    Start-Sleep -Milliseconds 850
 }
 ";
                 string encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(psScript));
@@ -411,18 +424,20 @@ while ($true) {
                             _gsmtcActive = true;
 
                             string[] parts = line.Split('\t');
-                            if (parts.Length < 4) continue;
+                            if (parts.Length < 6) continue;
 
                             string status = parts[1];
                             string title = parts[2].Trim();
                             string artist = parts[3].Trim();
-                            string b64 = parts.Length >= 5 ? parts[4].Trim() : "";
+                            double.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out double posSec);
+                            double.TryParse(parts[5], NumberStyles.Float, CultureInfo.InvariantCulture, out double durSec);
+                            string b64 = parts.Length >= 7 ? parts[6].Trim() : "";
 
                             bool playing = string.Equals(status, "Playing", StringComparison.OrdinalIgnoreCase)
                                            && !string.IsNullOrWhiteSpace(title);
 
                             CleanTitleAndArtist(ref title, ref artist);
-                            PublishMediaUpdate(title, artist, playing, b64);
+                            PublishMediaUpdate(title, artist, playing, posSec, durSec, b64);
                         }
                     }
                     catch
@@ -448,7 +463,6 @@ while ($true) {
         {
             if (string.IsNullOrWhiteSpace(title)) return;
 
-            // If artist is embedded in title as "Artist - Title" or "Title - Artist" when Artist is empty or generic
             if ((string.IsNullOrWhiteSpace(artist) || artist.Contains("YouTube", StringComparison.OrdinalIgnoreCase) || artist.Contains("Spotify", StringComparison.OrdinalIgnoreCase))
                 && title.Contains(" - ", StringComparison.Ordinal))
             {
@@ -463,7 +477,7 @@ while ($true) {
             }
         }
 
-        private void PublishMediaUpdate(string title, string artist, bool playing, string base64Thumb)
+        private void PublishMediaUpdate(string title, string artist, bool playing, double posSec, double durSec, string base64Thumb)
         {
             BitmapSource decodedArt = null;
             if (!string.IsNullOrEmpty(base64Thumb))
@@ -475,7 +489,7 @@ while ($true) {
                     var bmp = new BitmapImage();
                     bmp.BeginInit();
                     bmp.CacheOption = BitmapCacheOption.OnLoad;
-                    bmp.DecodePixelWidth = 64;
+                    bmp.DecodePixelWidth = 84;
                     bmp.StreamSource = ms;
                     bmp.EndInit();
                     bmp.Freeze();
@@ -486,30 +500,35 @@ while ($true) {
 
             Application.Current?.Dispatcher?.InvokeAsync(() =>
             {
-                bool stateChanged = playing != IsMusicPlaying
-                                    || !string.Equals(title, CurrentTrack, StringComparison.Ordinal)
-                                    || !string.Equals(artist, CurrentArtist, StringComparison.Ordinal)
-                                    || decodedArt != null;
+                string cleanArtist = string.IsNullOrWhiteSpace(artist) ? "Music" : artist;
+                bool trackChanged = playing && (!string.Equals(title, CurrentTrack, StringComparison.Ordinal)
+                                                || !string.Equals(cleanArtist, CurrentArtist, StringComparison.Ordinal));
+                bool stateChanged = playing != IsMusicPlaying || trackChanged || decodedArt != null;
 
                 if (decodedArt != null)
                 {
                     CurrentArtwork = decodedArt;
-                    CurrentBeatColor = DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, artist);
+                    CurrentBeatColor = DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, cleanArtist);
                 }
-                else if (!string.Equals(title, CurrentTrack, StringComparison.Ordinal))
+                else if (trackChanged)
                 {
-                    CurrentBeatColor = DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, artist);
+                    CurrentBeatColor = DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, cleanArtist);
                 }
 
                 IsMusicPlaying = playing;
                 CurrentTrack = playing ? title : "";
-                CurrentArtist = playing ? (string.IsNullOrWhiteSpace(artist) ? "Music" : artist) : "";
+                CurrentArtist = playing ? cleanArtist : "";
 
                 MediaService.Instance.State.IsPlaying = playing;
                 if (playing)
                 {
                     MediaService.Instance.State.Title = CurrentTrack;
                     MediaService.Instance.State.Artist = CurrentArtist;
+                    if (durSec > 1.0)
+                    {
+                        MediaService.Instance.State.PositionSeconds = Math.Clamp(posSec, 0.0, durSec);
+                        MediaService.Instance.State.DurationSeconds = durSec;
+                    }
                 }
 
                 if (stateChanged)
@@ -519,6 +538,9 @@ while ($true) {
                         Title = CurrentTrack,
                         Artist = CurrentArtist,
                         IsPlaying = IsMusicPlaying,
+                        IsTrackSwitch = trackChanged,
+                        PositionSeconds = MediaService.Instance.State.PositionSeconds,
+                        DurationSeconds = MediaService.Instance.State.DurationSeconds,
                         Artwork = CurrentArtwork,
                         BeatColor = CurrentBeatColor
                     });
@@ -585,7 +607,7 @@ while ($true) {
                                 int dash = clean.IndexOf(" - ", StringComparison.Ordinal);
                                 if (dash > 0)
                                 {
-                                    artist = clean.Substring(0, dash).Trim();
+     artist = clean.Substring(0, dash).Trim();
                                     track = clean.Substring(dash + 3).Trim();
                                 }
                                 else
@@ -600,7 +622,7 @@ while ($true) {
                     }
                 }
 
-                PublishMediaUpdate(track ?? "", artist ?? "", detected, "");
+                PublishMediaUpdate(track ?? "", artist ?? "", detected, MediaService.Instance.State.PositionSeconds, MediaService.Instance.State.DurationSeconds, "");
             }
             catch { }
         }
