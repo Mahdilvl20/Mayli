@@ -20,7 +20,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public const double GridW = 728.0;
         public const double GridH = 242.0;
         public const double RowH = 116.0;
-        public const double ColumnGap = 12.0;
+        public const double ColumnGap = 10.0;
         public const double CardCornerRadius = 14.0;
 
         private readonly Grid _rootGrid;
@@ -74,6 +74,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public SystemToolView()
         {
             Background = Brushes.Transparent;
+            Margin = new Thickness(1, 0, 4, 0);
 
             _rootGrid = new Grid();
             _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -202,13 +203,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _netDownText = new TextBlock
             {
                 Text = "↓ 3 KB/s",
-                FontSize = 12.0,
+                FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
-                Margin = new Thickness(0, 0, 6, 0),
+                Margin = new Thickness(0, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            _netDownSpark = new MiniSparkline { Width = 64, Height = 18, VerticalAlignment = VerticalAlignment.Center };
+            _netDownSpark = new MiniSparkline { Width = 48, Height = 16, VerticalAlignment = VerticalAlignment.Center };
             downStack.Children.Add(_netDownText);
             downStack.Children.Add(_netDownSpark);
             Grid.SetColumn(downStack, 0);
@@ -219,13 +220,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _netUpText = new TextBlock
             {
                 Text = "↑ 53 B/s",
-                FontSize = 12.0,
+                FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
-                Margin = new Thickness(0, 0, 6, 0),
+                Margin = new Thickness(0, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            _netUpSpark = new MiniSparkline { Width = 64, Height = 18, VerticalAlignment = VerticalAlignment.Center };
+            _netUpSpark = new MiniSparkline { Width = 48, Height = 16, VerticalAlignment = VerticalAlignment.Center };
             upStack.Children.Add(_netUpText);
             upStack.Children.Add(_netUpSpark);
             Grid.SetColumn(upStack, 1);
@@ -247,7 +248,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = "Wi-Fi · 58 Mbps",
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
-                Margin = new Thickness(0, 1, 0, 0)
+                Margin = new Thickness(0, 1, 0, 0),
+                MaxWidth = 180,
+                TextTrimming = TextTrimming.CharacterEllipsis
             };
             netValueStack.Children.Add(_netHero);
             netValueStack.Children.Add(_netSub);
@@ -340,7 +343,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
-                ToolTip = "Active Audio Device"
+                ToolTip = "Active Audio Device",
+                MaxWidth = 135,
+                TextTrimming = TextTrimming.CharacterEllipsis
             };
             DockPanel.SetDock(_volDevice, Dock.Right);
             volHeader.Children.Add(_volDevice);
@@ -370,7 +375,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Height = 18.0,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Cursor = Cursors.Hand,
-                Margin = new Thickness(0, 6, 0, 0)
+                Margin = new Thickness(0, 6, 0, 0),
+                ClipToBounds = true
             };
 
             _volumeTrack = new Border
@@ -528,8 +534,11 @@ namespace WindowsBuddy.BuddyCapsule.UI
             if (NativeMethods.GetSystemPowerStatus(out var sps))
             {
                 int pct = sps.BatteryLifePercent <= 100 ? sps.BatteryLifePercent : 100;
-                double trackWidth = _batTrack.ActualWidth > 10 ? _batTrack.ActualWidth : 310.0;
-                _batFill.Width = Math.Max(7.0, trackWidth * (pct / 100.0));
+                double trackWidth = _batTrack.ActualWidth;
+                if (trackWidth > 5)
+                {
+                    _batFill.Width = Math.Max(7.0, trackWidth * (pct / 100.0));
+                }
             }
         }
 
@@ -644,14 +653,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
             if (string.IsNullOrWhiteSpace(dev)) dev = "Realtek(R) Audio";
             _volDevice.Text = $"{dev} ⌵";
 
-            double trackW = _volumeSliderCanvas.ActualWidth > 10 ? _volumeSliderCanvas.ActualWidth : 310.0;
+            double trackW = _volumeSliderCanvas.ActualWidth;
+            if (trackW <= 5) return;
             _volumeTrack.Width = trackW;
 
             double ratio = Math.Clamp(audio.VolumePercent / 100.0, 0.0, 1.0);
             double fillW = Math.Max(4.0, trackW * ratio);
             _volumeFill.Width = fillW;
 
-            double thumbX = Math.Clamp(fillW - 7.0, 0.0, trackW - 14.0);
+            double thumbX = Math.Clamp(fillW - 7.0, 0.0, Math.Max(0.0, trackW - 14.0));
             Canvas.SetLeft(_volumeThumb, thumbX);
         }
 
