@@ -35,9 +35,6 @@ namespace WindowsBuddy.Tools.Clock
 
         public ClockToolView()
         {
-            Width = 728;
-            Height = 242;
-
             BuildUI();
 
             _service.SecondTick += OnSecondTick;
@@ -57,8 +54,8 @@ namespace WindowsBuddy.Tools.Clock
 
         private void BuildUI()
         {
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(406) });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(322) });
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.26, GridUnitType.Star) });
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
             BuildLocalClockCard();
             BuildWorldClocksCard();

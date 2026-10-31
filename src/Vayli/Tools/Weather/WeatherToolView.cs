@@ -53,8 +53,6 @@ namespace WindowsBuddy.Tools.Weather
         public WeatherToolView()
         {
             Instance = this;
-            Width = 728;
-            Height = 242;
 
             BuildUI();
 
@@ -65,11 +63,11 @@ namespace WindowsBuddy.Tools.Weather
 
         private void BuildUI()
         {
-            // 1. Dashboard View (The 3 Cards)
+            // 1. Dashboard View (The 3 Cards) - Responsive star columns
             _dashboardGrid = new Grid();
-            _dashboardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(206) });
-            _dashboardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(284) });
-            _dashboardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(238) });
+            _dashboardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+            _dashboardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.38, GridUnitType.Star) });
+            _dashboardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.16, GridUnitType.Star) });
 
             BuildCurrentCard();
             BuildHourlyCard();

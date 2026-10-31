@@ -37,25 +37,19 @@ namespace WindowsBuddy.Tools
         {
             if (_tools.Count > 0) return;
 
-            // 18 tools matching the exact dock sequence
-            _tools.Add(new HomeTool());         // 1. Home
-            _tools.Add(new SystemTool());       // 2. System
-            _tools.Add(new ClipboardTool());    // 3. Clipboard
-            _tools.Add(new NotesTool());        // 4. Notes
-            _tools.Add(new TimerClockTool());   // 5. Timers
-            _tools.Add(new FileShelfTool());    // 6. File Shelf
-            _tools.Add(new DropTool());         // 7. Drop
-            _tools.Add(new WeatherTool());      // 8. Weather
-            _tools.Add(new ClockTool());        // 9. Clock
-            _tools.Add(new QuickToolsTool());   // 10. Quick Tools
-            _tools.Add(new LinksTool());         // 11. Links
-            _tools.Add(new MessageBannerTool()); // 12. Message (Notch banner)
-            _tools.Add(new ScreenTimeTool());    // 13. Screen Time
-            _tools.Add(new AudioTool());         // 14. Audio
-            _tools.Add(new CalendarTool());     // 15. Calendar
-            _tools.Add(new TransferTool());     // 16. Transfer
-            _tools.Add(new PetCompanionTool()); // 17. Buddy / Pet
-            _tools.Add(new AICodingTool());     // 18. Media / Coding
+            // Exactly the 12 tools created and perfected:
+            _tools.Add(new HomeTool());          // 1. Home
+            _tools.Add(new SystemTool());        // 2. System
+            _tools.Add(new ClipboardTool());     // 3. Clipboard
+            _tools.Add(new NotesTool());         // 4. Notes
+            _tools.Add(new TimerClockTool());    // 5. Timers
+            _tools.Add(new FileShelfTool());     // 6. File Shelf
+            _tools.Add(new WeatherTool());       // 7. Weather
+            _tools.Add(new ClockTool());         // 8. Clock
+            _tools.Add(new QuickToolsTool());    // 9. Units
+            _tools.Add(new LinksTool());         // 10. Links
+            _tools.Add(new MessageBannerTool()); // 11. Message
+            _tools.Add(new ScreenTimeTool());    // 12. Screen Time
         }
 
         public static IBuddyTool GetById(string id) =>
@@ -63,7 +57,7 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// HomeTool: The exact 6-Card Dashboard shown in Screenshot 1 ("Everything at a glance").
+    /// HomeTool: The exact 6-Card Dashboard synchronized with real live services (Screen Time, System, Weather, Timers, Clipboard, Notes).
     /// </summary>
     public sealed class HomeTool : IBuddyTool
     {
@@ -71,13 +65,37 @@ namespace WindowsBuddy.Tools
         public string Title => "Home";
         public string IconGlyph => "⌂";
 
+        // Card 1: Screen Time
+        private TextBlock _stTotalText;
+        private TextBlock _stAppText;
+        private Image _stAppIcon;
+        private Border _stAppIconBox;
+        private StackPanel _stBarsPanel;
+
+        // Card 2: System
         private CircularGauge _cpuGauge;
         private CircularGauge _ramGauge;
         private CircularGauge _diskGauge;
+
+        // Card 3: Weather
+        private TextBlock _wTempText;
+        private TextBlock _wCityText;
+        private TextBlock _wRangeText;
+        private TextBlock _wIcon;
+
+        // Card 4: Focus
         private TextBlock _focusTimeText;
         private TextBlock _focusStatusText;
         private Border _focusToggleBtn;
         private TextBlock _focusToggleIcon;
+
+        // Card 5: Clipboard
+        private StackPanel _clipRowsStack;
+
+        // Card 6: Notes
+        private TextBlock _notesTitleText;
+        private TextBlock _notesSnippetText;
+
         private DispatcherTimer _tickTimer;
 
         public FrameworkElement BuildView()
@@ -98,9 +116,11 @@ namespace WindowsBuddy.Tools
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             // -------------------------------------------------------------
-            // CARD 1: SCREEN TIME (Row 0, Col 0)
+            // CARD 1: SCREEN TIME (Row 0, Col 0) - Synchronized with ScreenTimeService
             // -------------------------------------------------------------
-            var screenTimeCard = new BuddyCard { Margin = new Thickness(3) };
+            var screenTimeCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            screenTimeCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("screentime");
+
             var stDock = new DockPanel();
 
             var stHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
@@ -122,47 +142,48 @@ namespace WindowsBuddy.Tools
             DockPanel.SetDock(stHeader, Dock.Top);
             stDock.Children.Add(stHeader);
 
-            var stBottom = new WeeklyBarChart(2); // Wednesday active
-            DockPanel.SetDock(stBottom, Dock.Bottom);
-            stDock.Children.Add(stBottom);
+            _stBarsPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            DockPanel.SetDock(_stBarsPanel, Dock.Bottom);
+            stDock.Children.Add(_stBarsPanel);
 
             var stCenter = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 4) };
-            stCenter.Children.Add(new TextBlock
+            _stTotalText = new TextBlock
             {
-                Text = "4h 24m",
+                Text = WindowsBuddy.Tools.ScreenTime.ScreenTimeService.Instance.TodayTotalFormatted,
                 FontSize = 24,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text)
-            });
+            };
+            stCenter.Children.Add(_stTotalText);
 
             var stAppLine = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-            var appIconBadge = new Border
+            _stAppIconBox = new Border
             {
                 Width = 14,
                 Height = 14,
                 CornerRadius = new CornerRadius(3),
-                Background = CapsuleTheme.Brush(Color.FromRgb(0, 122, 204)), // VS Code blue
                 Margin = new Thickness(0, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = "⟨⟩",
-                    FontSize = 8,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }
+                VerticalAlignment = VerticalAlignment.Center
             };
-            stAppLine.Children.Add(appIconBadge);
-            stAppLine.Children.Add(new TextBlock
+            _stAppIcon = new Image { Width = 14, Height = 14 };
+            _stAppIconBox.Child = _stAppIcon;
+            stAppLine.Children.Add(_stAppIconBox);
+
+            _stAppText = new TextBlock
             {
-                Text = "Visual Studio Code · 1h 42m",
+                Text = "No apps today",
                 FontSize = 10.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis
-            });
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 170
+            };
+            stAppLine.Children.Add(_stAppText);
             stCenter.Children.Add(stAppLine);
             stDock.Children.Add(stCenter);
 
@@ -172,9 +193,11 @@ namespace WindowsBuddy.Tools
             rootGrid.Children.Add(screenTimeCard);
 
             // -------------------------------------------------------------
-            // CARD 2: SYSTEM (Row 0, Col 1)
+            // CARD 2: SYSTEM (Row 0, Col 1) - Synchronized with SystemMonitorService
             // -------------------------------------------------------------
-            var systemCard = new BuddyCard { Margin = new Thickness(3) };
+            var systemCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            systemCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("system");
+
             var sysDock = new DockPanel();
 
             var sysHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
@@ -216,7 +239,7 @@ namespace WindowsBuddy.Tools
             rootGrid.Children.Add(systemCard);
 
             // -------------------------------------------------------------
-            // CARD 3: WEATHER (Row 0, Col 2)
+            // CARD 3: WEATHER (Row 0, Col 2) - Synchronized with WeatherService
             // -------------------------------------------------------------
             var weatherCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
             weatherCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("weather");
@@ -246,39 +269,46 @@ namespace WindowsBuddy.Tools
             wMain.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var wLeft = new StackPanel();
-            wLeft.Children.Add(new TextBlock
+            _wTempText = new TextBlock
             {
                 Text = "18°",
                 FontSize = 26,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text)
-            });
-            wLeft.Children.Add(new TextBlock
+            };
+            wLeft.Children.Add(_wTempText);
+
+            _wCityText = new TextBlock
             {
-                Text = "Sunny · San Francisco",
+                Text = "Overcast · Isfahan",
                 FontSize = 10.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                Margin = new Thickness(0, 2, 0, 1)
-            });
-            wLeft.Children.Add(new TextBlock
+                Margin = new Thickness(0, 2, 0, 1),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 150
+            };
+            wLeft.Children.Add(_wCityText);
+
+            _wRangeText = new TextBlock
             {
-                Text = "H 20°  L 12°",
+                Text = "H 25°  L 10°",
                 FontSize = 10,
                 Foreground = CapsuleTheme.Brush(p.Text3)
-            });
+            };
+            wLeft.Children.Add(_wRangeText);
             Grid.SetColumn(wLeft, 0);
             wMain.Children.Add(wLeft);
 
-            var wIcon = new TextBlock
+            _wIcon = new TextBlock
             {
-                Text = "☼",
+                Text = "☁",
                 FontSize = 32,
                 Foreground = CapsuleTheme.Brush(p.Accent),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 4, 0)
             };
-            Grid.SetColumn(wIcon, 1);
-            wMain.Children.Add(wIcon);
+            Grid.SetColumn(_wIcon, 1);
+            wMain.Children.Add(_wIcon);
 
             wDock.Children.Add(wMain);
             weatherCard.Child = wDock;
@@ -287,9 +317,11 @@ namespace WindowsBuddy.Tools
             rootGrid.Children.Add(weatherCard);
 
             // -------------------------------------------------------------
-            // CARD 4: FOCUS (Row 1, Col 0)
+            // CARD 4: FOCUS (Row 1, Col 0) - Synchronized with Timers
             // -------------------------------------------------------------
-            var focusCard = new BuddyCard { Margin = new Thickness(3) };
+            var focusCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            focusCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("focus");
+
             var fDock = new DockPanel();
 
             var fHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
@@ -318,7 +350,7 @@ namespace WindowsBuddy.Tools
             var fLeft = new StackPanel();
             _focusTimeText = new TextBlock
             {
-                Text = "18:37",
+                Text = "25:00",
                 FontSize = 24,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text)
@@ -347,15 +379,16 @@ namespace WindowsBuddy.Tools
             };
             _focusToggleIcon = new TextBlock
             {
-                Text = "⏸",
+                Text = "▶",
                 FontSize = 13,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             _focusToggleBtn.Child = _focusToggleIcon;
-            _focusToggleBtn.MouseLeftButtonUp += (_, _) =>
+            _focusToggleBtn.MouseLeftButtonUp += (s, e) =>
             {
+                e.Handled = true;
                 TimerClockTool.ToggleRunning();
                 UpdateFocusState();
             };
@@ -369,9 +402,11 @@ namespace WindowsBuddy.Tools
             rootGrid.Children.Add(focusCard);
 
             // -------------------------------------------------------------
-            // CARD 5: CLIPBOARD (Row 1, Col 1)
+            // CARD 5: CLIPBOARD (Row 1, Col 1) - Synchronized with ClipboardService
             // -------------------------------------------------------------
-            var clipCard = new BuddyCard { Margin = new Thickness(3) };
+            var clipCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            clipCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("clipboard");
+
             var cDock = new DockPanel();
 
             var cHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
@@ -393,10 +428,8 @@ namespace WindowsBuddy.Tools
             DockPanel.SetDock(cHeader, Dock.Top);
             cDock.Children.Add(cHeader);
 
-            var cStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            cStack.Children.Add(CreateClipRow("Studio hours: Mon...", "23h"));
-            cStack.Children.Add(CreateClipRow("Linen tote — natur...", "4m"));
-            cDock.Children.Add(cStack);
+            _clipRowsStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            cDock.Children.Add(_clipRowsStack);
 
             clipCard.Child = cDock;
             Grid.SetRow(clipCard, 1);
@@ -404,9 +437,11 @@ namespace WindowsBuddy.Tools
             rootGrid.Children.Add(clipCard);
 
             // -------------------------------------------------------------
-            // CARD 6: NOTES (Row 1, Col 2)
+            // CARD 6: NOTES (Row 1, Col 2) - Synchronized with NotesService
             // -------------------------------------------------------------
-            var notesCard = new BuddyCard { Margin = new Thickness(3) };
+            var notesCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            notesCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("notes");
+
             var nDock = new DockPanel();
 
             var nHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
@@ -429,9 +464,9 @@ namespace WindowsBuddy.Tools
             nDock.Children.Add(nHeader);
 
             var nBottom = new DockPanel();
-            var nEdited = new TextBlock
+            _notesSnippetText = new TextBlock
             {
-                Text = "Edited just now",
+                Text = "Click to open notes",
                 FontSize = 9.5,
                 Foreground = CapsuleTheme.Brush(p.Text3),
                 VerticalAlignment = VerticalAlignment.Center
@@ -453,28 +488,29 @@ namespace WindowsBuddy.Tools
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
-            nAddBtn.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("notes");
+            nAddBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                WindowsBuddy.Tools.Notes.NotesService.Instance.CreateNote("New Note", "");
+                ToolRegistry.OnToolNavigationRequested?.Invoke("notes");
+            };
             DockPanel.SetDock(nAddBtn, Dock.Right);
             nBottom.Children.Add(nAddBtn);
-            nBottom.Children.Add(nEdited);
+            nBottom.Children.Add(_notesSnippetText);
             DockPanel.SetDock(nBottom, Dock.Bottom);
             nDock.Children.Add(nBottom);
 
             var nCenter = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 4) };
-            nCenter.Children.Add(new TextBlock
+            _notesTitleText = new TextBlock
             {
-                Text = "Launch checklist",
+                Text = "No notes yet",
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Text)
-            });
-            nCenter.Children.Add(new TextBlock
-            {
-                Text = "2/5 done",
-                FontSize = 11,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                Margin = new Thickness(0, 3, 0, 0)
-            });
+                Foreground = CapsuleTheme.Brush(p.Text),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 170
+            };
+            nCenter.Children.Add(_notesTitleText);
             nDock.Children.Add(nCenter);
 
             notesCard.Child = nDock;
@@ -482,19 +518,117 @@ namespace WindowsBuddy.Tools
             Grid.SetColumn(notesCard, 2);
             rootGrid.Children.Add(notesCard);
 
-            // Timer update
+            // Timer update for all synchronized components
             _tickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _tickTimer.Tick += (_, _) =>
-            {
-                var t = SystemMonitorService.Current;
-                _cpuGauge.SetValue(Math.Max(1, t.CpuUsagePercent));
-                _ramGauge.SetValue(t.MemoryUsagePercent > 0 ? t.MemoryUsagePercent : 83);
-                _diskGauge.SetValue(t.DiskUsagePercent);
-                UpdateFocusState();
-            };
+            _tickTimer.Tick += (_, _) => RefreshAllCards();
             _tickTimer.Start();
 
+            RefreshAllCards();
             return rootGrid;
+        }
+
+        private void RefreshAllCards()
+        {
+            var p = CapsuleTheme.Current;
+
+            // 1. Refresh System
+            var t = SystemMonitorService.Current;
+            _cpuGauge?.SetValue(Math.Max(1, t.CpuUsagePercent));
+            _ramGauge?.SetValue(t.MemoryUsagePercent > 0 ? t.MemoryUsagePercent : 59);
+            _diskGauge?.SetValue(t.DiskUsagePercent);
+
+            // 2. Refresh Screen Time
+            var stSvc = WindowsBuddy.Tools.ScreenTime.ScreenTimeService.Instance;
+            if (_stTotalText != null)
+            {
+                _stTotalText.Text = stSvc.TodayTotalFormatted;
+
+                var topApp = stSvc.GetTopAppsToday().FirstOrDefault();
+                if (topApp != null)
+                {
+                    _stAppText.Text = $"{topApp.Name} · {topApp.DurationFormatted}";
+                    _stAppIcon.Source = topApp.IconSource;
+                }
+
+                // Render 7-day mini bars
+                _stBarsPanel.Children.Clear();
+                var days = stSvc.GetRolling7Days();
+                foreach (var d in days)
+                {
+                    double h = d.IsToday ? 16 : (d.TotalSeconds > 0 ? Math.Max(4, d.HeightFraction * 14) : 2.5);
+                    var bar = new Border
+                    {
+                        Width = 10,
+                        Height = h,
+                        CornerRadius = new CornerRadius(1.5),
+                        Background = d.IsToday ? Brushes.White : CapsuleTheme.Brush(d.TotalSeconds > 0 ? p.Accent : p.Border),
+                        Margin = new Thickness(2, 0, 2, 0),
+                        VerticalAlignment = VerticalAlignment.Bottom
+                    };
+                    _stBarsPanel.Children.Add(bar);
+                }
+            }
+
+            // 3. Refresh Weather
+            var w = WindowsBuddy.Tools.Weather.WeatherService.Instance.Current;
+            if (w != null && _wTempText != null)
+            {
+                bool useF = WindowsBuddy.Tools.Weather.WeatherService.Instance.UseFahrenheit;
+                int tempDisplay = (int)Math.Round(useF ? (w.Temperature * 9.0 / 5.0 + 32) : w.Temperature);
+                int hiDisplay = (int)Math.Round(useF ? (w.HighTemp * 9.0 / 5.0 + 32) : w.HighTemp);
+                int loDisplay = (int)Math.Round(useF ? (w.LowTemp * 9.0 / 5.0 + 32) : w.LowTemp);
+
+                _wTempText.Text = $"{tempDisplay}°";
+                _wCityText.Text = $"{w.Condition} · {w.City}";
+                _wRangeText.Text = $"H {hiDisplay}°  L {loDisplay}°";
+                _wIcon.Text = w.WeatherCode switch
+                {
+                    0 => "☀",
+                    1 or 2 => "⛅",
+                    3 => "☁",
+                    45 or 48 => "🌫",
+                    >= 51 and <= 67 => "🌧",
+                    >= 71 and <= 77 => "❄",
+                    >= 80 and <= 82 => "🌧",
+                    >= 95 and <= 99 => "⛈",
+                    _ => "☁"
+                };
+            }
+
+            // 4. Refresh Focus
+            UpdateFocusState();
+
+            // 5. Refresh Clipboard
+            if (_clipRowsStack != null)
+            {
+                _clipRowsStack.Children.Clear();
+                var items = WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Take(2).ToList();
+                if (items.Count == 0)
+                {
+                    _clipRowsStack.Children.Add(CreateClipRow("Nothing copied yet", "Just now"));
+                }
+                else
+                {
+                    foreach (var it in items)
+                    {
+                        string snippet = it.GetDisplayTitle();
+                        if (string.IsNullOrWhiteSpace(snippet))
+                        {
+                            snippet = it.Kind == WindowsBuddy.Tools.Clipboard.ClipKind.Image ? "Image" : "Item";
+                        }
+                        _clipRowsStack.Children.Add(CreateClipRow(snippet, it.GetTimestampFormatted()));
+                    }
+                }
+            }
+
+            // 6. Refresh Notes
+            var notes = WindowsBuddy.Tools.Notes.NotesService.Instance.Notes;
+            if (_notesTitleText != null)
+            {
+                var latest = notes.FirstOrDefault();
+                _notesTitleText.Text = latest != null ? (string.IsNullOrWhiteSpace(latest.Title) ? "Untitled" : latest.Title) : "No notes yet";
+                _notesSnippetText.Text = notes.Count > 0 ? $"{notes.Count} notes saved" : "Click + to create note";
+            }
         }
 
         private void UpdateFocusState()
@@ -551,7 +685,8 @@ namespace WindowsBuddy.Tools
                 FontSize = 10.5,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 130
             });
             dock.Children.Add(left);
 
@@ -566,7 +701,7 @@ namespace WindowsBuddy.Tools
 
         public void OnActivated()
         {
-            UpdateFocusState();
+            RefreshAllCards();
         }
     }
 

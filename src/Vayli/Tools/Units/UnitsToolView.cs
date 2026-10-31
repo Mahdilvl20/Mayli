@@ -36,9 +36,6 @@ namespace WindowsBuddy.Tools.Units
 
         public UnitsToolView()
         {
-            Width = 728;
-            Height = 242;
-
             BuildUI();
 
             _service.StateChanged += OnStateChanged;

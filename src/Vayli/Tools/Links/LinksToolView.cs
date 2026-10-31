@@ -15,7 +15,7 @@ namespace WindowsBuddy.Tools.Links
         // Card 1: Search & Engine chips
         private TextBox _searchBox;
         private TextBlock _searchPlaceholder;
-        private StackPanel _chipsPanel;
+        private WrapPanel _chipsPanel;
 
         // Card 2: Bookmarks
         private TextBlock _countText;
@@ -28,9 +28,6 @@ namespace WindowsBuddy.Tools.Links
 
         public LinksToolView()
         {
-            Width = 728;
-            Height = 242;
-
             BuildUI();
 
             _service.StateChanged += OnStateChanged;
@@ -137,9 +134,8 @@ namespace WindowsBuddy.Tools.Links
             dock.Children.Add(searchRow);
 
             // Bottom Engine Chips Row
-            _chipsPanel = new StackPanel
+            _chipsPanel = new WrapPanel
             {
-                Orientation = Orientation.Horizontal,
                 Margin = new Thickness(0, 8, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };

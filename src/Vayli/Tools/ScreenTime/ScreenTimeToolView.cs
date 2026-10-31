@@ -39,14 +39,21 @@ namespace WindowsBuddy.Tools.ScreenTime
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.8, GridUnitType.Star) }); // Left column
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Right column
 
-            // Left Column: Stack Cards 1 & 2
-            var leftStack = new StackPanel { Margin = new Thickness(0, 0, 6, 0) };
+            // Left Column: Responsive Grid with 2 Star Rows
+            var leftGrid = new Grid { Margin = new Thickness(0, 0, 6, 0) };
+            leftGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
+            leftGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.35, GridUnitType.Star) });
+
             var todayCard = BuildTodayCard();
+            Grid.SetRow(todayCard, 0);
+            leftGrid.Children.Add(todayCard);
+
             var weekCard = BuildWeekCard();
-            leftStack.Children.Add(todayCard);
-            leftStack.Children.Add(weekCard);
-            Grid.SetColumn(leftStack, 0);
-            rootGrid.Children.Add(leftStack);
+            Grid.SetRow(weekCard, 1);
+            leftGrid.Children.Add(weekCard);
+
+            Grid.SetColumn(leftGrid, 0);
+            rootGrid.Children.Add(leftGrid);
 
             // Right Column: Card 3 By App
             var byAppCard = BuildByAppCard();
@@ -70,7 +77,8 @@ namespace WindowsBuddy.Tools.ScreenTime
         {
             var card = new Border
             {
-                Height = 104,
+                MinHeight = 85,
+                VerticalAlignment = VerticalAlignment.Stretch,
                 Background = new SolidColorBrush(Color.FromRgb(18, 18, 22)),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(30, 30, 36)),
                 BorderThickness = new Thickness(1),
@@ -224,7 +232,8 @@ namespace WindowsBuddy.Tools.ScreenTime
         {
             var card = new Border
             {
-                Height = 144,
+                MinHeight = 110,
+                VerticalAlignment = VerticalAlignment.Stretch,
                 Background = new SolidColorBrush(Color.FromRgb(18, 18, 22)),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(30, 30, 36)),
                 BorderThickness = new Thickness(1),
@@ -591,23 +600,31 @@ namespace WindowsBuddy.Tools.ScreenTime
                 };
                 centerStack.Children.Add(appNameText);
 
-                // Horizontal Track Bar
-                var trackBar = new Border
+                // Responsive Horizontal Track Bar
+                var trackBar = new Grid
                 {
                     Height = 3,
-                    CornerRadius = new CornerRadius(1.5),
-                    Background = new SolidColorBrush(Color.FromRgb(38, 38, 46)),
-                    HorizontalAlignment = HorizontalAlignment.Stretch
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0, 2, 0, 0)
                 };
+                trackBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.5, app.Percentage), GridUnitType.Star) });
+                trackBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.5, 100.0 - app.Percentage), GridUnitType.Star) });
+
+                var trackBg = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(38, 38, 46)),
+                    CornerRadius = new CornerRadius(1.5)
+                };
+                Grid.SetColumnSpan(trackBg, 2);
+                trackBar.Children.Add(trackBg);
+
                 var fillBar = new Border
                 {
-                    Height = 3,
-                    CornerRadius = new CornerRadius(1.5),
                     Background = Brushes.White,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Width = Math.Clamp(app.Percentage * 1.3, 3.0, 130.0)
+                    CornerRadius = new CornerRadius(1.5)
                 };
-                trackBar.Child = fillBar;
+                Grid.SetColumn(fillBar, 0);
+                trackBar.Children.Add(fillBar);
                 centerStack.Children.Add(trackBar);
 
                 Grid.SetColumn(centerStack, 1);

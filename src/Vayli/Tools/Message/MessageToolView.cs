@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -164,7 +165,8 @@ namespace WindowsBuddy.Tools.Message
             // Center Notch Mockup container
             _notchPreviewContainer = new Border
             {
-                Width = 230,
+                MinWidth = 180,
+                MaxWidth = 260,
                 Height = 32,
                 Background = new SolidColorBrush(Color.FromRgb(8, 8, 10)),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(24, 24, 28)),
@@ -437,22 +439,15 @@ namespace WindowsBuddy.Tools.Message
             speedDock.Children.Add(_speedSlider);
             dock.Children.Add(speedDock);
 
-            // Pills container (2 rows)
-            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-
-            var row1 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-            row1.Children.Add(CreateAnimPill("Slide", MessageAnimationMode.Slide));
-            row1.Children.Add(CreateAnimPill("Fade", MessageAnimationMode.Fade));
-            row1.Children.Add(CreateAnimPill("Type-on", MessageAnimationMode.TypeOn));
-            stack.Children.Add(row1);
-
-            var row2 = new StackPanel { Orientation = Orientation.Horizontal };
-            row2.Children.Add(CreateAnimPill("Scroll", MessageAnimationMode.Scroll));
-            row2.Children.Add(CreateAnimPill("Blur", MessageAnimationMode.Blur));
-            row2.Children.Add(CreateAnimPill("Pulse", MessageAnimationMode.Pulse));
-            stack.Children.Add(row2);
-
-            dock.Children.Add(stack);
+            // Pills container (UniformGrid 2x3 for responsive fit)
+            var pGrid = new UniformGrid { Rows = 2, Columns = 3, VerticalAlignment = VerticalAlignment.Center };
+            pGrid.Children.Add(CreateAnimPill("Slide", MessageAnimationMode.Slide));
+            pGrid.Children.Add(CreateAnimPill("Fade", MessageAnimationMode.Fade));
+            pGrid.Children.Add(CreateAnimPill("Type-on", MessageAnimationMode.TypeOn));
+            pGrid.Children.Add(CreateAnimPill("Scroll", MessageAnimationMode.Scroll));
+            pGrid.Children.Add(CreateAnimPill("Blur", MessageAnimationMode.Blur));
+            pGrid.Children.Add(CreateAnimPill("Pulse", MessageAnimationMode.Pulse));
+            dock.Children.Add(pGrid);
             card.Child = dock;
             return card;
         }
@@ -462,8 +457,8 @@ namespace WindowsBuddy.Tools.Message
             var pill = new Border
             {
                 CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(10, 4, 10, 4),
-                Margin = new Thickness(0, 0, 6, 0),
+                Padding = new Thickness(4, 4, 4, 4),
+                Margin = new Thickness(2),
                 Cursor = Cursors.Hand,
                 Background = Brushes.Transparent,
                 BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48)),
@@ -754,13 +749,13 @@ namespace WindowsBuddy.Tools.Message
             repeatDock.Children.Add(_repeatToggleTrack);
             dock.Children.Add(repeatDock);
 
-            // Duration pills row
-            var durStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            durStack.Children.Add(CreateDurPill("3s", MessageDurationMode.Sec3));
-            durStack.Children.Add(CreateDurPill("5s", MessageDurationMode.Sec5));
-            durStack.Children.Add(CreateDurPill("10s", MessageDurationMode.Sec10));
-            durStack.Children.Add(CreateDurPill("Custom", MessageDurationMode.Custom));
-            dock.Children.Add(durStack);
+            // Duration pills (UniformGrid 1x4 for responsive fit)
+            var durGrid = new UniformGrid { Rows = 1, Columns = 4, VerticalAlignment = VerticalAlignment.Center };
+            durGrid.Children.Add(CreateDurPill("3s", MessageDurationMode.Sec3));
+            durGrid.Children.Add(CreateDurPill("5s", MessageDurationMode.Sec5));
+            durGrid.Children.Add(CreateDurPill("10s", MessageDurationMode.Sec10));
+            durGrid.Children.Add(CreateDurPill("Custom", MessageDurationMode.Custom));
+            dock.Children.Add(durGrid);
 
             card.Child = dock;
             return card;
@@ -771,8 +766,8 @@ namespace WindowsBuddy.Tools.Message
             var pill = new Border
             {
                 CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(10, 4, 10, 4),
-                Margin = new Thickness(0, 0, 6, 0),
+                Padding = new Thickness(4, 4, 4, 4),
+                Margin = new Thickness(2),
                 Cursor = Cursors.Hand,
                 Background = Brushes.Transparent,
                 BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48)),

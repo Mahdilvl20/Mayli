@@ -28,8 +28,6 @@ namespace WindowsBuddy.Tools.FileShelf
 
         public FileShelfToolView()
         {
-            Width = 728;
-            Height = 242;
             Focusable = true;
 
             BuildUI();

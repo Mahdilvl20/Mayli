@@ -782,6 +782,35 @@ namespace WindowsBuddy.BuddyCapsule.Core
             CapsuleTheme.ThemeChanged += ApplyThemeAndGeometry;
             AppPreferences.Instance.Changed += ApplyThemeAndGeometry;
 
+            // Alt+1 .. Alt+0, Alt+M, Alt+S Navigation Shortcuts
+            PreviewKeyDown += (_, e) =>
+            {
+                if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
+                {
+                    string target = (e.SystemKey != Key.None ? e.SystemKey : e.Key) switch
+                    {
+                        Key.D1 => "home",
+                        Key.D2 => "system",
+                        Key.D3 => "clipboard",
+                        Key.D4 => "notes",
+                        Key.D5 => "focus",
+                        Key.D6 => "fileshelf",
+                        Key.D7 => "weather",
+                        Key.D8 => "clock",
+                        Key.D9 => "units",
+                        Key.D0 => "links",
+                        Key.M => "message",
+                        Key.S => "screentime",
+                        _ => null
+                    };
+                    if (target != null)
+                    {
+                        NavigateToTool(target);
+                        e.Handled = true;
+                    }
+                }
+            };
+
             NavigateToTool("home");
             UpdateMorphVisuals(0.0);
         }
@@ -1257,11 +1286,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "notes" => "Notes  Alt+4",
                         "focus" => "Timers  Alt+5",
                         "fileshelf" => "File Shelf  Alt+6",
-                        "drop" => "Drop  Alt+7",
-                        "weather" => "Weather  Alt+8",
-                        "clock" => "Clock  Alt+9",
-                        "units" => "Units  Alt+0",
-                        "links" => "Links  Alt+L",
+                        "weather" => "Weather  Alt+7",
+                        "clock" => "Clock  Alt+8",
+                        "units" => "Units  Alt+9",
+                        "links" => "Links  Alt+0",
                         "message" => "Message  Alt+M",
                         "screentime" => "Screen Time  Alt+S",
                         _ => tool.Title
