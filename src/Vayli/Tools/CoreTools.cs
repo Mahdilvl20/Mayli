@@ -1214,26 +1214,27 @@ namespace WindowsBuddy.Tools
 
     #region Supplementary Dock Tools for the 18 Dock Icons
 
+    /// <summary>
+    /// SystemTool: Real-time 4-Card hardware telemetry (Battery, Network rates, CPU/RAM/Disk, Volume & Audio Endpoint).
+    /// </summary>
     public sealed class SystemTool : IBuddyTool
     {
         public string Id => "system";
         public string Title => "System";
         public string IconGlyph => "⚙";
+
+        private WindowsBuddy.BuddyCapsule.UI.SystemToolView _view;
+
         public FrameworkElement BuildView()
         {
-            var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4) };
-            var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            stack.Children.Add(new TextBlock { Text = "HARDWARE TELEMETRY", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Accent), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 16) });
-            var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-            row.Children.Add(new CircularGauge("CPU", 1, 32, 6));
-            row.Children.Add(new CircularGauge("RAM", 83, 32, 7));
-            row.Children.Add(new CircularGauge("DISK", 0, 32, 6));
-            stack.Children.Add(row);
-            card.Child = stack;
-            return card;
+            _view = new WindowsBuddy.BuddyCapsule.UI.SystemToolView();
+            return _view;
         }
-        public void OnActivated() { }
+
+        public void OnActivated()
+        {
+            _view?.RefreshAllMetrics();
+        }
     }
 
     public sealed class ClockTool : IBuddyTool

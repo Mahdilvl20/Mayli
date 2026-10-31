@@ -1113,7 +1113,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     Width = 30,
                     Height = 28,
                     Cursor = Cursors.Hand,
-                    ToolTip = tool.Id == "clipboard" ? "Clipboard  Alt+3" : tool.Title
+                    ToolTip = tool.Id switch
+                    {
+                        "home" => "Home  Alt+1",
+                        "system" => "System  Alt+2",
+                        "clipboard" => "Clipboard  Alt+3",
+                        _ => tool.Title
+                    }
                 };
 
                 var circleHighlight = new Border
@@ -1216,6 +1222,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _headerSubtitleText.Text = tool.Id switch
             {
                 "home" => DateTime.Now.ToString("dddd, d MMM"),
+                "system" => "Power · Network · Audio",
                 "weather" => "San Francisco",
                 "fileshelf" => "Parked files",
                 "links" => "Quick Bookmarks",
