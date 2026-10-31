@@ -640,4 +640,281 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _glowPath.Opacity = isExpanded ? 0.92 : 0.65;
         }
     }
+
+    /// <summary>
+    /// MiniEqualizerControl: The exact "I · II" animated audio visualizer icon from the music notch screenshot.
+    /// </summary>
+    public class MiniEqualizerControl : StackPanel
+    {
+        private readonly Border _bar1;
+        private readonly Border _dot;
+        private readonly Border _bar2;
+        private readonly Border _bar3;
+        private readonly DispatcherTimer _timer;
+        private readonly Random _rng = new();
+        private bool _isPlaying = true;
+
+        public bool IsPlaying
+        {
+            get => _isPlaying;
+            set
+            {
+                _isPlaying = value;
+                if (!value)
+                {
+                    _bar1.Height = 5;
+                    _bar2.Height = 5;
+                    _bar3.Height = 5;
+                }
+            }
+        }
+
+        public MiniEqualizerControl()
+        {
+            Orientation = Orientation.Horizontal;
+            VerticalAlignment = VerticalAlignment.Center;
+            Height = 14;
+            Margin = new Thickness(6, 0, 0, 0);
+
+            _bar1 = CreatePill(2.2, 9);
+            _dot = CreatePill(2.0, 2.5);
+            _bar2 = CreatePill(2.2, 11);
+            _bar3 = CreatePill(2.2, 8);
+
+            Children.Add(_bar1);
+            Children.Add(_dot);
+            Children.Add(_bar2);
+            Children.Add(_bar3);
+
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(130) };
+            _timer.Tick += (_, _) =>
+            {
+                if (!_isPlaying) return;
+                _bar1.Height = 4 + _rng.NextDouble() * 7;
+                _bar2.Height = 5 + _rng.NextDouble() * 7;
+                _bar3.Height = 3 + _rng.NextDouble() * 8;
+            };
+            _timer.Start();
+
+            CapsuleTheme.ThemeChanged += ApplyTheme;
+            ApplyTheme();
+        }
+
+        private void ApplyTheme()
+        {
+            var brush = CapsuleTheme.Brush(Color.FromRgb(250, 250, 252));
+            _bar1.Background = brush;
+            _dot.Background = brush;
+            _bar2.Background = brush;
+            _bar3.Background = brush;
+        }
+
+        private static Border CreatePill(double width, double height)
+        {
+            return new Border
+            {
+                Width = width,
+                Height = height,
+                CornerRadius = new CornerRadius(width / 2.0),
+                Background = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(1.2, 0, 1.2, 0)
+            };
+        }
+    }
+
+    /// <summary>
+    /// WaveformProgressBar: Full-width dense horizontal audio waveform scrobbler matching the user screenshot.
+    /// </summary>
+    public class WaveformProgressBar : StackPanel
+    {
+        private const int BarCount = 42;
+        private readonly Border[] _bars = new Border[BarCount];
+        private readonly double[] _baseHeights = new double[BarCount];
+        private readonly DispatcherTimer _animTimer;
+        private readonly Random _rng = new();
+        private double _progress = 0.38; // 0.0 to 1.0
+        private bool _isPlaying = true;
+
+        public WaveformProgressBar()
+        {
+            Orientation = Orientation.Horizontal;
+            HorizontalAlignment = HorizontalAlignment.Center;
+            VerticalAlignment = VerticalAlignment.Center;
+            Height = 12;
+            Margin = new Thickness(0, 2, 0, 1);
+
+            // Shape silhouette matching the screenshot:
+            // Left: medium/tall bars (6-9px), Center: dips to tiny dots (2.5px), Right: rises to tall wave (7-10px)
+            for (int i = 0; i < BarCount; i++)
+            {
+                double x = (double)i / BarCount;
+                double h;
+
+                if (x < 0.40)
+                {
+                    // Left wave section
+                    h = 5.0 + 3.5 * Math.Sin(x * Math.PI * 4.0) + (i % 2) * 1.5;
+                }
+                else if (x >= 0.40 && x <= 0.62)
+                {
+                    // Middle quiet dot section
+                    h = 2.4;
+                }
+                else
+                {
+                    // Right wave section
+                    h = 5.5 + 4.0 * Math.Sin((x - 0.6) * Math.PI * 3.5) + (i % 2) * 1.5;
+                }
+
+                h = Math.Clamp(Math.Round(h, 1), 2.2, 10.5);
+                _baseHeights[i] = h;
+
+                var b = new Border
+                {
+                    Width = 2.4,
+                    Height = h,
+                    CornerRadius = new CornerRadius(1.2),
+                    Margin = new Thickness(2.1, 0, 2.1, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                _bars[i] = b;
+                Children.Add(b);
+            }
+
+            UpdateVisuals();
+
+            _animTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(110) };
+            _animTimer.Tick += (_, _) =>
+            {
+                if (!_isPlaying) return;
+                int head = (int)(_progress * BarCount);
+                for (int i = 0; i < BarCount; i++)
+                {
+                    if (Math.Abs(i - head) <= 4 || (i < head && i > 0))
+                    {
+                        double delta = (_rng.NextDouble() - 0.5) * 2.2;
+                        _bars[i].Height = Math.Clamp(_baseHeights[i] + delta, 2.2, 11.0);
+                    }
+                    else
+                    {
+                        _bars[i].Height = _baseHeights[i];
+                    }
+                }
+            };
+            _animTimer.Start();
+
+            CapsuleTheme.ThemeChanged += UpdateVisuals;
+        }
+
+        public void SetPlayback(double progress, bool isPlaying)
+        {
+            _progress = Math.Clamp(progress, 0.0, 1.0);
+            _isPlaying = isPlaying;
+            UpdateVisuals();
+        }
+
+        private void UpdateVisuals()
+        {
+            int head = (int)(_progress * BarCount);
+            for (int i = 0; i < BarCount; i++)
+            {
+                bool isPlayed = i <= head;
+                _bars[i].Background = CapsuleTheme.Brush(isPlayed
+                    ? Color.FromRgb(245, 245, 250)
+                    : Color.FromArgb(75, 255, 255, 255));
+            }
+        }
+    }
+
+    /// <summary>
+    /// AlbumArtThumbnail: Displays the artist/track artwork thumbnail matching the screenshot.
+    /// </summary>
+    public class AlbumArtThumbnail : Border
+    {
+        private readonly Image _imageControl;
+        private readonly Border _fallbackArtwork;
+
+        public AlbumArtThumbnail()
+        {
+            Width = 24;
+            Height = 24;
+            CornerRadius = new CornerRadius(5.5);
+            ClipToBounds = true;
+            Background = CapsuleTheme.Brush(Color.FromRgb(22, 23, 28));
+            VerticalAlignment = VerticalAlignment.Center;
+            Margin = new Thickness(0, 0, 8, 0);
+
+            var grid = new Grid();
+
+            var canvas = new Canvas { Width = 24, Height = 24 };
+
+            // Shoulders & jacket
+            var shoulders = new Path
+            {
+                Fill = new SolidColorBrush(Color.FromRgb(65, 68, 80)),
+                Data = Geometry.Parse("M 1 24 C 3 14, 21 14, 23 24 Z")
+            };
+            canvas.Children.Add(shoulders);
+
+            // Head & face silhouette
+            var head = new Ellipse
+            {
+                Width = 8.5,
+                Height = 10,
+                Fill = new SolidColorBrush(Color.FromRgb(180, 182, 192))
+            };
+            Canvas.SetLeft(head, 7.75);
+            Canvas.SetTop(head, 4.5);
+            canvas.Children.Add(head);
+
+            // Hair
+            var hair = new Path
+            {
+                Fill = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                Data = Geometry.Parse("M 6.5 10 C 6.5 3, 17.5 3, 17.5 10 C 17.5 13, 15.5 12, 15.5 8 C 14.5 5, 9.5 5, 8.5 8 C 8.5 12, 6.5 13, 6.5 10 Z")
+            };
+            canvas.Children.Add(hair);
+
+            _fallbackArtwork = new Border
+            {
+                Background = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(Color.FromRgb(50, 52, 64), 0.0),
+                        new GradientStop(Color.FromRgb(16, 17, 22), 1.0)
+                    }
+                },
+                Child = canvas
+            };
+            grid.Children.Add(_fallbackArtwork);
+
+            _imageControl = new Image
+            {
+                Stretch = Stretch.UniformToFill,
+                Visibility = Visibility.Collapsed
+            };
+            grid.Children.Add(_imageControl);
+
+            Child = grid;
+        }
+
+        public void SetArtwork(ImageSource source, string artistName = null)
+        {
+            if (source != null)
+            {
+                _imageControl.Source = source;
+                _imageControl.Visibility = Visibility.Visible;
+                _fallbackArtwork.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                _imageControl.Visibility = Visibility.Collapsed;
+                _fallbackArtwork.Visibility = Visibility.Visible;
+            }
+        }
+    }
 }

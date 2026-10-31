@@ -93,11 +93,11 @@ namespace WindowsBuddy.Services
 
     public sealed class MediaTrackState
     {
-        public string Title { get; set; } = "Midnight City";
-        public string Artist { get; set; } = "M83 • Hurry Up, We're Dreaming";
+        public string Title { get; set; } = "Future Calling";
+        public string Artist { get; set; } = "ZOYA";
         public bool IsPlaying { get; set; } = true;
         public double PositionSeconds { get; set; } = 84;
-        public double DurationSeconds { get; set; } = 243;
+        public double DurationSeconds { get; set; } = 224;
     }
 
     public sealed class MediaService

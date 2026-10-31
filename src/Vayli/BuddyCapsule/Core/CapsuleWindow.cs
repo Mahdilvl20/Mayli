@@ -30,7 +30,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
     {
         public const double CollapsedWidth = 228.0;
         public const double CollapsedHeight = 35.0;
-        public const double MediaCollapsedWidth = 290.0;
+        public const double MediaCollapsedWidth = 336.0;
+        public const double MediaCollapsedHeight = 46.0;
         public const double BannerCollapsedWidth = 340.0;
         public const double BannerCollapsedHeight = 38.0;
         public const double ExpandedWidth = 752.0;
@@ -64,12 +65,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly StaticBeatBars _collapsedBeatBars;
         private readonly PetView _collapsedMiniPet;
 
-        // 2. Collapsed Live Media View (Music Playing)
+        // 2. Collapsed Live Media View (Music Playing - Exact match to user screenshot)
         private readonly Grid _collapsedMediaView;
-        private readonly TextBlock _mediaIcon;
+        private readonly AlbumArtThumbnail _albumArtThumb;
         private readonly TextBlock _mediaTrackText;
         private readonly TextBlock _mediaArtistText;
-        private readonly StaticBeatBars _mediaBeatBars;
+        private readonly MiniEqualizerControl _miniEqualizer;
+        private readonly WaveformProgressBar _waveformProgress;
 
         // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth)
         private readonly Grid _collapsedBannerView;
@@ -204,53 +206,72 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedNormalView.Children.Add(_collapsedBatteryText);
             _collapsedContent.Children.Add(_collapsedNormalView);
 
-            // View 2: Live Media Playback View (when music is playing)
-            _collapsedMediaView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
-            var mediaDock = new DockPanel();
-
-            _mediaIcon = new TextBlock
+            // View 2: Live Media Playback View (matching the exact user screenshot)
+            _collapsedMediaView = new Grid
             {
-                Text = "🎵",
-                FontSize = 12,
-                Margin = new Thickness(0, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center
+                Visibility = Visibility.Collapsed,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 1)
             };
-            DockPanel.SetDock(_mediaIcon, Dock.Left);
-            mediaDock.Children.Add(_mediaIcon);
+            _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _mediaBeatBars = new StaticBeatBars(5, 12)
+            // Row 0: Album Art + Track Title - Artist + Mini Equalizer (I · II)
+            var topRowDock = new DockPanel { Margin = new Thickness(1, 0, 1, 1) };
+
+            _miniEqualizer = new MiniEqualizerControl { Cursor = Cursors.Hand, ToolTip = "Play / Pause" };
+            _miniEqualizer.MouseLeftButtonUp += (_, e) =>
             {
-                Margin = new Thickness(6, 0, 0, 0),
-                HorizontalAlignment = HorizontalAlignment.Right
+                e.Handled = true;
+                MediaService.Instance.TogglePlayPause();
             };
-            DockPanel.SetDock(_mediaBeatBars, Dock.Right);
-            mediaDock.Children.Add(_mediaBeatBars);
+            DockPanel.SetDock(_miniEqualizer, Dock.Right);
+            topRowDock.Children.Add(_miniEqualizer);
 
-            var mediaTextSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var leftInfo = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            _albumArtThumb = new AlbumArtThumbnail();
+            leftInfo.Children.Add(_albumArtThumb);
+
             _mediaTrackText = new TextBlock
             {
-                Text = "Playing",
+                Text = "Future Calling",
                 FontSize = 11.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text),
-                MaxWidth = 130,
+                MaxWidth = 150,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            _mediaArtistText = new TextBlock
+            leftInfo.Children.Add(_mediaTrackText);
+
+            leftInfo.Children.Add(new TextBlock
             {
-                Text = " · Media",
+                Text = " - ",
                 FontSize = 11,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                MaxWidth = 95,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            _mediaArtistText = new TextBlock
+            {
+                Text = "ZOYA",
+                FontSize = 10.5,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                MaxWidth = 110,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            mediaTextSp.Children.Add(_mediaTrackText);
-            mediaTextSp.Children.Add(_mediaArtistText);
-            mediaDock.Children.Add(mediaTextSp);
+            leftInfo.Children.Add(_mediaArtistText);
 
-            _collapsedMediaView.Children.Add(mediaDock);
+            topRowDock.Children.Add(leftInfo);
+            Grid.SetRow(topRowDock, 0);
+            _collapsedMediaView.Children.Add(topRowDock);
+
+            // Row 1: Full-width Waveform Scrobbler
+            _waveformProgress = new WaveformProgressBar();
+            Grid.SetRow(_waveformProgress, 1);
+            _collapsedMediaView.Children.Add(_waveformProgress);
+
             _collapsedContent.Children.Add(_collapsedMediaView);
 
             // View 3: Dynamic Banner View (Screenshot 2: Copied, Screenshot saved, AirPods Pro Connected)
@@ -463,6 +484,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 string batStr = $"{sys.BatteryPercent}%⚡";
                 _collapsedBatteryText.Text = batStr;
                 _headerBatteryText.Text = batStr;
+
+                if (_isMusicActive)
+                {
+                    double pos = MediaService.Instance.State.PositionSeconds;
+                    double dur = Math.Max(1.0, MediaService.Instance.State.DurationSeconds);
+                    _waveformProgress.SetPlayback(pos / dur, _isMusicActive);
+                }
             };
             _clockTimer.Start();
 
@@ -523,9 +551,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
             Dispatcher.InvokeAsync(() =>
             {
                 _isMusicActive = isPlaying;
-                _mediaTrackText.Text = string.IsNullOrWhiteSpace(track) ? "Playing" : track;
-                _mediaArtistText.Text = string.IsNullOrWhiteSpace(artist) ? "" : $" · {artist}";
-                _mediaBeatBars.IsPlaying = isPlaying;
+                _mediaTrackText.Text = string.IsNullOrWhiteSpace(track) ? "Future Calling" : track;
+                _mediaArtistText.Text = string.IsNullOrWhiteSpace(artist) ? "ZOYA" : artist;
+                _miniEqualizer.IsPlaying = isPlaying;
+                _albumArtThumb.SetArtwork(null, string.IsNullOrWhiteSpace(artist) ? "ZOYA" : artist);
+                _waveformProgress.SetPlayback(MediaService.Instance.State.PositionSeconds / Math.Max(1.0, MediaService.Instance.State.DurationSeconds), isPlaying);
 
                 if (!_isBannerActive)
                 {
@@ -550,7 +580,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedWidth = MediaCollapsedWidth;
-                _currentBaseCollapsedHeight = CollapsedHeight;
+                _currentBaseCollapsedHeight = MediaCollapsedHeight;
             }
             else
             {
