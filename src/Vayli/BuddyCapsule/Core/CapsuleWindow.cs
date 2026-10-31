@@ -121,6 +121,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private double _displayedCollapsedWidth = CollapsedWidth;
         private double _displayedCollapsedHeight = CollapsedHeight;
 
+        private bool _isTucked = false;
+        private readonly TranslateTransform _capsuleCardTranslate = new(0, 0);
+
+        public bool IsTucked => _isTucked;
+
         public CapsuleWindow()
         {
             ToolRegistry.RegisterDefaults();
@@ -156,7 +161,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Top,
                 Background = Brushes.Transparent,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                RenderTransform = _capsuleCardTranslate
             };
 
             var p = CapsuleTheme.Current;
@@ -653,6 +659,12 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 {
                     UpdateMediaTimelineVisuals();
                 }
+
+                // Ensure notch stays on top layer above all windows when not tucked away
+                if (!_isTucked)
+                {
+                    EnsureTopmost();
+                }
             };
             _clockTimer.Start();
 
@@ -966,11 +978,98 @@ namespace WindowsBuddy.BuddyCapsule.Core
             NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, exStyle | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TOPMOST);
 
             HotkeyService.Instance.AttachWindow(hwnd);
-            HotkeyService.Instance.Pressed += () => _machine.Toggle("hotkey");
+            HotkeyService.Instance.Pressed += () =>
+            {
+                if (_isTucked)
+                {
+                    SetTucked(false);
+                }
+                _machine.Toggle("hotkey");
+            };
+            HotkeyService.Instance.TuckPressed += () => ToggleTuck();
+
+            EnsureTopmost();
 
             NativeMethods.AddClipboardFormatListener(hwnd);
             var source = HwndSource.FromHwnd(hwnd);
             source?.AddHook(WndProc);
+        }
+
+        /// <summary>
+        /// Enforces this window to be the very top window in the system Z-order above all applications.
+        /// </summary>
+        public void EnsureTopmost()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                NativeMethods.SetWindowPos(
+                    hwnd,
+                    NativeMethods.HWND_TOPMOST,
+                    0, 0, 0, 0,
+                    NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+            }
+        }
+
+        /// <summary>
+        /// Toggles tucking the notch smoothly up out of view (or back down) via shortcut.
+        /// When tucked up, it allows full, unobstructed access to whatever was underneath (browser tabs, window title bars, etc.).
+        /// </summary>
+        public void ToggleTuck() => SetTucked(!_isTucked);
+
+        public void SetTucked(bool tucked)
+        {
+            if (_isTucked == tucked) return;
+            _isTucked = tucked;
+
+            double targetY = _isTucked ? -Math.Max(_displayedCollapsedHeight, 45.0) - 30.0 : 0.0;
+            double targetOpacity = _isTucked ? 0.0 : 1.0;
+            var duration = TimeSpan.FromMilliseconds(300);
+
+            // Smooth cubic ease out on slide down (soft landing), smooth cubic ease in on slide up (clean lift)
+            IEasingFunction ease = _isTucked
+                ? new CubicEase { EasingMode = EasingMode.EaseIn }
+                : new CubicEase { EasingMode = EasingMode.EaseOut };
+
+            var slideAnim = new DoubleAnimation
+            {
+                To = targetY,
+                Duration = duration,
+                EasingFunction = ease
+            };
+
+            var fadeAnim = new DoubleAnimation
+            {
+                To = targetOpacity,
+                Duration = duration,
+                EasingFunction = ease
+            };
+
+            if (_isTucked)
+            {
+                if (_morphProgress > 0.05)
+                {
+                    _machine.RequestClose("tuck");
+                }
+
+                slideAnim.Completed += (_, _) =>
+                {
+                    if (_isTucked)
+                    {
+                        _capsuleCard.IsHitTestVisible = false;
+                        _capsuleCard.Visibility = Visibility.Collapsed;
+                    }
+                };
+            }
+            else
+            {
+                _capsuleCard.Visibility = Visibility.Visible;
+                _capsuleCard.IsHitTestVisible = true;
+                EnsureTopmost();
+            }
+
+            _capsuleCardTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _capsuleCard.BeginAnimation(OpacityProperty, fadeAnim);
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
