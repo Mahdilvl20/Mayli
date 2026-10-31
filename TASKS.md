@@ -48,3 +48,12 @@
   - [x] پیاده‌سازی [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) با ابعاد دقیق استخراج‌شده از REA (`228x35` در حالت بسته و `752x352` در حالت باز درون پاکت `800x388`)
   - [x] پیاده‌سازی [SettingsWindow.cs](file:///F:/Vayli_Project/src/Vayli/UI/Settings/SettingsWindow.cs) و نقطه ورود [Program.cs](file:///F:/Vayli_Project/src/Vayli/Program.cs) همراه با آیکون System Tray و میانبر سراسری `Ctrl+Alt+N`
   - [x] بیلد نهایی Release و ثبت کامیت پایانی
+
+- [x] **تسک ۹: تطبیق کامل و ۱:۱ رابط کاربری با تصاویر رسمی وایلی (`vaylishot`)**
+  - [x] پیاده‌سازی داشبورد ۶ کارته اصلی در [HomeTool](file:///F:/Vayli_Project/src/Vayli/Tools/CoreTools.cs) شامل کارت‌های `Screen Time` (با نمودار میله‌ای ۷ روز هفته)، `System` (با ۳ گیج حلقوی رادیال `CPU / RAM / DISK`)، `Weather` (دما، خورشید، دامنه `H/L`)، `Focus` (تایمر معکوس و دکمه دایره‌ای مکث)، `Clipboard` (اسنیپت‌های سریع) و `Notes` (چک‌لیست تسک‌ها)
+  - [x] پیاده‌سازی ۴ تم رسمی در [ThemePalette.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Theme/ThemePalette.cs) شامل `Pure Black`، `Ember Dark`، `Vivid` و `Silver` با قابلیت تعویض سریع با یک کلیک از هدر ناچ
+  - [x] ارتقای [WeatherTool](file:///F:/Vayli_Project/src/Vayli/Tools/AdvancedTools.cs) به ۳ ستون اختصاصی (هوای فعلی، پیش‌بینی ساعتی با نمودار خطی پیوسته و شاخص‌های محیطی، پیش‌بینی ۵ روزه با اسلایدرهای رِنج دما)
+  - [x] پیاده‌سازی [FileShelfTool](file:///F:/Vayli_Project/src/Vayli/Tools/CoreTools.cs) (سایدبار قفسه‌ها، گرید فایل‌های پارک‌شده با آیکون‌های ZIP، Word، PDF و تصویر، باکس Drag&Drop) و [LinksTool](file:///F:/Vayli_Project/src/Vayli/Tools/CoreTools.cs) (جستجوی سریع، چیپ‌های سایت‌های پرکاربرد، کارت‌های بوک‌مارک)
+  - [x] ارتقای داک ناوبری پایینی در [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) با ۱۸ ابزار متناظر، دایره هایلایت و نقطه سفید زیر تب فعال
+  - [x] پیاده‌سازی بنرهای نوتیفیکیشن داینامیک ناچ (`Copied · Image`, `Screenshot saved`, `AirPods Pro Connected`) و پیام‌های کاراکتر ربات وایلی (`Good morning, Alex!`)
+  - [x] ثبت کامیت (`581a9cc`) و تایید بیلد کامل Release با ۰ خطا و ۰ هشدار
