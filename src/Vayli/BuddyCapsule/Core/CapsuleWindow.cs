@@ -1137,6 +1137,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "weather" => "Weather  Alt+8",
                         "clock" => "Clock  Alt+9",
                         "units" => "Units  Alt+0",
+                        "links" => "Links  Alt+L",
                         _ => tool.Title
                     }
                 };
