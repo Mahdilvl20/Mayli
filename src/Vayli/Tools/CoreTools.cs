@@ -559,7 +559,7 @@ namespace WindowsBuddy.Tools
             border.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
-                try { Clipboard.SetText(title); } catch { }
+                try { System.Windows.Clipboard.SetText(title); } catch { }
             };
             return border;
         }
@@ -1007,7 +1007,7 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// ClipboardTool: Live clipboard history.
+    /// ClipboardTool: Live clipboard history matching the exact Vayli split-column UI with code, image & link previews.
     /// </summary>
     public sealed class ClipboardTool : IBuddyTool
     {
@@ -1015,101 +1015,24 @@ namespace WindowsBuddy.Tools
         public string Title => "Clipboard";
         public string IconGlyph => "📋";
 
-        public static List<string> History { get; } = new()
-        {
-            "Studio hours: Monday to Friday 9:00 - 18:00",
-            "Linen tote — natural raw cotton",
-            "https://github.com/morluto/rea",
-            "npm install @vayli/core"
-        };
-
-        private StackPanel _listPanel;
+        private WindowsBuddy.Tools.Clipboard.ClipboardToolView _view;
 
         public static void CaptureCurrentClipboard()
         {
-            try
-            {
-                if (Clipboard.ContainsText())
-                {
-                    string text = Clipboard.GetText()?.Trim();
-                    if (!string.IsNullOrEmpty(text))
-                    {
-                        History.Remove(text);
-                        History.Insert(0, text);
-                        if (History.Count > 30) History.RemoveAt(History.Count - 1);
-                    }
-                }
-            }
-            catch { }
+            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
         }
 
         public FrameworkElement BuildView()
         {
-            CaptureCurrentClipboard();
-            var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4, 2, 4, 2) };
-            var dock = new DockPanel();
-
-            var top = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            top.Children.Add(new TextBlock
-            {
-                Text = "CLIPBOARD HISTORY — Click any snippet to copy",
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.CClipboard)
-            });
-            var refreshBtn = new BuddyPillButton("↻", "Capture Now") { HorizontalAlignment = HorizontalAlignment.Right };
-            refreshBtn.Clicked += () => { CaptureCurrentClipboard(); RenderItems(); };
-            DockPanel.SetDock(refreshBtn, Dock.Right);
-            top.Children.Add(refreshBtn);
-            DockPanel.SetDock(top, Dock.Top);
-            dock.Children.Add(top);
-
-            _listPanel = new StackPanel();
-            dock.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _listPanel });
-            card.Child = dock;
-
-            RenderItems();
-            return card;
-        }
-
-        private void RenderItems()
-        {
-            if (_listPanel == null) return;
-            _listPanel.Children.Clear();
-            var p = CapsuleTheme.Current;
-
-            foreach (var snippet in History.Take(15))
-            {
-                string captured = snippet;
-                var row = new Border
-                {
-                    Background = CapsuleTheme.Brush(p.Surface2),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(10, 6, 10, 6),
-                    Margin = new Thickness(0, 0, 0, 4),
-                    Cursor = Cursors.Hand
-                };
-                row.Child = new TextBlock
-                {
-                    Text = captured.Replace("\r", " ").Replace("\n", " ↵ "),
-                    FontSize = 11,
-                    Foreground = CapsuleTheme.Brush(p.Text),
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                };
-                row.MouseLeftButtonUp += (_, e) =>
-                {
-                    e.Handled = true;
-                    try { Clipboard.SetText(captured); } catch { }
-                };
-                _listPanel.Children.Add(row);
-            }
+            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
+            _view = new WindowsBuddy.Tools.Clipboard.ClipboardToolView();
+            return _view;
         }
 
         public void OnActivated()
         {
-            CaptureCurrentClipboard();
-            RenderItems();
+            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
+            _view?.RefreshList();
         }
     }
 

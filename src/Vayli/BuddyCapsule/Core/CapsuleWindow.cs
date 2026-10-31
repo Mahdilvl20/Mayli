@@ -1113,7 +1113,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     Width = 30,
                     Height = 28,
                     Cursor = Cursors.Hand,
-                    ToolTip = tool.Title
+                    ToolTip = tool.Id == "clipboard" ? "Clipboard  Alt+3" : tool.Title
                 };
 
                 var circleHighlight = new Border
@@ -1220,7 +1220,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "fileshelf" => "Parked files",
                 "links" => "Quick Bookmarks",
                 "focus" => "Focus & Pomodoro",
-                "clipboard" => "Clipboard History",
+                "clipboard" => $"{WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Count} items",
                 "notes" => "Scratchpad",
                 "screentime" => "Activity tracker",
                 _ => "WindowsBuddy Capsule"
