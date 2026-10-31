@@ -1120,6 +1120,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "clipboard" => "Clipboard  Alt+3",
                         "notes" => "Notes  Alt+4",
                         "focus" => "Timers  Alt+5",
+                        "fileshelf" => "File Shelf  Alt+6",
                         _ => tool.Title
                     }
                 };

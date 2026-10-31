@@ -37,23 +37,23 @@ namespace WindowsBuddy.Tools
         {
             if (_tools.Count > 0) return;
 
-            // 18 tools matching the exact dock sequence in Screenshot 1
+            // 18 tools matching the exact dock sequence
             _tools.Add(new HomeTool());         // 1. Home
             _tools.Add(new SystemTool());       // 2. System
-            _tools.Add(new ClockTool());        // 3. Clock
-            _tools.Add(new TimerClockTool());   // 4. Focus
-            _tools.Add(new CalendarTool());     // 5. Calendar
-            _tools.Add(new WeatherTool());      // 6. Weather
-            _tools.Add(new ClipboardTool());    // 7. Clipboard
-            _tools.Add(new NotesTool());        // 8. Notes
-            _tools.Add(new FileShelfTool());    // 9. File Shelf
-            _tools.Add(new DropTool());         // 10. Drop
-            _tools.Add(new TransferTool());     // 11. Transfer
-            _tools.Add(new QuickToolsTool());   // 12. Tools
-            _tools.Add(new LinksTool());        // 13. Links
-            _tools.Add(new CardsTool());        // 14. Cards
-            _tools.Add(new AudioTool());        // 15. Audio
-            _tools.Add(new ScreenTimeTool());   // 16. Screen Time
+            _tools.Add(new ClipboardTool());    // 3. Clipboard
+            _tools.Add(new NotesTool());        // 4. Notes
+            _tools.Add(new TimerClockTool());   // 5. Timers
+            _tools.Add(new FileShelfTool());    // 6. File Shelf
+            _tools.Add(new DropTool());         // 7. Drop
+            _tools.Add(new WeatherTool());      // 8. Weather
+            _tools.Add(new ClockTool());        // 9. Clock
+            _tools.Add(new QuickToolsTool());   // 10. Quick Tools
+            _tools.Add(new LinksTool());        // 11. Links
+            _tools.Add(new CardsTool());        // 12. Cards
+            _tools.Add(new AudioTool());        // 13. Audio
+            _tools.Add(new ScreenTimeTool());   // 14. Screen Time
+            _tools.Add(new CalendarTool());     // 15. Calendar
+            _tools.Add(new TransferTool());     // 16. Transfer
             _tools.Add(new PetCompanionTool()); // 17. Buddy / Pet
             _tools.Add(new AICodingTool());     // 18. Media / Coding
         }
@@ -571,7 +571,7 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// FileShelfTool: File Shelf shown in Screenshot 4 Left ("Your files and links, one hover away").
+    /// FileShelfTool: File Shelf parked files tool matching 1:1 original Vayli.
     /// </summary>
     public sealed class FileShelfTool : IBuddyTool
     {
@@ -579,240 +579,7 @@ namespace WindowsBuddy.Tools
         public string Title => "File Shelf";
         public string IconGlyph => "📁";
 
-        public FrameworkElement BuildView()
-        {
-            var p = CapsuleTheme.Current;
-            var root = new Grid { Margin = new Thickness(4, 2, 4, 2) };
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            // 1. Left Sidebar: SHELVES
-            var sidebar = new BuddyCard { Margin = new Thickness(2), Padding = new Thickness(8) };
-            var sbDock = new DockPanel();
-
-            var sbHeader = new TextBlock
-            {
-                Text = "SHELVES",
-                FontSize = 9.5,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Text3),
-                Margin = new Thickness(4, 2, 0, 8)
-            };
-            DockPanel.SetDock(sbHeader, Dock.Top);
-            sbDock.Children.Add(sbHeader);
-
-            var newShelfBtn = new Border
-            {
-                BorderBrush = CapsuleTheme.Brush(p.Border),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(7),
-                Padding = new Thickness(6, 4, 6, 4),
-                Cursor = Cursors.Hand,
-                Margin = new Thickness(0, 6, 0, 0),
-                Child = new TextBlock
-                {
-                    Text = "+ New shelf",
-                    FontSize = 10.5,
-                    Foreground = CapsuleTheme.Brush(p.Text2),
-                    HorizontalAlignment = HorizontalAlignment.Center
-                }
-            };
-            DockPanel.SetDock(newShelfBtn, Dock.Bottom);
-            sbDock.Children.Add(newShelfBtn);
-
-            var shelvesList = new StackPanel();
-            var deskItem = new Border
-            {
-                Background = CapsuleTheme.Brush(p.Surface2),
-                CornerRadius = new CornerRadius(7),
-                Padding = new Thickness(8, 6, 8, 6),
-                Cursor = Cursors.Hand
-            };
-            var itemDock = new DockPanel();
-            var badge = new Border
-            {
-                Background = CapsuleTheme.Brush(p.ControlFill),
-                CornerRadius = new CornerRadius(7),
-                Padding = new Thickness(5, 1, 5, 1),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Child = new TextBlock
-                {
-                    Text = "5",
-                    FontSize = 10,
-                    Foreground = CapsuleTheme.Brush(p.Text2)
-                }
-            };
-            DockPanel.SetDock(badge, Dock.Right);
-            itemDock.Children.Add(badge);
-            itemDock.Children.Add(new TextBlock
-            {
-                Text = "📁 Desk",
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = CapsuleTheme.Brush(p.Text)
-            });
-            deskItem.Child = itemDock;
-            shelvesList.Children.Add(deskItem);
-
-            sbDock.Children.Add(shelvesList);
-            sidebar.Child = sbDock;
-            Grid.SetColumn(sidebar, 0);
-            root.Children.Add(sidebar);
-
-            // 2. Main Content Area
-            var mainCard = new BuddyCard { Margin = new Thickness(2), Padding = new Thickness(12, 10, 12, 10) };
-            var mainDock = new DockPanel();
-
-            // Header bar
-            var topBar = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
-            var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            actions.Children.Add(CreateTextButton("Recent ⌵"));
-            actions.Children.Add(new TextBlock { Text = " · ", Foreground = CapsuleTheme.Brush(p.Text3), VerticalAlignment = VerticalAlignment.Center });
-            actions.Children.Add(CreateTextButton("Select"));
-            actions.Children.Add(new TextBlock { Text = " · ", Foreground = CapsuleTheme.Brush(p.Text3), VerticalAlignment = VerticalAlignment.Center });
-            actions.Children.Add(CreateTextButton("Copy all"));
-            actions.Children.Add(new TextBlock { Text = " · ", Foreground = CapsuleTheme.Brush(p.Text3), VerticalAlignment = VerticalAlignment.Center });
-            actions.Children.Add(CreateTextButton("Clear"));
-            DockPanel.SetDock(actions, Dock.Right);
-            topBar.Children.Add(actions);
-
-            var titleStack = new StackPanel { Orientation = Orientation.Horizontal };
-            titleStack.Children.Add(new TextBlock
-            {
-                Text = "Desk",
-                FontSize = 13.5,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Text)
-            });
-            titleStack.Children.Add(new TextBlock
-            {
-                Text = "  5 items · 39.7 MB",
-                FontSize = 11,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            topBar.Children.Add(titleStack);
-            DockPanel.SetDock(topBar, Dock.Top);
-            mainDock.Children.Add(topBar);
-
-            // Drop zone at bottom
-            var dropZone = new Border
-            {
-                BorderBrush = CapsuleTheme.Brush(p.Border),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(9),
-                Padding = new Thickness(12, 7, 12, 7),
-                Margin = new Thickness(0, 8, 0, 0)
-            };
-            var dropDock = new DockPanel();
-            var chooseBtn = new BuddyPillButton(null, "Choose files") { Padding = new Thickness(9, 4, 9, 4) };
-            DockPanel.SetDock(chooseBtn, Dock.Right);
-            dropDock.Children.Add(chooseBtn);
-
-            var dropLabel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            dropLabel.Children.Add(new TextBlock
-            {
-                Text = "⇪ ",
-                FontSize = 11,
-                Foreground = CapsuleTheme.Brush(p.Text3)
-            });
-            dropLabel.Children.Add(new TextBlock
-            {
-                Text = "Drop files here - drag out to use anywhere",
-                FontSize = 10.5,
-                Foreground = CapsuleTheme.Brush(p.Text3)
-            });
-            dropDock.Children.Add(dropLabel);
-            dropZone.Child = dropDock;
-            DockPanel.SetDock(dropZone, Dock.Bottom);
-            mainDock.Children.Add(dropZone);
-
-            // Parked files horizontal/grid list
-            var filesWrap = new WrapPanel { Orientation = Orientation.Horizontal };
-            filesWrap.Children.Add(CreateFileItem("🗜", Color.FromRgb(242, 196, 68), "Site photos...", "37.1 MB"));
-            filesWrap.Children.Add(CreateFileItem("W", Color.FromRgb(43, 114, 219), "Interview no...", "48 KB"));
-            filesWrap.Children.Add(CreateFileItem("PDF", Color.FromRgb(235, 60, 60), "Invoice 2026...", "180 KB"));
-            filesWrap.Children.Add(CreateFileItem("PDF", Color.FromRgb(235, 60, 60), "Q4 roadmap...", "2.3 MB"));
-            filesWrap.Children.Add(CreateFileItem("🌄", Color.FromRgb(165, 85, 230), "Moodboard -...", "127 KB"));
-
-            mainDock.Children.Add(filesWrap);
-            mainCard.Child = mainDock;
-            Grid.SetColumn(mainCard, 1);
-            root.Children.Add(mainCard);
-
-            return root;
-        }
-
-        private static Border CreateFileItem(string badgeText, Color badgeColor, string title, string size)
-        {
-            var p = CapsuleTheme.Current;
-            var box = new Border
-            {
-                Width = 86,
-                Margin = new Thickness(4, 2, 4, 2),
-                Padding = new Thickness(4),
-                Cursor = Cursors.Hand
-            };
-
-            var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-
-            // Badge Icon
-            var iconBox = new Border
-            {
-                Width = 42,
-                Height = 44,
-                CornerRadius = new CornerRadius(7),
-                Background = CapsuleTheme.Brush(badgeColor),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            iconBox.Child = new TextBlock
-            {
-                Text = badgeText,
-                FontSize = badgeText.Length > 2 ? 10 : 16,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            sp.Children.Add(iconBox);
-
-            sp.Children.Add(new TextBlock
-            {
-                Text = title,
-                FontSize = 10.5,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = CapsuleTheme.Brush(p.Text),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 80
-            });
-
-            sp.Children.Add(new TextBlock
-            {
-                Text = size,
-                FontSize = 9.5,
-                Foreground = CapsuleTheme.Brush(p.Text3),
-                HorizontalAlignment = HorizontalAlignment.Center
-            });
-
-            box.Child = sp;
-            return box;
-        }
-
-        private static TextBlock CreateTextButton(string text)
-        {
-            var p = CapsuleTheme.Current;
-            var tb = new TextBlock
-            {
-                Text = text,
-                FontSize = 10.5,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                Cursor = Cursors.Hand,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            return tb;
-        }
+        public FrameworkElement BuildView() => new WindowsBuddy.Tools.FileShelf.FileShelfToolView();
 
         public void OnActivated() { }
     }
