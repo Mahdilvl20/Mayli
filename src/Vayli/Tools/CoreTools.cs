@@ -1037,57 +1037,26 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// NotesTool: Scratchpad & checklists.
+    /// NotesTool: Live notes & scratchpad matching the exact Vayli split-column UI.
     /// </summary>
     public sealed class NotesTool : IBuddyTool
     {
         public string Id => "notes";
         public string Title => "Notes";
         public string IconGlyph => "📝";
-        private const string NotesFile = "quick_notes.txt";
+
+        private WindowsBuddy.BuddyCapsule.UI.NotesToolView _view;
 
         public FrameworkElement BuildView()
         {
-            var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4, 2, 4, 2) };
-            var dock = new DockPanel();
-
-            var header = new TextBlock
-            {
-                Text = "LAUNCH CHECKLIST & NOTES",
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.CNotes),
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            DockPanel.SetDock(header, Dock.Top);
-            dock.Children.Add(header);
-
-            string filePath = System.IO.Path.Combine(AppPaths.DataDir, NotesFile);
-            string initial = PersistenceHelper.SafeReadAllText(filePath)
-                          ?? "[x] Screen time, system, weather on Home\n[x] Beautiful notch notifications\n[x] Four looks: Pure Black, Ember Dark, Vivid, Silver\n[ ] Launch checklist (2/5 done)\n\nType freely here — notes are saved automatically.";
-
-            var box = new TextBox
-            {
-                Text = initial,
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Background = CapsuleTheme.Brush(p.Surface2),
-                Foreground = CapsuleTheme.Brush(p.Text),
-                CaretBrush = CapsuleTheme.Brush(p.Accent),
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(10),
-                FontSize = 12
-            };
-            box.TextChanged += (_, _) => PersistenceHelper.SafeWriteAllText(filePath, box.Text, createBackup: false);
-
-            dock.Children.Add(box);
-            card.Child = dock;
-            return card;
+            _view = new WindowsBuddy.BuddyCapsule.UI.NotesToolView();
+            return _view;
         }
 
-        public void OnActivated() { }
+        public void OnActivated()
+        {
+            _view?.RefreshList();
+        }
     }
 
     /// <summary>

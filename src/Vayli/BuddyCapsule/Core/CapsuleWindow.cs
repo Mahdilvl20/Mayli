@@ -1118,6 +1118,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "home" => "Home  Alt+1",
                         "system" => "System  Alt+2",
                         "clipboard" => "Clipboard  Alt+3",
+                        "notes" => "Notes  Alt+4",
                         _ => tool.Title
                     }
                 };
@@ -1228,7 +1229,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "links" => "Quick Bookmarks",
                 "focus" => "Focus & Pomodoro",
                 "clipboard" => $"{WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Count} items",
-                "notes" => "Scratchpad",
+                "notes" => $"{WindowsBuddy.Tools.Notes.NotesService.Instance.Notes.Count} notes",
                 "screentime" => "Activity tracker",
                 _ => "WindowsBuddy Capsule"
             };
