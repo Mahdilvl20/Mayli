@@ -63,6 +63,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly TextBlock _headerTitleText;
         private readonly TextBlock _headerSubtitleText;
         private readonly TextBlock _headerBatteryText;
+        private readonly StackPanel _toolHeaderActions = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
 
         // 1. Collapsed Resting Normal View (matching video 00:00-00:02: "8:51 PM" + [Green Battery] "100")
         private readonly Grid _collapsedNormalView;
@@ -130,6 +131,16 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             ToolRegistry.RegisterDefaults();
             ToolRegistry.OnToolNavigationRequested = id => NavigateToTool(id);
+            WindowsBuddy.Tools.Weather.WeatherService.Instance.WeatherUpdated += () =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (string.Equals(_activeToolId, "weather", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _headerSubtitleText.Text = WindowsBuddy.Tools.Weather.WeatherService.Instance.Prefs.City;
+                    }
+                });
+            };
             _machine = new NotchStateMachine();
 
             Title = "Vayli Notch";
@@ -547,8 +558,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             leftBrand.Children.Add(_headerSubtitleText);
 
-            // Right header actions: Battery + Theme Switcher + Settings + Close
+            // Right header actions: Tool Actions + Battery + Theme Switcher + Settings + Close
             var rightActions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            rightActions.Children.Add(_toolHeaderActions);
 
             _headerBatteryText = new TextBlock
             {
@@ -1121,6 +1133,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "notes" => "Notes  Alt+4",
                         "focus" => "Timers  Alt+5",
                         "fileshelf" => "File Shelf  Alt+6",
+                        "drop" => "Drop  Alt+7",
+                        "weather" => "Weather  Alt+8",
                         _ => tool.Title
                     }
                 };
@@ -1226,7 +1240,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 "home" => DateTime.Now.ToString("dddd, d MMM"),
                 "system" => "Power · Network · Audio",
-                "weather" => "San Francisco",
+                "weather" => WindowsBuddy.Tools.Weather.WeatherService.Instance.Prefs.City,
                 "fileshelf" => "Parked files",
                 "links" => "Quick Bookmarks",
                 "focus" => "Focus & intervals",
@@ -1236,10 +1250,118 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _ => "WindowsBuddy Capsule"
             };
 
+            UpdateToolHeaderActions(tool.Id);
             RebuildNavTabs();
 
             _viewportHost.Child = tool.BuildView();
             tool.OnActivated();
+        }
+
+        private void UpdateToolHeaderActions(string toolId)
+        {
+            _toolHeaderActions.Children.Clear();
+            if (string.Equals(toolId, "weather", StringComparison.OrdinalIgnoreCase))
+            {
+                var svc = WindowsBuddy.Tools.Weather.WeatherService.Instance;
+
+                // 1. Unit toggle pill [ °C | °F ]
+                var unitPill = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                    CornerRadius = new CornerRadius(12),
+                    Height = 24,
+                    Padding = new Thickness(2, 1, 2, 1),
+                    Margin = new Thickness(0, 0, 8, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                var unitDock = new StackPanel { Orientation = Orientation.Horizontal };
+
+                var cBtn = new Border
+                {
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(7, 2, 7, 2),
+                    Background = !svc.UseFahrenheit ? new SolidColorBrush(Color.FromRgb(50, 50, 60)) : Brushes.Transparent,
+                    Cursor = Cursors.Hand,
+                    Child = new TextBlock
+                    {
+                        Text = "°C",
+                        FontSize = 11,
+                        FontWeight = !svc.UseFahrenheit ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = !svc.UseFahrenheit ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                    }
+                };
+
+                var fBtn = new Border
+                {
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(7, 2, 7, 2),
+                    Background = svc.UseFahrenheit ? new SolidColorBrush(Color.FromRgb(50, 50, 60)) : Brushes.Transparent,
+                    Cursor = Cursors.Hand,
+                    Child = new TextBlock
+                    {
+                        Text = "°F",
+                        FontSize = 11,
+                        FontWeight = svc.UseFahrenheit ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = svc.UseFahrenheit ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                    }
+                };
+
+                cBtn.MouseLeftButtonUp += (_, _) =>
+                {
+                    svc.UseFahrenheit = false;
+                    UpdateToolHeaderActions("weather");
+                };
+
+                fBtn.MouseLeftButtonUp += (_, _) =>
+                {
+                    svc.UseFahrenheit = true;
+                    UpdateToolHeaderActions("weather");
+                };
+
+                unitDock.Children.Add(cBtn);
+                unitDock.Children.Add(fBtn);
+                unitPill.Child = unitDock;
+                _toolHeaderActions.Children.Add(unitPill);
+
+                // 2. Change City Pill Button
+                var cityBtn = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 56)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(12),
+                    Height = 24,
+                    Padding = new Thickness(8, 2, 10, 2),
+                    Cursor = Cursors.Hand,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                var citySp = new StackPanel { Orientation = Orientation.Horizontal };
+                citySp.Children.Add(new TextBlock
+                {
+                    Text = "📍",
+                    FontSize = 10.5,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 4, 0)
+                });
+                citySp.Children.Add(new TextBlock
+                {
+                    Text = "Change City",
+                    FontSize = 11.5,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                cityBtn.Child = citySp;
+
+                cityBtn.MouseEnter += (_, _) => cityBtn.Background = new SolidColorBrush(Color.FromRgb(42, 42, 52));
+                cityBtn.MouseLeave += (_, _) => cityBtn.Background = new SolidColorBrush(Color.FromRgb(28, 28, 34));
+                cityBtn.MouseLeftButtonUp += (_, _) =>
+                {
+                    WindowsBuddy.Tools.Weather.WeatherToolView.Instance?.ShowCityPicker();
+                };
+
+                _toolHeaderActions.Children.Add(cityBtn);
+            }
         }
 
         private void OnMorphTick(object sender, EventArgs e)
