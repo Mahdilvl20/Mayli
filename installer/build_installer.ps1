@@ -29,6 +29,7 @@ Write-Host "    Portable package created at: $zipPath" -ForegroundColor Green
 Write-Host ">>> [3/3] Checking for Inno Setup Compiler (iscc.exe)..." -ForegroundColor Cyan
 $isccCandidates = @(
     "iscc.exe",
+    "$env:LocalAppData\Programs\Inno Setup 6\iscc.exe",
     "C:\Program Files (x86)\Inno Setup 6\iscc.exe",
     "C:\Program Files\Inno Setup 6\iscc.exe"
 )
