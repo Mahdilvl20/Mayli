@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
+using System.Threading;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using WindowsBuddy.Core;
@@ -21,11 +22,20 @@ namespace WindowsBuddy.Services
         public bool IsMediaStatus { get; set; } = false;
     }
 
+    public sealed class MediaSessionSnapshot
+    {
+        public string Title { get; set; } = "";
+        public string Artist { get; set; } = "";
+        public bool IsPlaying { get; set; }
+        public BitmapSource Artwork { get; set; }
+        public Color BeatColor { get; set; } = Color.FromRgb(245, 245, 250);
+    }
+
     /// <summary>
     /// RealtimeNotchActionService: Orchestrates real-time Windows events for the notch:
     /// 1. Real Clipboard & Screenshot events (Text, Image, Files, Screenshot saved)
     /// 2. Real Bluetooth & Audio device connection events (AirPods Pro, QCY-T13, Headsets)
-    /// 3. Real Music & Media playback detection (Spotify, YouTube, Chrome, Media Player)
+    /// 3. Real Windows GSMTC Media Session + Album Art Thumbnail + Dominant Color Extraction
     /// </summary>
     public sealed class RealtimeNotchActionService
     {
@@ -33,7 +43,7 @@ namespace WindowsBuddy.Services
         public static RealtimeNotchActionService Instance => _lazy.Value;
 
         public event Action<NotchNotificationPayload> NotificationRequested;
-        public event Action<string, string, bool> MediaTrackChanged; // title, artist, isPlaying
+        public event Action<MediaSessionSnapshot> MediaSessionChanged;
 
         private readonly DispatcherTimer _pollTimer;
         private readonly HashSet<string> _knownBluetoothDevices = new(StringComparer.OrdinalIgnoreCase);
@@ -45,14 +55,26 @@ namespace WindowsBuddy.Services
         public bool IsMusicPlaying { get; private set; }
         public string CurrentTrack { get; private set; } = "";
         public string CurrentArtist { get; private set; } = "";
-        public string CurrentSourceApp { get; private set; } = "";
+        public BitmapSource CurrentArtwork { get; private set; }
+        public Color CurrentBeatColor { get; private set; } = Color.FromRgb(245, 245, 250);
+
+        private volatile bool _gsmtcActive = false;
+        private DateTime _lastGsmtcHeartbeatUtc = DateTime.MinValue;
 
         private RealtimeNotchActionService()
         {
+            // Ensure real-time loopback FFT analyzer is running
+            _ = AudioSpectrumService.Instance;
+
+            StartGsmtcBackgroundWorker();
+
             _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
             _pollTimer.Tick += (_, _) =>
             {
-                CheckMediaPlayback();
+                if ((DateTime.UtcNow - _lastGsmtcHeartbeatUtc).TotalSeconds > 4.0)
+                {
+                    CheckFallbackMediaPlayback();
+                }
                 CheckBluetoothDevices();
             };
             _pollTimer.Start();
@@ -67,7 +89,6 @@ namespace WindowsBuddy.Services
         {
             try
             {
-                // Debounce rapid duplicate clipboard events
                 if ((DateTime.UtcNow - _lastClipboardTrigger).TotalMilliseconds < 350)
                     return;
 
@@ -80,7 +101,6 @@ namespace WindowsBuddy.Services
                         var data = Clipboard.GetDataObject();
                         if (data == null) return;
 
-                        // Case A: Image copied (Screenshot 2: Copied · Image)
                         if (Clipboard.ContainsImage() || data.GetDataPresent(DataFormats.Bitmap))
                         {
                             NotificationRequested?.Invoke(new NotchNotificationPayload
@@ -88,12 +108,11 @@ namespace WindowsBuddy.Services
                                 Icon = "📋",
                                 Title = "Copied",
                                 Subtitle = " · Image",
-                                DurationMs = 3500
+                                DurationMs = 3200
                             });
                             return;
                         }
 
-                        // Case B: Files copied (e.g. from Explorer)
                         if (Clipboard.ContainsFileDropList())
                         {
                             var files = Clipboard.GetFileDropList();
@@ -105,13 +124,12 @@ namespace WindowsBuddy.Services
                                     Icon = "📁",
                                     Title = "Copied",
                                     Subtitle = $" · {desc}",
-                                    DurationMs = 3500
+                                    DurationMs = 3200
                                 });
                                 return;
                             }
                         }
 
-                        // Case C: Text copied
                         if (Clipboard.ContainsText())
                         {
                             string text = Clipboard.GetText()?.Trim();
@@ -127,15 +145,12 @@ namespace WindowsBuddy.Services
                                     Icon = "📋",
                                     Title = "Copied",
                                     Subtitle = $" · \"{display}\"",
-                                    DurationMs = 3500
+                                    DurationMs = 3200
                                 });
                             }
                         }
                     }
-                    catch
-                    {
-                        // Ignore clipboard contention
-                    }
+                    catch { }
                 });
             }
             catch { }
@@ -173,7 +188,7 @@ namespace WindowsBuddy.Services
                                         Icon = "📸",
                                         Title = "Screenshot saved",
                                         Subtitle = "",
-                                        DurationMs = 3800
+                                        DurationMs = 3500
                                     });
                                 });
                             }
@@ -191,7 +206,6 @@ namespace WindowsBuddy.Services
 
         public void HandleDeviceChange(int eventCode)
         {
-            // DBT_DEVICEARRIVAL = 0x8000, DBT_DEVICEREMOVECOMPLETE = 0x8004, DBT_DEVNODES_CHANGED = 0x0007
             if (eventCode is 0x8000 or 0x8004 or 0x0007)
             {
                 CheckBluetoothDevices(isDirectEvent: true);
@@ -217,14 +231,11 @@ namespace WindowsBuddy.Services
             {
                 var activeDevices = QueryActiveBluetoothDevices();
 
-                // Check for newly connected devices
                 foreach (var device in activeDevices)
                 {
                     if (!_knownBluetoothDevices.Contains(device))
                     {
                         _knownBluetoothDevices.Add(device);
-
-                        // Trigger exact "AirPods Pro Connected" style banner (Screenshot 2)
                         Application.Current?.Dispatcher?.InvokeAsync(() =>
                         {
                             NotificationRequested?.Invoke(new NotchNotificationPayload
@@ -232,13 +243,12 @@ namespace WindowsBuddy.Services
                                 Icon = "🎧",
                                 Title = device,
                                 Subtitle = "  Connected",
-                                DurationMs = 4000
+                                DurationMs = 3800
                             });
                         });
                     }
                 }
 
-                // Check for disconnected devices
                 var disconnected = _knownBluetoothDevices.Where(d => !activeDevices.Contains(d)).ToList();
                 foreach (var d in disconnected)
                 {
@@ -252,7 +262,7 @@ namespace WindowsBuddy.Services
                                 Icon = "🎧",
                                 Title = d,
                                 Subtitle = "  Disconnected",
-                                DurationMs = 3000
+                                DurationMs = 2800
                             });
                         });
                     }
@@ -285,7 +295,6 @@ namespace WindowsBuddy.Services
 
                             if (!string.IsNullOrWhiteSpace(fn))
                             {
-                                // Filter out generic system adapters
                                 if (!fn.Contains("Standard Serial", StringComparison.OrdinalIgnoreCase) &&
                                     !fn.Contains("Enumerator", StringComparison.OrdinalIgnoreCase) &&
                                     !fn.Contains("Protocol", StringComparison.OrdinalIgnoreCase) &&
@@ -300,57 +309,259 @@ namespace WindowsBuddy.Services
             }
             catch { }
 
-            // If empty, return currently recorded audio endpoints (like QCY-T13 or AirPods)
             return result;
         }
 
         #endregion
 
-        #region 3. Real Music Playback Detection (Spotify, Chrome, YouTube, VLC)
+        #region 3. Real Windows GSMTC Media Session + Album Cover Art + Dominant Color
 
-        private void CheckMediaPlayback()
+        private void StartGsmtcBackgroundWorker()
         {
+            var thread = new Thread(() =>
+            {
+                const string psScript = @"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+$asStreamMethod = ([System.IO.WindowsRuntimeStreamExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsStreamForRead' -and $_.GetParameters().Count -eq 1 })[0]
+function Await($WinRtTask, $ResultType) {
+    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
+    $netTask = $asTask.Invoke($null, @($WinRtTask))
+    $netTask.Wait(2000) | Out-Null
+    if ($netTask.IsCompleted) { return $netTask.Result }
+    return $null
+}
+$mgrType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media, ContentType=WindowsRuntime]
+$propsType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties, Windows.Media, ContentType=WindowsRuntime]
+$streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage, ContentType=WindowsRuntime]
+$mgr = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) $mgrType
+$lastThumbKey = ''
+$cachedB64 = ''
+while ($true) {
+    try {
+        if ($null -eq $mgr) {
+            $mgr = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) $mgrType
+        }
+        $session = $mgr.GetCurrentSession()
+        if ($null -ne $session) {
+            $info = $session.GetPlaybackInfo()
+            $status = $info.PlaybackStatus.ToString()
+            $props = Await ($session.TryGetMediaPropertiesAsync()) $propsType
+            $title = if ($props.Title) { $props.Title.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
+            $artist = if ($props.Artist) { $props.Artist.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
+            $key = ""$title|$artist""
+            $b64 = ''
+            if ($key -ne $lastThumbKey -and $null -ne $props.Thumbnail) {
+                $ras = Await ($props.Thumbnail.OpenReadAsync()) $streamType
+                if ($null -ne $ras) {
+                    $netStream = $asStreamMethod.Invoke($null, @($ras))
+                    $ms = New-Object System.IO.MemoryStream
+                    $netStream.CopyTo($ms)
+                    $bytes = $ms.ToArray()
+                    $ms.Dispose()
+                    $netStream.Dispose()
+                    if ($bytes.Length -gt 0) {
+                        $cachedB64 = [Convert]::ToBase64String($bytes)
+                        $lastThumbKey = $key
+                    }
+                }
+                $b64 = $cachedB64
+            }
+            [Console]::WriteLine(""GSMTC`t$status`t$title`t$artist`t$b64"")
+        } else {
+            [Console]::WriteLine(""GSMTC`tStopped`t`t`t"")
+        }
+    } catch {
+        [Console]::WriteLine(""GSMTC`tError`t`t`t"")
+    }
+    Start-Sleep -Milliseconds 950
+}
+";
+                string encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(psScript));
+
+                while (true)
+                {
+                    Process proc = null;
+                    try
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = "powershell.exe",
+                            Arguments = $"-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand {encoded}",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            RedirectStandardOutput = true,
+                            StandardOutputEncoding = System.Text.Encoding.UTF8
+                        };
+                        proc = Process.Start(psi);
+                        if (proc == null)
+                        {
+                            Thread.Sleep(3000);
+                            continue;
+                        }
+
+                        while (!proc.StandardOutput.EndOfStream)
+                        {
+                            string line = proc.StandardOutput.ReadLine();
+                            if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("GSMTC\t", StringComparison.Ordinal))
+                                continue;
+
+                            _lastGsmtcHeartbeatUtc = DateTime.UtcNow;
+                            _gsmtcActive = true;
+
+                            string[] parts = line.Split('\t');
+                            if (parts.Length < 4) continue;
+
+                            string status = parts[1];
+                            string title = parts[2].Trim();
+                            string artist = parts[3].Trim();
+                            string b64 = parts.Length >= 5 ? parts[4].Trim() : "";
+
+                            bool playing = string.Equals(status, "Playing", StringComparison.OrdinalIgnoreCase)
+                                           && !string.IsNullOrWhiteSpace(title);
+
+                            CleanTitleAndArtist(ref title, ref artist);
+                            PublishMediaUpdate(title, artist, playing, b64);
+                        }
+                    }
+                    catch
+                    {
+                        _gsmtcActive = false;
+                    }
+                    finally
+                    {
+                        try { if (proc != null && !proc.HasExited) proc.Kill(); } catch { }
+                        proc?.Dispose();
+                    }
+                    Thread.Sleep(2500);
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "VayliGsmtcWorker"
+            };
+            thread.Start();
+        }
+
+        private static void CleanTitleAndArtist(ref string title, ref string artist)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return;
+
+            // If artist is embedded in title as "Artist - Title" or "Title - Artist" when Artist is empty or generic
+            if ((string.IsNullOrWhiteSpace(artist) || artist.Contains("YouTube", StringComparison.OrdinalIgnoreCase) || artist.Contains("Spotify", StringComparison.OrdinalIgnoreCase))
+                && title.Contains(" - ", StringComparison.Ordinal))
+            {
+                int dash = title.IndexOf(" - ", StringComparison.Ordinal);
+                string left = title.Substring(0, dash).Trim();
+                string right = title.Substring(dash + 3).Trim();
+                if (!string.IsNullOrEmpty(left) && !string.IsNullOrEmpty(right))
+                {
+                    artist = left;
+                    title = right;
+                }
+            }
+        }
+
+        private void PublishMediaUpdate(string title, string artist, bool playing, string base64Thumb)
+        {
+            BitmapSource decodedArt = null;
+            if (!string.IsNullOrEmpty(base64Thumb))
+            {
+                try
+                {
+                    byte[] bytes = Convert.FromBase64String(base64Thumb);
+                    using var ms = new MemoryStream(bytes);
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.DecodePixelWidth = 64;
+                    bmp.StreamSource = ms;
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    decodedArt = bmp;
+                }
+                catch { }
+            }
+
+            Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                bool stateChanged = playing != IsMusicPlaying
+                                    || !string.Equals(title, CurrentTrack, StringComparison.Ordinal)
+                                    || !string.Equals(artist, CurrentArtist, StringComparison.Ordinal)
+                                    || decodedArt != null;
+
+                if (decodedArt != null)
+                {
+                    CurrentArtwork = decodedArt;
+                    CurrentBeatColor = DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, artist);
+                }
+                else if (!string.Equals(title, CurrentTrack, StringComparison.Ordinal))
+                {
+                    CurrentBeatColor = DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, artist);
+                }
+
+                IsMusicPlaying = playing;
+                CurrentTrack = playing ? title : "";
+                CurrentArtist = playing ? (string.IsNullOrWhiteSpace(artist) ? "Music" : artist) : "";
+
+                MediaService.Instance.State.IsPlaying = playing;
+                if (playing)
+                {
+                    MediaService.Instance.State.Title = CurrentTrack;
+                    MediaService.Instance.State.Artist = CurrentArtist;
+                }
+
+                if (stateChanged)
+                {
+                    MediaSessionChanged?.Invoke(new MediaSessionSnapshot
+                    {
+                        Title = CurrentTrack,
+                        Artist = CurrentArtist,
+                        IsPlaying = IsMusicPlaying,
+                        Artwork = CurrentArtwork,
+                        BeatColor = CurrentBeatColor
+                    });
+                }
+            });
+        }
+
+        private void CheckFallbackMediaPlayback()
+        {
+            if (_gsmtcActive && (DateTime.UtcNow - _lastGsmtcHeartbeatUtc).TotalSeconds < 4.0)
+                return;
+
             try
             {
-                bool wasPlaying = IsMusicPlaying;
-                string prevTrack = CurrentTrack;
-
                 bool detected = false;
                 string track = null;
                 string artist = null;
-                string app = null;
 
-                // 1. Check Spotify
                 var spotifyProcs = Process.GetProcessesByName("Spotify");
-                if (spotifyProcs.Length > 0)
+                foreach (var proc in spotifyProcs)
                 {
-                    foreach (var proc in spotifyProcs)
+                    string title = proc.MainWindowTitle;
+                    if (!string.IsNullOrWhiteSpace(title) &&
+                        !string.Equals(title, "Spotify", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(title, "Spotify Free", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(title, "Spotify Premium", StringComparison.OrdinalIgnoreCase))
                     {
-                        string title = proc.MainWindowTitle;
-                        if (!string.IsNullOrWhiteSpace(title) &&
-                            !string.Equals(title, "Spotify", StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(title, "Spotify Free", StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(title, "Spotify Premium", StringComparison.OrdinalIgnoreCase))
+                        detected = true;
+                        int dash = title.IndexOf(" - ", StringComparison.Ordinal);
+                        if (dash > 0)
                         {
-                            detected = true;
-                            app = "Spotify";
-                            int dash = title.IndexOf(" - ", StringComparison.Ordinal);
-                            if (dash > 0)
-                            {
-                                artist = title.Substring(0, dash).Trim();
-                                track = title.Substring(dash + 3).Trim();
-                            }
-                            else
-                            {
-                                track = title;
-                                artist = "Spotify";
-                            }
-                            break;
+                            artist = title.Substring(0, dash).Trim();
+                            track = title.Substring(dash + 3).Trim();
                         }
+                        else
+                        {
+                            track = title;
+                            artist = "Spotify";
+                        }
+                        break;
                     }
                 }
 
-                // 2. Check Web Browsers & Media Players (Chrome, Edge, Firefox, VLC)
                 if (!detected)
                 {
                     foreach (var procName in new[] { "chrome", "msedge", "firefox", "vlc", "Music.UI" })
@@ -359,75 +570,37 @@ namespace WindowsBuddy.Services
                         foreach (var proc in procs)
                         {
                             string wTitle = proc.MainWindowTitle;
-                            if (!string.IsNullOrWhiteSpace(wTitle))
+                            if (!string.IsNullOrWhiteSpace(wTitle) &&
+                                (wTitle.Contains("YouTube", StringComparison.OrdinalIgnoreCase) ||
+                                 wTitle.Contains("SoundCloud", StringComparison.OrdinalIgnoreCase) ||
+                                 wTitle.Contains("Spotify", StringComparison.OrdinalIgnoreCase)))
                             {
-                                if (wTitle.Contains("YouTube", StringComparison.OrdinalIgnoreCase) ||
-                                    wTitle.Contains("SoundCloud", StringComparison.OrdinalIgnoreCase) ||
-                                    wTitle.Contains("Spotify", StringComparison.OrdinalIgnoreCase) ||
-                                    wTitle.Contains("▶", StringComparison.Ordinal))
+                                detected = true;
+                                string clean = wTitle.Replace(" - YouTube", "")
+                                                     .Replace(" - Google Chrome", "")
+                                                     .Replace(" - Microsoft\u200B Edge", "")
+                                                     .Replace(" - Microsoft Edge", "")
+                                                     .Replace(" - Mozilla Firefox", "")
+                                                     .Replace("▶", "").Trim();
+                                int dash = clean.IndexOf(" - ", StringComparison.Ordinal);
+                                if (dash > 0)
                                 {
-                                    detected = true;
-                                    app = procName;
-                                    string clean = wTitle.Replace(" - YouTube", "")
-                                                         .Replace(" - Google Chrome", "")
-                                                         .Replace(" - Microsoft​ Edge", "")
-                                                         .Replace(" - Mozilla Firefox", "")
-                                                         .Replace("▶", "").Trim();
-                                    int dash = clean.IndexOf(" - ", StringComparison.Ordinal);
-                                    if (dash > 0)
-                                    {
-                                        artist = clean.Substring(0, dash).Trim();
-                                        track = clean.Substring(dash + 3).Trim();
-                                    }
-                                    else
-                                    {
-                                        track = clean;
-                                        artist = "Web Audio";
-                                    }
-                                    break;
+                                    artist = clean.Substring(0, dash).Trim();
+                                    track = clean.Substring(dash + 3).Trim();
                                 }
+                                else
+                                {
+                                    track = clean;
+                                    artist = "Music";
+                                }
+                                break;
                             }
                         }
                         if (detected) break;
                     }
                 }
 
-                IsMusicPlaying = detected;
-                if (detected)
-                {
-                    CurrentTrack = track ?? "Playing Track";
-                    CurrentArtist = artist ?? "Music Player";
-                    CurrentSourceApp = app ?? "Media";
-
-                    // Notify on track change
-                    if (!string.Equals(CurrentTrack, prevTrack, StringComparison.OrdinalIgnoreCase))
-                    {
-                        MediaService.Instance.State.IsPlaying = true;
-                        MediaService.Instance.State.Title = CurrentTrack;
-                        MediaService.Instance.State.Artist = CurrentArtist;
-
-                        Application.Current?.Dispatcher?.InvokeAsync(() =>
-                        {
-                            MediaTrackChanged?.Invoke(CurrentTrack, CurrentArtist, true);
-                            NotificationRequested?.Invoke(new NotchNotificationPayload
-                            {
-                                Icon = "🎵",
-                                Title = CurrentTrack,
-                                Subtitle = $" · {CurrentArtist}",
-                                DurationMs = 4000,
-                                IsMediaStatus = true
-                            });
-                        });
-                    }
-                }
-                else if (wasPlaying)
-                {
-                    MediaService.Instance.State.IsPlaying = false;
-                    Application.Current?.Dispatcher?.InvokeAsync(() =>
-                    {
-                        MediaTrackChanged?.Invoke("", "", false);
-                    });
-                }
+                PublishMediaUpdate(track ?? "", artist ?? "", detected, "");
             }
             catch { }
         }

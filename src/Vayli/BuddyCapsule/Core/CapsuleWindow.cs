@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -22,17 +23,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
     /// CapsuleWindow: Exact notch window architecture matching the Vayli design references.
     /// Dynamic Island Collapsed Modes:
     /// - Resting Clock & Battery: 228 x 35
-    /// - Live Music Playback (Spotify / Web / Player): 290 x 35
-    /// - Live Notification Banner (Copied Image/Text, Bluetooth Headset, Screenshot): 340 x 38
+    /// - Live Music Playback (Spotify / Web / Player): 308 x 45
+    /// - Live Notification Banner (Copied Image/Text, Bluetooth Headset, Screenshot): 330 x 38
     /// - Expanded Multi-tool View: 752 x 352
     /// </summary>
     public sealed class CapsuleWindow : Window
     {
         public const double CollapsedWidth = 228.0;
         public const double CollapsedHeight = 35.0;
-        public const double MediaCollapsedWidth = 336.0;
-        public const double MediaCollapsedHeight = 46.0;
-        public const double BannerCollapsedWidth = 340.0;
+        public const double MediaCollapsedWidth = 308.0;
+        public const double MediaCollapsedHeight = 45.0;
+        public const double BannerCollapsedWidth = 330.0;
         public const double BannerCollapsedHeight = 38.0;
         public const double ExpandedWidth = 752.0;
         public const double ExpandedHeight = 352.0;
@@ -58,14 +59,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly TextBlock _headerSubtitleText;
         private readonly TextBlock _headerBatteryText;
 
-        // 1. Collapsed Resting Normal View
+        // 1. Collapsed Resting Normal View (matching video 00:00-00:02: "8:51 PM" + [Green Battery] "100")
         private readonly Grid _collapsedNormalView;
         private readonly TextBlock _collapsedClockText;
+        private readonly BatteryStatusGlyph _collapsedBatteryGlyph;
         private readonly TextBlock _collapsedBatteryText;
-        private readonly StaticBeatBars _collapsedBeatBars;
-        private readonly PetView _collapsedMiniPet;
 
-        // 2. Collapsed Live Media View (Music Playing - Exact match to user screenshot)
+        // 2. Collapsed Live Media View (Music Playing - Exact match to user video & screenshot)
         private readonly Grid _collapsedMediaView;
         private readonly AlbumArtThumbnail _albumArtThumb;
         private readonly TextBlock _mediaTrackText;
@@ -81,7 +81,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private readonly DispatcherTimer _morphTimer;
         private readonly DispatcherTimer _clockTimer;
+        private readonly DispatcherTimer _spectrumTimer;
         private readonly DispatcherTimer _bannerDismissTimer;
+        private readonly float[] _fftBands28 = new float[AudioSpectrumService.Bands];
+        private readonly float[] _mappedBars40 = new float[WaveformProgressBar.BarCount];
+        private readonly float[] _miniBars4 = new float[4];
+        private double _spectrumPhase;
+
         private double _morphProgress; // 0.0 = Collapsed, 1.0 = Expanded
         private double _targetProgress;
         private string _activeToolId = "home";
@@ -90,6 +96,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private bool _isMusicActive = false;
         private double _currentBaseCollapsedWidth = CollapsedWidth;
         private double _currentBaseCollapsedHeight = CollapsedHeight;
+        private double _displayedCollapsedWidth = CollapsedWidth;
+        private double _displayedCollapsedHeight = CollapsedHeight;
 
         public CapsuleWindow()
         {
@@ -155,68 +163,56 @@ namespace WindowsBuddy.BuddyCapsule.Core
             // -------------------------------------------------------------
             _collapsedContent = new Grid
             {
-                Margin = new Thickness(EarUnitW + 8, 2, EarUnitW + 8, 2),
+                Margin = new Thickness(EarUnitW + 10, 2, EarUnitW + 10, 2),
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // View 1: Normal resting collapsed view
+            // View 1: Normal resting collapsed view ("8:51 PM" on left, [Green Battery] "100" on right)
             _collapsedNormalView = new Grid();
-            _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _collapsedMiniPet = new PetView("idle", HeaderRobotSize)
-            {
-                Margin = new Thickness(0, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(_collapsedMiniPet, 0);
-            _collapsedNormalView.Children.Add(_collapsedMiniPet);
-
             _collapsedClockText = new TextBlock
             {
-                Text = DateTime.Now.ToString("HH:mm"),
+                Text = DateTime.Now.ToString("h:mm tt", CultureInfo.InvariantCulture),
                 FontSize = 12.5,
-                FontWeight = FontWeights.Bold,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(_collapsedClockText, 1);
+            Grid.SetColumn(_collapsedClockText, 0);
             _collapsedNormalView.Children.Add(_collapsedClockText);
 
-            _collapsedBeatBars = new StaticBeatBars(4, 12)
-            {
-                Margin = new Thickness(8, 0, 8, 0),
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            Grid.SetColumn(_collapsedBeatBars, 3);
-            _collapsedNormalView.Children.Add(_collapsedBeatBars);
+            _collapsedBatteryGlyph = new BatteryStatusGlyph();
+            _collapsedBatteryGlyph.SetBattery(SystemMonitorService.Current.BatteryPercent);
+            Grid.SetColumn(_collapsedBatteryGlyph, 2);
+            _collapsedNormalView.Children.Add(_collapsedBatteryGlyph);
 
             _collapsedBatteryText = new TextBlock
             {
-                Text = $"{SystemMonitorService.Current.BatteryPercent}%⚡",
-                FontSize = 11.5,
+                Text = $"{SystemMonitorService.Current.BatteryPercent}",
+                FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = CapsuleTheme.Brush(Color.FromRgb(48, 209, 88)),
+                Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(_collapsedBatteryText, 4);
+            Grid.SetColumn(_collapsedBatteryText, 3);
             _collapsedNormalView.Children.Add(_collapsedBatteryText);
             _collapsedContent.Children.Add(_collapsedNormalView);
 
-            // View 2: Live Media Playback View (matching the exact user screenshot)
+            // View 2: Live Media Playback View (matching the exact user video & screenshot)
             _collapsedMediaView = new Grid
             {
                 Visibility = Visibility.Collapsed,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 1)
+                Margin = new Thickness(0, 1, 0, 1)
             };
             _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // Row 0: Album Art + Track Title - Artist + Mini Equalizer (I · II)
+            // Row 0: Album Art + Track Title - Artist + 4-bar Mini Equalizer
             var topRowDock = new DockPanel { Margin = new Thickness(1, 0, 1, 1) };
 
             _miniEqualizer = new MiniEqualizerControl { Cursor = Cursors.Hand, ToolTip = "Play / Pause" };
@@ -235,10 +231,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _mediaTrackText = new TextBlock
             {
                 Text = "Future Calling",
-                FontSize = 11.5,
+                FontSize = 12.0,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text),
-                MaxWidth = 150,
+                MaxWidth = 140,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -247,7 +243,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             leftInfo.Children.Add(new TextBlock
             {
                 Text = " - ",
-                FontSize = 11,
+                FontSize = 11.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
@@ -255,9 +251,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _mediaArtistText = new TextBlock
             {
                 Text = "ZOYA",
-                FontSize = 10.5,
+                FontSize = 11.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                MaxWidth = 110,
+                MaxWidth = 95,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -267,7 +263,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             Grid.SetRow(topRowDock, 0);
             _collapsedMediaView.Children.Add(topRowDock);
 
-            // Row 1: Full-width Waveform Scrobbler
+            // Row 1: Full-width 40-bar Symmetrical Audio Spectrum
             _waveformProgress = new WaveformProgressBar();
             Grid.SetRow(_waveformProgress, 1);
             _collapsedMediaView.Children.Add(_waveformProgress);
@@ -479,20 +475,29 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) =>
             {
-                _collapsedClockText.Text = DateTime.Now.ToString("HH:mm");
+                _collapsedClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.InvariantCulture);
                 var sys = SystemMonitorService.Current;
-                string batStr = $"{sys.BatteryPercent}%⚡";
-                _collapsedBatteryText.Text = batStr;
-                _headerBatteryText.Text = batStr;
-
-                if (_isMusicActive)
-                {
-                    double pos = MediaService.Instance.State.PositionSeconds;
-                    double dur = Math.Max(1.0, MediaService.Instance.State.DurationSeconds);
-                    _waveformProgress.SetPlayback(pos / dur, _isMusicActive);
-                }
+                _collapsedBatteryGlyph.SetBattery(sys.BatteryPercent);
+                _collapsedBatteryText.Text = $"{sys.BatteryPercent}";
+                _headerBatteryText.Text = $"{sys.BatteryPercent}% ⚡";
             };
             _clockTimer.Start();
+
+            // 30fps Real-time Spectrum & Equalizer Animation Timer
+            _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            _spectrumTimer.Tick += (_, _) =>
+            {
+                if (!_isMusicActive || _morphProgress > 0.4) return;
+                _spectrumPhase += 0.085;
+
+                AudioSpectrumService.Instance.Read(_fftBands28, out bool isAudioLive);
+                AudioSpectrumService.MapBands(_fftBands28, _mappedBars40, WaveformProgressBar.BarCount);
+                AudioSpectrumService.ComputeMiniBars(_fftBands28, _miniBars4, _spectrumPhase);
+
+                _miniEqualizer.SetLevels(_miniBars4, _isMusicActive);
+                _waveformProgress.SetSpectrumLevels(_mappedBars40, _isMusicActive, isAudioLive, _spectrumPhase);
+            };
+            _spectrumTimer.Start();
 
             // Notification Banner Dismissal Timer
             _bannerDismissTimer = new DispatcherTimer();
@@ -506,7 +511,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             // Hook Real-time Notch Action Events (Real Clipboard, Bluetooth & Media!)
             var actionService = RealtimeNotchActionService.Instance;
             actionService.NotificationRequested += OnRealNotificationRequested;
-            actionService.MediaTrackChanged += OnRealMediaTrackChanged;
+            actionService.MediaSessionChanged += OnRealMediaSessionChanged;
 
             CapsuleTheme.ThemeChanged += ApplyThemeAndGeometry;
             AppPreferences.Instance.Changed += ApplyThemeAndGeometry;
@@ -546,16 +551,20 @@ namespace WindowsBuddy.BuddyCapsule.Core
             });
         }
 
-        private void OnRealMediaTrackChanged(string track, string artist, bool isPlaying)
+        private void OnRealMediaSessionChanged(MediaSessionSnapshot snapshot)
         {
             Dispatcher.InvokeAsync(() =>
             {
-                _isMusicActive = isPlaying;
-                _mediaTrackText.Text = string.IsNullOrWhiteSpace(track) ? "Future Calling" : track;
-                _mediaArtistText.Text = string.IsNullOrWhiteSpace(artist) ? "ZOYA" : artist;
-                _miniEqualizer.IsPlaying = isPlaying;
-                _albumArtThumb.SetArtwork(null, string.IsNullOrWhiteSpace(artist) ? "ZOYA" : artist);
-                _waveformProgress.SetPlayback(MediaService.Instance.State.PositionSeconds / Math.Max(1.0, MediaService.Instance.State.DurationSeconds), isPlaying);
+                _isMusicActive = snapshot.IsPlaying;
+                string track = string.IsNullOrWhiteSpace(snapshot.Title) ? "Future Calling" : snapshot.Title;
+                string artist = string.IsNullOrWhiteSpace(snapshot.Artist) ? "ZOYA" : snapshot.Artist;
+
+                _mediaTrackText.Text = track;
+                _mediaArtistText.Text = artist;
+                _miniEqualizer.IsPlaying = snapshot.IsPlaying;
+                _miniEqualizer.SetBeatColor(snapshot.BeatColor);
+                _waveformProgress.SetBeatColor(snapshot.BeatColor);
+                _albumArtThumb.SetArtwork(snapshot.Artwork, artist);
 
                 if (!_isBannerActive)
                 {
@@ -813,10 +822,12 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private void OnMorphTick(object sender, EventArgs e)
         {
             double step = _targetProgress > _morphProgress ? 0.14 : 0.18;
+            bool morphSettled = false;
+
             if (Math.Abs(_targetProgress - _morphProgress) <= step)
             {
                 _morphProgress = _targetProgress;
-                _morphTimer.Stop();
+                morphSettled = true;
                 if (_morphProgress <= 0.001)
                 {
                     _expandedContent.Visibility = Visibility.Collapsed;
@@ -827,6 +838,27 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _morphProgress += Math.Sign(_targetProgress - _morphProgress) * step;
             }
 
+            // Smoothly interpolate collapsed pill width & height (Resting <-> Music <-> Banner)
+            double dw = _currentBaseCollapsedWidth - _displayedCollapsedWidth;
+            double dh = _currentBaseCollapsedHeight - _displayedCollapsedHeight;
+            bool sizeSettled = Math.Abs(dw) < 0.6 && Math.Abs(dh) < 0.4;
+
+            if (sizeSettled)
+            {
+                _displayedCollapsedWidth = _currentBaseCollapsedWidth;
+                _displayedCollapsedHeight = _currentBaseCollapsedHeight;
+            }
+            else
+            {
+                _displayedCollapsedWidth += dw * 0.28;
+                _displayedCollapsedHeight += dh * 0.28;
+            }
+
+            if (morphSettled && sizeSettled)
+            {
+                _morphTimer.Stop();
+            }
+
             UpdateMorphVisuals(_morphProgress);
         }
 
@@ -835,8 +867,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             double t = Math.Clamp(progress, 0.0, 1.0);
             double ease = 1.0 - Math.Pow(1.0 - t, 3);
 
-            double baseW = _currentBaseCollapsedWidth;
-            double baseH = _currentBaseCollapsedHeight;
+            double baseW = _displayedCollapsedWidth;
+            double baseH = _displayedCollapsedHeight;
 
             double curW = baseW + (ExpandedWidth - baseW) * ease;
             double curH = baseH + (ExpandedHeight - baseH) * ease;
@@ -856,7 +888,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _notchBackdropPath.Data = geo;
             _notchOutlinePath.Data = geo;
-            _edgeLight.UpdateGeometry(geo, t > 0.5);
+            _edgeLight.UpdateGeometry(geo, t > 0.5, curW, curH);
 
             _collapsedContent.Opacity = Math.Clamp(1.0 - t * 2.5, 0.0, 1.0);
             _collapsedContent.IsHitTestVisible = t < 0.25;
