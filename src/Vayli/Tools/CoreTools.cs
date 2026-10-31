@@ -1060,125 +1060,31 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// TimerClockTool: Focus countdown timer.
+    /// TimerClockTool: Full Timers tool matching Vayli (Pomodoro, Countdown, Stopwatch, Hydration Water).
     /// </summary>
     public sealed class TimerClockTool : IBuddyTool
     {
         public string Id => "focus";
-        public string Title => "Focus";
+        public string Title => "Timers";
         public string IconGlyph => "⏱";
 
-        public static int RemainingSeconds { get; private set; } = 18 * 60 + 37; // 18:37 matching Screenshot 1
-        public static bool IsRunning { get; private set; } = true;
-        private static DispatcherTimer _countdown;
+        public static int RemainingSeconds => WindowsBuddy.Tools.Timer.TimerService.Instance.PomoRemainingSeconds;
+        public static bool IsRunning => WindowsBuddy.Tools.Timer.TimerService.Instance.PomoIsRunning;
+        public static void ToggleRunning() => WindowsBuddy.Tools.Timer.TimerService.Instance.TogglePomo();
+        public static string FormatTime(int totalSec) => $"{totalSec / 60:D2}:{totalSec % 60:D2}";
 
-        static TimerClockTool()
-        {
-            _countdown = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _countdown.Tick += (_, _) =>
-            {
-                if (IsRunning && RemainingSeconds > 0)
-                {
-                    RemainingSeconds--;
-                    if (RemainingSeconds == 0) IsRunning = false;
-                }
-            };
-            _countdown.Start();
-        }
-
-        public static void ToggleRunning() => IsRunning = !IsRunning;
+        private WindowsBuddy.BuddyCapsule.UI.TimerToolView _view;
 
         public FrameworkElement BuildView()
         {
-            var p = CapsuleTheme.Current;
-            var grid = new Grid { Margin = new Thickness(4, 2, 4, 2) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            var timerCard = new BuddyCard { Margin = new Thickness(3) };
-            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-
-            var display = new TextBlock
-            {
-                Text = FormatTime(RemainingSeconds),
-                FontSize = 36,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Accent),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            stack.Children.Add(display);
-
-            var controls = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-            var startStopBtn = new BuddyPillButton(null, IsRunning ? "Pause" : "Start Focus");
-            startStopBtn.Clicked += () =>
-            {
-                IsRunning = !IsRunning;
-                display.Text = FormatTime(RemainingSeconds);
-            };
-            var reset25 = new BuddyPillButton(null, "25m");
-            reset25.Clicked += () => { IsRunning = false; RemainingSeconds = 25 * 60; display.Text = FormatTime(RemainingSeconds); };
-            var reset18 = new BuddyPillButton(null, "18m");
-            reset18.Clicked += () => { IsRunning = true; RemainingSeconds = 18 * 60 + 37; display.Text = FormatTime(RemainingSeconds); };
-
-            controls.Children.Add(startStopBtn);
-            controls.Children.Add(reset25);
-            controls.Children.Add(reset18);
-            stack.Children.Add(controls);
-            timerCard.Child = stack;
-
-            var uiTick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            uiTick.Tick += (_, _) => display.Text = FormatTime(RemainingSeconds);
-            uiTick.Start();
-
-            Grid.SetColumn(timerCard, 0);
-            grid.Children.Add(timerCard);
-
-            var worldCard = new BuddyCard { Margin = new Thickness(3) };
-            var worldStack = new StackPanel();
-            worldStack.Children.Add(new TextBlock
-            {
-                Text = "WORLD CLOCK",
-                FontSize = 10,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                Margin = new Thickness(0, 0, 0, 8)
-            });
-
-            var utcNow = DateTime.UtcNow;
-            AddCityRow(worldStack, "San Francisco (PDT)", utcNow.AddHours(-7).ToString("HH:mm"));
-            AddCityRow(worldStack, "Local Time", DateTime.Now.ToString("HH:mm"));
-            AddCityRow(worldStack, "London (UTC)", utcNow.ToString("HH:mm"));
-            AddCityRow(worldStack, "Tokyo (JST)", utcNow.AddHours(9).ToString("HH:mm"));
-
-            worldCard.Child = worldStack;
-            Grid.SetColumn(worldCard, 1);
-            grid.Children.Add(worldCard);
-
-            return grid;
+            _view = new WindowsBuddy.BuddyCapsule.UI.TimerToolView();
+            return _view;
         }
 
-        private static void AddCityRow(StackPanel parent, string city, string time)
+        public void OnActivated()
         {
-            var p = CapsuleTheme.Current;
-            var row = new Border
-            {
-                Background = CapsuleTheme.Brush(p.Surface2),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(10, 5, 10, 5),
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            var dp = new DockPanel();
-            var tBlock = new TextBlock { Text = time, FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), HorizontalAlignment = HorizontalAlignment.Right };
-            DockPanel.SetDock(tBlock, Dock.Right);
-            dp.Children.Add(tBlock);
-            dp.Children.Add(new TextBlock { Text = city, FontSize = 11, Foreground = CapsuleTheme.Brush(p.Text2) });
-            row.Child = dp;
-            parent.Children.Add(row);
+            _view?.UpdateVisuals();
         }
-
-        public static string FormatTime(int totalSec) => $"{totalSec / 60:00}:{totalSec % 60:00}";
-        public void OnActivated() { }
     }
 
     #region Supplementary Dock Tools for the 18 Dock Icons

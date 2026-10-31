@@ -1119,6 +1119,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "system" => "System  Alt+2",
                         "clipboard" => "Clipboard  Alt+3",
                         "notes" => "Notes  Alt+4",
+                        "focus" => "Timers  Alt+5",
                         _ => tool.Title
                     }
                 };
@@ -1227,7 +1228,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "weather" => "San Francisco",
                 "fileshelf" => "Parked files",
                 "links" => "Quick Bookmarks",
-                "focus" => "Focus & Pomodoro",
+                "focus" => "Focus & intervals",
                 "clipboard" => $"{WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Count} items",
                 "notes" => $"{WindowsBuddy.Tools.Notes.NotesService.Instance.Notes.Count} notes",
                 "screentime" => "Activity tracker",
