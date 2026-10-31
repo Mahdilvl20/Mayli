@@ -35,7 +35,7 @@ namespace WindowsBuddy.Tools
     }
 
     /// <summary>
-    /// ScreenTimeTool: Tracks foreground application time via Win32 GetForegroundWindow.
+    /// ScreenTimeTool: Real Screen Time tracking 1:1 matching Vayli (Win32 foreground polling, limit ring, 7-day bar chart, by-app usage).
     /// </summary>
     public sealed class ScreenTimeTool : IBuddyTool
     {
@@ -43,108 +43,11 @@ namespace WindowsBuddy.Tools
         public string Title => "Screen Time";
         public string IconGlyph => "📊";
 
-        private static readonly Dictionary<string, int> _appSeconds = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Visual Studio Code"] = 6120, // 1h 42m
-            ["Google Chrome"] = 4320,
-            ["Windows Terminal"] = 2840,
-            ["Figma"] = 1680
-        };
-
-        private static readonly DispatcherTimer _trackerTimer;
-        private StackPanel _listPanel;
-
-        static ScreenTimeTool()
-        {
-            _trackerTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            _trackerTimer.Tick += (_, _) => SampleForegroundApp();
-            _trackerTimer.Start();
-        }
-
-        private static void SampleForegroundApp()
-        {
-            try
-            {
-                IntPtr hwnd = NativeMethods.GetForegroundWindow();
-                if (hwnd == IntPtr.Zero) return;
-                NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
-                if (pid == 0) return;
-                using var proc = Process.GetProcessById((int)pid);
-                string name = proc.ProcessName;
-                if (string.IsNullOrWhiteSpace(name)) return;
-                _appSeconds[name] = (_appSeconds.TryGetValue(name, out int cur) ? cur : 0) + 2;
-            }
-            catch { }
-        }
-
-        public FrameworkElement BuildView()
-        {
-            var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4, 2, 4, 2) };
-            var dock = new DockPanel();
-
-            var header = new TextBlock
-            {
-                Text = "SCREEN TIME — 4h 24m TODAY",
-                FontSize = 11.5,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.CScreen),
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-            DockPanel.SetDock(header, Dock.Top);
-            dock.Children.Add(header);
-
-            _listPanel = new StackPanel();
-            dock.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _listPanel });
-            card.Child = dock;
-
-            RenderRows();
-            return card;
-        }
-
-        private void RenderRows()
-        {
-            if (_listPanel == null) return;
-            _listPanel.Children.Clear();
-            var p = CapsuleTheme.Current;
-
-            foreach (var kv in _appSeconds.OrderByDescending(k => k.Value).Take(8))
-            {
-                var row = new Border
-                {
-                    Background = CapsuleTheme.Brush(p.Surface2),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(10, 6, 10, 6),
-                    Margin = new Thickness(0, 0, 0, 5)
-                };
-                var dp = new DockPanel();
-                int mins = kv.Value / 60;
-                int secs = kv.Value % 60;
-                var val = new TextBlock
-                {
-                    Text = mins > 0 ? $"{mins / 60}h {mins % 60}m" : $"{secs}s",
-                    FontSize = 11.5,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = CapsuleTheme.Brush(p.Accent),
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                DockPanel.SetDock(val, Dock.Right);
-                dp.Children.Add(val);
-                dp.Children.Add(new TextBlock
-                {
-                    Text = kv.Key,
-                    FontSize = 12,
-                    Foreground = CapsuleTheme.Brush(p.Text)
-                });
-                row.Child = dp;
-                _listPanel.Children.Add(row);
-            }
-        }
+        public FrameworkElement BuildView() => new WindowsBuddy.Tools.ScreenTime.ScreenTimeToolView();
 
         public void OnActivated()
         {
-            SampleForegroundApp();
-            RenderRows();
+            WindowsBuddy.Tools.ScreenTime.ScreenTimeService.Instance.Refresh();
         }
     }
 

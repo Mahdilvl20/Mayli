@@ -48,10 +48,10 @@ namespace WindowsBuddy.Tools
             _tools.Add(new WeatherTool());      // 8. Weather
             _tools.Add(new ClockTool());        // 9. Clock
             _tools.Add(new QuickToolsTool());   // 10. Quick Tools
-            _tools.Add(new LinksTool());        // 11. Links
+            _tools.Add(new LinksTool());         // 11. Links
             _tools.Add(new MessageBannerTool()); // 12. Message (Notch banner)
-            _tools.Add(new AudioTool());        // 13. Audio
-            _tools.Add(new ScreenTimeTool());   // 14. Screen Time
+            _tools.Add(new ScreenTimeTool());    // 13. Screen Time
+            _tools.Add(new AudioTool());         // 14. Audio
             _tools.Add(new CalendarTool());     // 15. Calendar
             _tools.Add(new TransferTool());     // 16. Transfer
             _tools.Add(new PetCompanionTool()); // 17. Buddy / Pet

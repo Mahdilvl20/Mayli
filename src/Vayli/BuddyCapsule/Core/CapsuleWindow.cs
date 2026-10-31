@@ -1263,6 +1263,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "units" => "Units  Alt+0",
                         "links" => "Links  Alt+L",
                         "message" => "Message  Alt+M",
+                        "screentime" => "Screen Time  Alt+S",
                         _ => tool.Title
                     }
                 };
@@ -1377,7 +1378,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "focus" => "Focus & intervals",
                 "clipboard" => $"{WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Count} items",
                 "notes" => $"{WindowsBuddy.Tools.Notes.NotesService.Instance.Notes.Count} notes",
-                "screentime" => "Activity tracker",
+                "screentime" => DateTime.Now.ToString("ddd, d MMM"),
                 _ => "WindowsBuddy Capsule"
             };
 
