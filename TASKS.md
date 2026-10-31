@@ -65,3 +65,10 @@
   - [x] تشخیص زنده کپی متن و عکس: هوک سراسری `WM_CLIPBOARDUPDATE` و تفکیک تصاویر (`Copied · Image`)، متن‌ها (`Copied · "<متن>"`) و فایل‌ها به همراه مانیتورینگ پوشهٔ اسکرین‌شات‌ها (`Screenshot saved`)
   - [x] اتصال انیمیشن مورف پویا در [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) با تنظیم بازگشت خودکار کپسول به ابعاد عادی پس از اتمام نوتیفیکیشن
   - [x] ثبت کامیت (`e70644e`) و تایید بیلد کامل Release با ۰ خطا و ۰ هشدار
+
+- [x] **تسک ۱۱: بازطراحی دقیق بخش آهنگ ناچ مطابق با تصویر کاربر (Waveform Visualizer & Mini Equalizer)**
+  - [x] پیاده‌سازی کنترل کاور آرت اختصاصی در [BuddyControls.AlbumArtThumbnail](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/UI/BuddyControls.cs) با آیکون و کادر گوشه‌گرد `24x24`
+  - [x] پیاده‌سازی آیکون اکولایزر پویا و متحرک در [BuddyControls.MiniEqualizerControl](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/UI/BuddyControls.cs) با ساختار دقیق `I · II` همراه با قابلیت کلیک Play/Pause
+  - [x] پیاده‌سازی اسکرابر و اکولایزر موج صوتی پیوسته در [BuddyControls.WaveformProgressBar](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/UI/BuddyControls.cs) با ۴۲ ستون موج صوتی (Waveform) با تفکیک بخش پخش‌شده سفید و باقی‌مانده محو
+  - [x] تنظیم ابعاد اختصاصی کپسول آهنگ در [CapsuleWindow.cs](file:///F:/Vayli_Project/src/Vayli/BuddyCapsule/Core/CapsuleWindow.cs) به `336x46` و هاله نور ملایم EdgeLight دور ناچ
+  - [x] ثبت کامیت (`70db54e`) و تایید بیلد کامل Release با ۰ خطا و ۰ هشدار
