@@ -917,19 +917,10 @@ namespace WindowsBuddy.Tools
 
     public sealed class QuickToolsTool : IBuddyTool
     {
-        public string Id => "tools";
-        public string Title => "Tools";
-        public string IconGlyph => "📏";
-        public FrameworkElement BuildView()
-        {
-            var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4) };
-            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-            stack.Children.Add(new TextBlock { Text = "DESKTOP COMPANION TOOLS", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Accent), HorizontalAlignment = HorizontalAlignment.Center });
-            stack.Children.Add(new TextBlock { Text = "Quick calculations, color picker, screenshot tools and notch triggers.", FontSize = 11.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Center });
-            card.Child = stack;
-            return card;
-        }
+        public string Id => "units";
+        public string Title => "Units";
+        public string IconGlyph => "📐";
+        public FrameworkElement BuildView() => new WindowsBuddy.Tools.Units.UnitsToolView();
         public void OnActivated() { }
     }
 

@@ -1136,6 +1136,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         "drop" => "Drop  Alt+7",
                         "weather" => "Weather  Alt+8",
                         "clock" => "Clock  Alt+9",
+                        "units" => "Units  Alt+0",
                         _ => tool.Title
                     }
                 };
@@ -1243,6 +1244,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "system" => "Power · Network · Audio",
                 "weather" => WindowsBuddy.Tools.Weather.WeatherService.Instance.Prefs.City,
                 "clock" => "Local Time & Date",
+                "units" => "Conversion",
                 "fileshelf" => "Parked files",
                 "links" => "Quick Bookmarks",
                 "focus" => "Focus & intervals",
