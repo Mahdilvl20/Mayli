@@ -1017,7 +1017,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 "2 s" => 2,
                 "5 s" => 5,
-                _ => 3
+                _ => (int)MediaWideDurationSeconds
             };
             _mediaWideDismissTimer.Interval = TimeSpan.FromSeconds(durationSec);
             _mediaWideDismissTimer.Start();
@@ -1101,7 +1101,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _currentBaseCollapsedWidth = MediaWideCollapsedWidth;
                 _currentBaseCollapsedHeight = MediaWideCollapsedHeight;
             }
-            else if (_isMusicActive && AppPreferences.Instance.ShowClosedNowPlaying)
+            else if (_isMusicActive)
             {
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
@@ -1773,9 +1773,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             // Cubic Ease Out: starts fast & responsive, settles silky smooth
             double ease = 1.0 - Math.Pow(1.0 - t, 3);
 
-            double scale = Math.Clamp(AppPreferences.Instance.NotchScalePercent / 100.0, 0.6, 1.4);
-            double baseW = _displayedCollapsedWidth * scale;
-            double baseH = _displayedCollapsedHeight * scale;
+            double baseW = _displayedCollapsedWidth;
+            double baseH = _displayedCollapsedHeight;
 
             double curW = baseW + (ExpandedWidth - baseW) * ease;
             double curH = baseH + (ExpandedHeight - baseH) * ease;

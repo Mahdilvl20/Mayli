@@ -2153,16 +2153,10 @@ namespace WindowsBuddy.UI.Settings
             void RefreshAllWidgetSubtitles()
             {
                 int count = AppPreferences.Instance.GetActiveHomeWidgetCount();
+                bool canEnableMore = count < 6;
                 foreach (var r in widgetRows)
                 {
-                    if (r.Toggle.IsChecked)
-                    {
-                        r.UpdateSubtitle("Show on Home");
-                    }
-                    else
-                    {
-                        r.UpdateSubtitle(count >= 6 ? "Remove a widget to make room" : "Show on Home");
-                    }
+                    r.UpdateState(r.Toggle.IsChecked, canEnableMore);
                 }
             }
 
@@ -2173,6 +2167,7 @@ namespace WindowsBuddy.UI.Settings
                 string initialSubtitle = isWidgetActive ? "Show on Home" : (currentActive >= 6 ? "Remove a widget to make room" : "Show on Home");
 
                 var wRow = new MayliHomeWidgetRow(wId, wTitle, isWidgetActive, initialSubtitle);
+                wRow.UpdateState(isWidgetActive, currentActive < 6);
 
                 wRow.Toggle.CheckedChanged += isChecked =>
                 {

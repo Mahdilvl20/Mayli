@@ -500,54 +500,46 @@ namespace WindowsBuddy.Tools
 
             notesCard.Child = nDock;
 
-            // Map all potential widgets
-            var cardMap = new Dictionary<string, BuddyCard>(StringComparer.OrdinalIgnoreCase)
+            // Factory to get or create widget card on demand
+            BuddyCard CreateCard(string wId) => wId.ToLowerInvariant() switch
             {
-                ["screentime"] = screenTimeCard,
-                ["system"] = systemCard,
-                ["weather"] = weatherCard,
-                ["focus"] = focusCard,
-                ["clipboard"] = clipCard,
-                ["notes"] = notesCard,
-                ["clock"] = BuildCompactClockCard(p),
-                ["calendar"] = BuildCompactCalendarCard(p),
-                ["nowplaying"] = BuildCompactNowPlayingCard(p),
-                ["links"] = BuildCompactLinksCard(p),
-                ["fileshelf"] = BuildCompactFileShelfCard(p),
-                ["units"] = BuildCompactUnitsCard(p),
-                ["fileconverter"] = BuildCompactConverterCard(p),
-                ["message"] = BuildCompactMessageCard(p),
-                ["water"] = BuildCompactWaterCard(p),
-                ["stopwatch"] = BuildCompactStopwatchCard(p),
-                ["analytics"] = BuildCompactAnalyticsCard(p),
-                ["revenue"] = BuildCompactRevenueCard(p),
-                ["aicoding"] = BuildCompactAICodingCard(p)
+                "screentime" => screenTimeCard,
+                "system" => systemCard,
+                "weather" => weatherCard,
+                "focus" => focusCard,
+                "clipboard" => clipCard,
+                "notes" => notesCard,
+                "clock" => BuildCompactClockCard(p),
+                "calendar" => BuildCompactCalendarCard(p),
+                "nowplaying" => BuildCompactNowPlayingCard(p),
+                "links" => BuildCompactLinksCard(p),
+                "fileshelf" => BuildCompactFileShelfCard(p),
+                "units" => BuildCompactUnitsCard(p),
+                "fileconverter" => BuildCompactConverterCard(p),
+                "message" => BuildCompactMessageCard(p),
+                "water" => BuildCompactWaterCard(p),
+                "stopwatch" => BuildCompactStopwatchCard(p),
+                "analytics" => BuildCompactAnalyticsCard(p),
+                "revenue" => BuildCompactRevenueCard(p),
+                "aicoding" => BuildCompactAICodingCard(p),
+                _ => null
             };
 
             var activeWidgets = (AppPreferences.Instance.Raw.HomeWidgets ?? new List<string> { "screentime", "system", "weather", "focus", "clipboard", "notes" })
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(6)
                 .ToList();
             int slot = 0;
             foreach (var wId in activeWidgets)
             {
-                if (slot >= 6) break;
-                if (cardMap.TryGetValue(wId, out var c) && c != null)
+                var c = CreateCard(wId);
+                if (c == null) continue;
+
+                if (rootGrid.Children.Contains(c))
+                    continue;
+
+                try
                 {
-                    if (rootGrid.Children.Contains(c))
-                        continue;
-
-                    try
-                    {
-                        var parentVisual = VisualTreeHelper.GetParent(c);
-                        if (parentVisual is Panel vpnl)
-                            vpnl.Children.Remove(c);
-                        else if (parentVisual is Decorator vdec)
-                            vdec.Child = null;
-                        else if (parentVisual is ContentControl vcc)
-                            vcc.Content = null;
-                    }
-                    catch { }
-
                     if (c.Parent is Panel pnl)
                         pnl.Children.Remove(c);
                     else if (c.Parent is ContentControl cc)
@@ -555,15 +547,28 @@ namespace WindowsBuddy.Tools
                     else if (c.Parent is Decorator dec)
                         dec.Child = null;
 
-                    if (!rootGrid.Children.Contains(c))
+                    var parentVisual = VisualTreeHelper.GetParent(c);
+                    if (parentVisual is Panel vpnl)
+                        vpnl.Children.Remove(c);
+                    else if (parentVisual is Decorator vdec)
+                        vdec.Child = null;
+                    else if (parentVisual is ContentControl vcc)
+                        vcc.Content = null;
+                }
+                catch { }
+
+                if (!rootGrid.Children.Contains(c))
+                {
+                    int r = slot / 3;
+                    int col = slot % 3;
+                    Grid.SetRow(c, r);
+                    Grid.SetColumn(c, col);
+                    try
                     {
-                        int r = slot / 3;
-                        int col = slot % 3;
-                        Grid.SetRow(c, r);
-                        Grid.SetColumn(c, col);
                         rootGrid.Children.Add(c);
                         slot++;
                     }
+                    catch { }
                 }
             }
 

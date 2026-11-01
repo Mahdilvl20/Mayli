@@ -144,6 +144,10 @@ namespace WindowsBuddy.Services
         private AppPreferences()
         {
             Raw = PersistenceHelper.SafeReadJson<AppPreferencesModel>(FileName);
+            if (Raw.HomeWidgets != null)
+            {
+                Raw.HomeWidgets = Raw.HomeWidgets.Distinct(StringComparer.OrdinalIgnoreCase).Take(6).ToList();
+            }
         }
 
         public void Save()

@@ -784,6 +784,22 @@ namespace WindowsBuddy.UI.Settings
         {
             _descBlock.Text = newSubtitle;
         }
+
+        public void UpdateState(bool isEnabled, bool canEnableMore)
+        {
+            if (isEnabled)
+            {
+                _descBlock.Text = "Show on Home";
+                Toggle.IsEnabled = true;
+                Opacity = 1.0;
+            }
+            else
+            {
+                _descBlock.Text = canEnableMore ? "Show on Home" : "Remove a widget to make room";
+                Toggle.IsEnabled = canEnableMore;
+                Opacity = canEnableMore ? 1.0 : 0.65;
+            }
+        }
     }
 
     /// <summary>
