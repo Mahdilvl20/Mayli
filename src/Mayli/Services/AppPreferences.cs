@@ -36,9 +36,19 @@ namespace WindowsBuddy.Services
         public bool StartWithWindows { get; set; } = false;
         public bool HideOnFullscreen { get; set; } = true;
         public bool ShowMediaActivity { get; set; } = true;
+        public bool ShowBrowserMediaInNotch { get; set; } = true;
+        public string MusicBeatColor { get; set; } = "Artwork";
         public bool ShowFileShelfActivity { get; set; } = true;
         public bool ShowBatteryActivity { get; set; } = true;
         public bool ShowTimerActivity { get; set; } = true;
+        public bool VolumeActivity { get; set; } = true;
+        public bool ClipboardCopiedActivity { get; set; } = true;
+        public bool HideCopiedText { get; set; } = true;
+        public bool RunningTimersActivity { get; set; } = true;
+        public bool TimerFinishAlerts { get; set; } = true;
+        public bool CalendarAlerts { get; set; } = true;
+        public string RemindersTarget { get; set; } = "Notch only";
+        public string LiveActivityEventDuration { get; set; } = "3 s";
 
         // Notch Page detailed preferences (matching exact screenshots)
         public string NotchVisibility { get; set; } = "Always"; // "Always", "Smart", "Minimal", "Hidden"
@@ -265,6 +275,66 @@ namespace WindowsBuddy.Services
         {
             get => Raw.ShowTimerActivity;
             set { Raw.ShowTimerActivity = value; Save(); }
+        }
+
+        public bool ShowBrowserMediaInNotch
+        {
+            get => Raw.ShowBrowserMediaInNotch;
+            set { Raw.ShowBrowserMediaInNotch = value; Save(); }
+        }
+
+        public string MusicBeatColor
+        {
+            get => Raw.MusicBeatColor;
+            set { Raw.MusicBeatColor = value; Save(); }
+        }
+
+        public bool VolumeActivity
+        {
+            get => Raw.VolumeActivity;
+            set { Raw.VolumeActivity = value; Save(); }
+        }
+
+        public bool ClipboardCopiedActivity
+        {
+            get => Raw.ClipboardCopiedActivity;
+            set { Raw.ClipboardCopiedActivity = value; Save(); }
+        }
+
+        public bool HideCopiedText
+        {
+            get => Raw.HideCopiedText;
+            set { Raw.HideCopiedText = value; Save(); }
+        }
+
+        public bool RunningTimersActivity
+        {
+            get => Raw.RunningTimersActivity;
+            set { Raw.RunningTimersActivity = value; Save(); }
+        }
+
+        public bool TimerFinishAlerts
+        {
+            get => Raw.TimerFinishAlerts;
+            set { Raw.TimerFinishAlerts = value; Save(); }
+        }
+
+        public bool CalendarAlerts
+        {
+            get => Raw.CalendarAlerts;
+            set { Raw.CalendarAlerts = value; Save(); }
+        }
+
+        public string RemindersTarget
+        {
+            get => Raw.RemindersTarget;
+            set { Raw.RemindersTarget = value; Save(); }
+        }
+
+        public string LiveActivityEventDuration
+        {
+            get => Raw.LiveActivityEventDuration;
+            set { Raw.LiveActivityEventDuration = value; Save(); }
         }
 
         public string NotchVisibility
@@ -567,6 +637,23 @@ namespace WindowsBuddy.Services
                 "screentime", "analytics", "aicoding", "revenue"
             };
 
+            Save();
+        }
+
+        public void ResetLiveActivitiesDefaults()
+        {
+            Raw.ShowMediaActivity = true;
+            Raw.ShowBrowserMediaInNotch = true;
+            Raw.MusicBeatColor = "Artwork";
+            Raw.ShowBatteryActivity = true;
+            Raw.VolumeActivity = true;
+            Raw.ClipboardCopiedActivity = true;
+            Raw.HideCopiedText = true;
+            Raw.RunningTimersActivity = true;
+            Raw.TimerFinishAlerts = true;
+            Raw.CalendarAlerts = true;
+            Raw.RemindersTarget = "Notch only";
+            Raw.LiveActivityEventDuration = "3 s";
             Save();
         }
     }

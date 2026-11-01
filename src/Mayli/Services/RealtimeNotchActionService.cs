@@ -92,10 +92,20 @@ namespace WindowsBuddy.Services
         {
             try
             {
+                if (!AppPreferences.Instance.ClipboardCopiedActivity)
+                    return;
+
                 if ((DateTime.UtcNow - _lastClipboardTrigger).TotalMilliseconds < 350)
                     return;
 
                 _lastClipboardTrigger = DateTime.UtcNow;
+
+                int durationMs = AppPreferences.Instance.LiveActivityEventDuration switch
+                {
+                    "2 s" => 2000,
+                    "5 s" => 5000,
+                    _ => 3000
+                };
 
                 Application.Current?.Dispatcher?.InvokeAsync(() =>
                 {
@@ -110,8 +120,8 @@ namespace WindowsBuddy.Services
                             {
                                 Icon = "📋",
                                 Title = "Copied",
-                                Subtitle = " · Image",
-                                DurationMs = 3200
+                                Subtitle = AppPreferences.Instance.HideCopiedText ? " · Image" : " · Image",
+                                DurationMs = durationMs
                             });
                             return;
                         }
@@ -126,8 +136,8 @@ namespace WindowsBuddy.Services
                                 {
                                     Icon = "📁",
                                     Title = "Copied",
-                                    Subtitle = $" · {desc}",
-                                    DurationMs = 3200
+                                    Subtitle = AppPreferences.Instance.HideCopiedText ? " · File" : $" · {desc}",
+                                    DurationMs = durationMs
                                 });
                                 return;
                             }
@@ -139,16 +149,18 @@ namespace WindowsBuddy.Services
                             if (!string.IsNullOrEmpty(text) && text != _lastCopiedText)
                             {
                                 _lastCopiedText = text;
-                                string display = text.Length > 20
-                                    ? text.Substring(0, 18).Replace("\r", " ").Replace("\n", " ") + "..."
-                                    : text.Replace("\r", " ").Replace("\n", " ");
+                                string display = AppPreferences.Instance.HideCopiedText
+                                    ? " · Text"
+                                    : (text.Length > 20
+                                        ? $" · \"{text.Substring(0, 18).Replace("\r", " ").Replace("\n", " ")}...\""
+                                        : $" · \"{text.Replace("\r", " ").Replace("\n", " ")}\"");
 
                                 NotificationRequested?.Invoke(new NotchNotificationPayload
                                 {
                                     Icon = "📋",
                                     Title = "Copied",
-                                    Subtitle = $" · \"{display}\"",
-                                    DurationMs = 3200
+                                    Subtitle = display,
+                                    DurationMs = durationMs
                                 });
                             }
                         }

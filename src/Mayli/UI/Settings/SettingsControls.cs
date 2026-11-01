@@ -785,4 +785,87 @@ namespace WindowsBuddy.UI.Settings
             _descBlock.Text = newSubtitle;
         }
     }
+
+    /// <summary>
+    /// Activity row for Live Activities section.
+    /// Features rounded square icon box, title, description, and toggle switch without chevron.
+    /// </summary>
+    public sealed class MayliActivityRow : Border
+    {
+        public MayliToggleSwitch Toggle { get; }
+
+        public MayliActivityRow(string title, string description, Color iconBg, string glyph, bool isEnabled)
+        {
+            Background = Brushes.Transparent;
+            CornerRadius = new CornerRadius(8);
+            Padding = new Thickness(6, 6, 6, 6);
+            Margin = new Thickness(0, 0, 0, 6);
+            SnapsToDevicePixels = true;
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Icon
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Text
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Toggle
+
+            // 1. Icon Box (36x36 rounded square with vibrant icon color)
+            var iconBox = new Border
+            {
+                Width = 36,
+                Height = 36,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(iconBg),
+                Margin = new Thickness(0, 0, 14, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var glyphBlock = new TextBlock
+            {
+                Text = glyph,
+                FontSize = 17,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
+            iconBox.Child = glyphBlock;
+            Grid.SetColumn(iconBox, 0);
+            grid.Children.Add(iconBox);
+
+            // 2. Text Stack
+            var textStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 16, 0)
+            };
+            var titleBlock = new TextBlock
+            {
+                Text = title,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+            var descBlock = new TextBlock
+            {
+                Text = description,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 2, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            };
+            textStack.Children.Add(titleBlock);
+            textStack.Children.Add(descBlock);
+            Grid.SetColumn(textStack, 1);
+            grid.Children.Add(textStack);
+
+            // 3. Right Toggle
+            Toggle = new MayliToggleSwitch(isEnabled);
+            Toggle.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(Toggle, 2);
+            grid.Children.Add(Toggle);
+
+            Child = grid;
+
+            MouseEnter += (_, _) => Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+            MouseLeave += (_, _) => Background = Brushes.Transparent;
+        }
+    }
 }

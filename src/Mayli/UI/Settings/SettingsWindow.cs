@@ -1963,11 +1963,11 @@ namespace WindowsBuddy.UI.Settings
         }
 
         // =================================================================
-        // PAGE 5: LIVE ACTIVITIES
+        // PAGE 5: LIVE ACTIVITIES (1:1 with user's uploaded reference screenshots)
         // =================================================================
         private FrameworkElement BuildLiveActivitiesPage()
         {
-            var stack = new StackPanel();
+            var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 40) };
 
             stack.Children.Add(new TextBlock
             {
@@ -1978,45 +1978,464 @@ namespace WindowsBuddy.UI.Settings
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Media player visualizer, download shelf and notifications",
+                Text = "Which events may expand the notch",
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
-                Margin = new Thickness(0, 4, 0, 26)
+                Margin = new Thickness(0, 4, 0, 24)
             });
 
-            var mediaToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowMediaActivity);
-            mediaToggle.CheckedChanged += chk => AppPreferences.Instance.ShowMediaActivity = chk;
-            stack.Children.Add(new MayliSettingRow(
-                "Media player island",
-                "Show now-playing song titles, animated audio visualizer waves, and rounded album art cover.",
-                mediaToggle
-            ));
+            // -------------------------------------------------------------
+            // SECTION 1: MUSIC
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("MUSIC"));
 
-            var shelfToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowFileShelfActivity);
-            shelfToggle.CheckedChanged += chk => AppPreferences.Instance.ShowFileShelfActivity = chk;
-            stack.Children.Add(new MayliSettingRow(
-                "File shelf auto-park",
-                "Automatically park newly downloaded files into the shelf for effortless drag-and-drop into chat or email.",
-                shelfToggle
-            ));
+            var nowPlayingRow = new MayliActivityRow(
+                "Now playing",
+                "Music from your player",
+                Color.FromRgb(0, 122, 255),
+                "▶",
+                AppPreferences.Instance.ShowMediaActivity
+            );
+            nowPlayingRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.ShowMediaActivity = chk;
+            stack.Children.Add(nowPlayingRow);
 
-            var batteryToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowBatteryActivity);
-            batteryToggle.CheckedChanged += chk => AppPreferences.Instance.ShowBatteryActivity = chk;
-            stack.Children.Add(new MayliSettingRow(
-                "Charging & battery glow",
-                "Flash dynamic green aura light on the notch borders when connecting charger or low battery.",
-                batteryToggle
-            ));
+            var browserMediaRow = new MayliActivityRow(
+                "Show browser media in notch",
+                "Includes videos and ads reported by your browser",
+                Color.FromRgb(0, 122, 255),
+                "▶",
+                AppPreferences.Instance.ShowBrowserMediaInNotch
+            );
+            browserMediaRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.ShowBrowserMediaInNotch = chk;
+            stack.Children.Add(browserMediaRow);
 
-            var timerToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowTimerActivity);
-            timerToggle.CheckedChanged += chk => AppPreferences.Instance.ShowTimerActivity = chk;
-            stack.Children.Add(new MayliSettingRow(
-                "Timer & focus pills",
-                "Show ongoing countdown timer and stopwatch progress pills in the resting notch bar.",
-                timerToggle
-            ));
+            // Music color row with Swatches + Custom... button
+            stack.Children.Add(BuildMusicColorRow());
+
+            // -------------------------------------------------------------
+            // SECTION 2: CHARGING
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("CHARGING"));
+
+            var chargingRow = new MayliActivityRow(
+                "Battery charging",
+                "Plugged in, unplugged and fully charged",
+                Color.FromRgb(0, 168, 150),
+                "⚡",
+                AppPreferences.Instance.ShowBatteryActivity
+            );
+            chargingRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.ShowBatteryActivity = chk;
+            stack.Children.Add(chargingRow);
+
+            // -------------------------------------------------------------
+            // SECTION 3: VOLUME
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("VOLUME"));
+
+            var volumeRow = new MayliActivityRow(
+                "Volume",
+                "When you change the volume",
+                Color.FromRgb(0, 185, 175),
+                "🔊",
+                AppPreferences.Instance.VolumeActivity
+            );
+            volumeRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.VolumeActivity = chk;
+            stack.Children.Add(volumeRow);
+
+            // -------------------------------------------------------------
+            // SECTION 4: COPIED
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("COPIED"));
+
+            var clipRow = new MayliActivityRow(
+                "Clipboard copied",
+                "A short confirmation when you copy something",
+                Color.FromRgb(94, 92, 230),
+                "📋",
+                AppPreferences.Instance.ClipboardCopiedActivity
+            );
+            clipRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.ClipboardCopiedActivity = chk;
+            stack.Children.Add(clipRow);
+
+            // Hide copied text (no icon, indented to align with Clipboard text)
+            var hideCopiedGrid = new Grid { Margin = new Thickness(0, 8, 0, 14) };
+            hideCopiedGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hideCopiedGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var hideTextStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(50, 0, 16, 0)
+            };
+            hideTextStack.Children.Add(new TextBlock
+            {
+                Text = "Hide copied text",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            });
+            hideTextStack.Children.Add(new TextBlock
+            {
+                Text = "Show \"Text\" or \"Image\" instead of what you copied",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            Grid.SetColumn(hideTextStack, 0);
+            hideCopiedGrid.Children.Add(hideTextStack);
+
+            var hideToggle = new MayliToggleSwitch(AppPreferences.Instance.HideCopiedText);
+            hideToggle.CheckedChanged += chk => AppPreferences.Instance.HideCopiedText = chk;
+            hideToggle.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(hideToggle, 1);
+            hideCopiedGrid.Children.Add(hideToggle);
+
+            stack.Children.Add(hideCopiedGrid);
+
+            // -------------------------------------------------------------
+            // SECTION 5: REMINDERS
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("REMINDERS"));
+
+            var runningTimersRow = new MayliActivityRow(
+                "Running timers",
+                "Show a running Pomodoro, countdown or stopwatch on the closed notch; click it to open Timers",
+                Color.FromRgb(255, 149, 0),
+                "⏱",
+                AppPreferences.Instance.RunningTimersActivity
+            );
+            runningTimersRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.RunningTimersActivity = chk;
+            stack.Children.Add(runningTimersRow);
+
+            var timersRow = new MayliActivityRow(
+                "Timers",
+                "Pomodoro, countdown and water reminders when they finish",
+                Color.FromRgb(255, 149, 0),
+                "⏱",
+                AppPreferences.Instance.TimerFinishAlerts
+            );
+            timersRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.TimerFinishAlerts = chk;
+            stack.Children.Add(timersRow);
+
+            var calendarRow = new MayliActivityRow(
+                "Calendar alerts",
+                "Upcoming events and reminders that are due",
+                Color.FromRgb(255, 59, 92),
+                "📅",
+                AppPreferences.Instance.CalendarAlerts
+            );
+            calendarRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.CalendarAlerts = chk;
+            stack.Children.Add(calendarRow);
+
+            // Reminders Target (Segmented Control: Notch only | Notch + Windows)
+            var remindersGrid = new Grid { Margin = new Thickness(0, 8, 0, 14) };
+            remindersGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            remindersGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var remindersTextStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 16, 0)
+            };
+            remindersTextStack.Children.Add(new TextBlock
+            {
+                Text = "Reminders",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            });
+            remindersTextStack.Children.Add(new TextBlock
+            {
+                Text = "Where upcoming reminders appear",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            Grid.SetColumn(remindersTextStack, 0);
+            remindersGrid.Children.Add(remindersTextStack);
+
+            var remindersSeg = new MayliSegmentedControl(
+                new[] { "Notch only", "Notch + Windows" },
+                AppPreferences.Instance.RemindersTarget
+            );
+            remindersSeg.SelectionChanged += val => AppPreferences.Instance.RemindersTarget = val;
+            remindersSeg.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(remindersSeg, 1);
+            remindersGrid.Children.Add(remindersSeg);
+
+            stack.Children.Add(remindersGrid);
+
+            // -------------------------------------------------------------
+            // SECTION 6: TIMING
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("TIMING"));
+
+            var timingGrid = new Grid { Margin = new Thickness(0, 8, 0, 24) };
+            timingGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            timingGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var timingTextStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 16, 0)
+            };
+            timingTextStack.Children.Add(new TextBlock
+            {
+                Text = "Event duration",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            });
+            timingTextStack.Children.Add(new TextBlock
+            {
+                Text = "How long an event stays before the notch settles",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            Grid.SetColumn(timingTextStack, 0);
+            timingGrid.Children.Add(timingTextStack);
+
+            var timingSeg = new MayliSegmentedControl(
+                new[] { "2 s", "3 s", "5 s" },
+                AppPreferences.Instance.LiveActivityEventDuration
+            );
+            timingSeg.SelectionChanged += val => AppPreferences.Instance.LiveActivityEventDuration = val;
+            timingSeg.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(timingSeg, 1);
+            timingGrid.Children.Add(timingSeg);
+
+            stack.Children.Add(timingGrid);
+
+            // -------------------------------------------------------------
+            // RESTORE DEFAULTS BUTTON
+            // -------------------------------------------------------------
+            var resetBtn = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 56)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(18, 9, 18, 9),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 12, 0, 20),
+                Cursor = Cursors.Hand
+            };
+            var resetTxt = new TextBlock
+            {
+                Text = "Restore defaults",
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+            resetBtn.Child = resetTxt;
+
+            resetBtn.MouseEnter += (_, _) => resetBtn.Background = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+            resetBtn.MouseLeave += (_, _) => resetBtn.Background = new SolidColorBrush(Color.FromRgb(28, 28, 34));
+
+            resetBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AppPreferences.Instance.ResetLiveActivitiesDefaults();
+                _mainContentArea.Content = BuildLiveActivitiesPage();
+                MessageBox.Show("Live Activities settings have been restored to factory defaults.", "Mayli Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            stack.Children.Add(resetBtn);
 
             return stack;
+        }
+
+        private FrameworkElement BuildMusicColorRow()
+        {
+            var grid = new Grid { Margin = new Thickness(0, 8, 0, 14) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var textStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 16, 0)
+            };
+            textStack.Children.Add(new TextBlock
+            {
+                Text = "Music color",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            });
+            textStack.Children.Add(new TextBlock
+            {
+                Text = "Beat color for now playing",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            Grid.SetColumn(textStack, 0);
+            grid.Children.Add(textStack);
+
+            // Right container: swatches stack + custom button
+            var rightContainer = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var swatchesPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            string currentColor = AppPreferences.Instance.MusicBeatColor;
+            var swatchBorders = new List<(string ColorKey, Border Border)>();
+
+            void SelectColor(string colorKey)
+            {
+                AppPreferences.Instance.MusicBeatColor = colorKey;
+                foreach (var item in swatchBorders)
+                {
+                    bool isSelected = string.Equals(item.ColorKey, colorKey, StringComparison.OrdinalIgnoreCase);
+                    item.Border.BorderBrush = isSelected ? new SolidColorBrush(Color.FromRgb(255, 149, 0)) : Brushes.Transparent;
+                }
+            }
+
+            // 1. Artwork gradient circle
+            var artOuter = new Border
+            {
+                Width = 22,
+                Height = 22,
+                CornerRadius = new CornerRadius(11),
+                BorderThickness = new Thickness(2),
+                BorderBrush = string.Equals(currentColor, "Artwork", StringComparison.OrdinalIgnoreCase)
+                    ? new SolidColorBrush(Color.FromRgb(255, 149, 0))
+                    : Brushes.Transparent,
+                Margin = new Thickness(0, 0, 8, 0),
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent
+            };
+            var artInner = new Border
+            {
+                Width = 14,
+                Height = 14,
+                CornerRadius = new CornerRadius(7),
+                Background = new LinearGradientBrush(
+                    new GradientStopCollection
+                    {
+                        new GradientStop(Color.FromRgb(255, 45, 85), 0.0),
+                        new GradientStop(Color.FromRgb(175, 82, 222), 0.5),
+                        new GradientStop(Color.FromRgb(0, 122, 255), 1.0)
+                    },
+                    new Point(0, 0),
+                    new Point(1, 1)
+                )
+            };
+            artOuter.Child = artInner;
+            artOuter.MouseLeftButtonUp += (_, _) => SelectColor("Artwork");
+            swatchBorders.Add(("Artwork", artOuter));
+            swatchesPanel.Children.Add(artOuter);
+
+            // 2. Preset color swatches
+            var presetColors = new (string Name, string Hex)[]
+            {
+                ("White", "#FFFFFF"),
+                ("Red", "#FF3B30"),
+                ("Pink", "#FF2D55"),
+                ("Purple", "#AF52DE"),
+                ("Blue", "#007AFF"),
+                ("Cyan", "#5AC8FA"),
+                ("Green", "#34C759"),
+                ("Yellow", "#FFCC00")
+            };
+
+            foreach (var preset in presetColors)
+            {
+                var colorObj = (Color)ColorConverter.ConvertFromString(preset.Hex);
+                var outer = new Border
+                {
+                    Width = 22,
+                    Height = 22,
+                    CornerRadius = new CornerRadius(11),
+                    BorderThickness = new Thickness(2),
+                    BorderBrush = string.Equals(currentColor, preset.Hex, StringComparison.OrdinalIgnoreCase)
+                        ? new SolidColorBrush(Color.FromRgb(255, 149, 0))
+                        : Brushes.Transparent,
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Cursor = Cursors.Hand,
+                    Background = Brushes.Transparent
+                };
+                var inner = new Border
+                {
+                    Width = 14,
+                    Height = 14,
+                    CornerRadius = new CornerRadius(7),
+                    Background = new SolidColorBrush(colorObj)
+                };
+                outer.Child = inner;
+                string hexCapture = preset.Hex;
+                outer.MouseLeftButtonUp += (_, _) => SelectColor(hexCapture);
+                swatchBorders.Add((preset.Hex, outer));
+                swatchesPanel.Children.Add(outer);
+            }
+
+            rightContainer.Children.Add(swatchesPanel);
+
+            // 3. Custom... pill button below swatches
+            var customBtn = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromRgb(26, 26, 30)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 54)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 4, 12, 4),
+                Margin = new Thickness(0, 8, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Cursor = Cursors.Hand
+            };
+            var customStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            
+            Color customDotColor = Color.FromRgb(255, 59, 48);
+            if (!string.Equals(currentColor, "Artwork", StringComparison.OrdinalIgnoreCase))
+            {
+                try { customDotColor = (Color)ColorConverter.ConvertFromString(currentColor); } catch { }
+            }
+
+            var customDot = new Border
+            {
+                Width = 10,
+                Height = 10,
+                CornerRadius = new CornerRadius(5),
+                Background = new SolidColorBrush(customDotColor),
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            customStack.Children.Add(customDot);
+            customStack.Children.Add(new TextBlock
+            {
+                Text = "Custom...",
+                FontSize = 12,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            customBtn.Child = customStack;
+
+            customBtn.MouseLeftButtonUp += (_, _) =>
+            {
+                using var dlg = new System.Windows.Forms.ColorDialog();
+                if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    string hex = $"#{dlg.Color.R:X2}{dlg.Color.G:X2}{dlg.Color.B:X2}";
+                    customDot.Background = new SolidColorBrush(Color.FromRgb(dlg.Color.R, dlg.Color.G, dlg.Color.B));
+                    SelectColor(hex);
+                }
+            };
+
+            rightContainer.Children.Add(customBtn);
+
+            Grid.SetColumn(rightContainer, 1);
+            grid.Children.Add(rightContainer);
+
+            return grid;
         }
 
         // =================================================================

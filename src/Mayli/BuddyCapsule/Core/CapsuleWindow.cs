@@ -821,6 +821,22 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             Dispatcher.InvokeAsync(() =>
             {
+                // Live Activity filter checks
+                if ((payload.Icon == "⚡" || payload.Icon == "🔋") && !AppPreferences.Instance.ShowBatteryActivity)
+                    return;
+
+                if (payload.Icon == "🔊" && !AppPreferences.Instance.VolumeActivity)
+                    return;
+
+                if ((payload.Icon == "📋" || payload.Icon == "📁") && !AppPreferences.Instance.ClipboardCopiedActivity)
+                    return;
+
+                if (payload.Icon == "⏱" && !AppPreferences.Instance.TimerFinishAlerts && !AppPreferences.Instance.RunningTimersActivity)
+                    return;
+
+                if (payload.Icon == "📅" && !AppPreferences.Instance.CalendarAlerts)
+                    return;
+
                 _isBannerActive = true;
                 _bannerIcon.Text = payload.Icon;
                 _bannerTitle.Text = payload.Title;
@@ -841,7 +857,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _morphTimer.Start();
                 }
 
-                _bannerDismissTimer.Interval = TimeSpan.FromMilliseconds(payload.DurationMs);
+                int durationMs = AppPreferences.Instance.LiveActivityEventDuration switch
+                {
+                    "2 s" => 2000,
+                    "5 s" => 5000,
+                    _ => 3000
+                };
+
+                _bannerDismissTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
                 _bannerDismissTimer.Stop();
                 _bannerDismissTimer.Start();
             });
@@ -851,24 +874,43 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             Dispatcher.InvokeAsync(() =>
             {
+                if (!AppPreferences.Instance.ShowMediaActivity)
+                {
+                    _isMusicActive = false;
+                    _miniEqualizer.IsPlaying = false;
+                    _wideTransportControls.SetPlaying(false);
+                    return;
+                }
+
                 bool wasPlaying = _isMusicActive;
                 _isMusicActive = snapshot.IsPlaying;
                 string track = string.IsNullOrWhiteSpace(snapshot.Title) ? "Future Calling" : snapshot.Title;
                 string artist = string.IsNullOrWhiteSpace(snapshot.Artist) ? "ZOYA" : snapshot.Artist;
 
+                // Determine beat color based on user's Music color setting
+                Color beatColor = snapshot.BeatColor;
+                if (!string.Equals(AppPreferences.Instance.MusicBeatColor, "Artwork", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        beatColor = (Color)ColorConverter.ConvertFromString(AppPreferences.Instance.MusicBeatColor);
+                    }
+                    catch { }
+                }
+
                 // Compact media view (296 x 45)
                 _mediaTrackText.Text = track;
                 _mediaArtistText.Text = artist;
                 _miniEqualizer.IsPlaying = snapshot.IsPlaying;
-                _miniEqualizer.SetBeatColor(snapshot.BeatColor);
-                _waveformProgress.SetBeatColor(snapshot.BeatColor);
+                _miniEqualizer.SetBeatColor(beatColor);
+                _waveformProgress.SetBeatColor(beatColor);
                 _albumArtThumb.SetArtwork(snapshot.Artwork, artist);
 
                 // Wide media card view (380 x 75)
                 _wideMediaTrackText.Text = track;
                 _wideMediaArtistText.Text = artist;
                 _wideTransportControls.SetPlaying(snapshot.IsPlaying);
-                _wideWaveformProgress.SetBeatColor(snapshot.BeatColor);
+                _wideWaveformProgress.SetBeatColor(beatColor);
                 _wideAlbumArtThumb.SetArtwork(snapshot.Artwork, artist);
 
                 // Timeline sync for live remaining countdown (-3:22) and progress scrubber
