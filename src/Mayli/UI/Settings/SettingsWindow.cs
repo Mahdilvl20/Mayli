@@ -1901,7 +1901,13 @@ namespace WindowsBuddy.UI.Settings
                 ("links", "Links"),
                 ("fileshelf", "File Shelf"),
                 ("units", "Units"),
-                ("fileconverter", "File Converter")
+                ("fileconverter", "File Converter"),
+                ("message", "Message"),
+                ("water", "Water"),
+                ("stopwatch", "Stopwatch"),
+                ("analytics", "Analytics"),
+                ("revenue", "Revenue"),
+                ("aicoding", "AI Coding")
             };
 
             var widgetRows = new List<MayliHomeWidgetRow>();

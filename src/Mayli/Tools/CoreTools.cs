@@ -518,7 +518,13 @@ namespace WindowsBuddy.Tools
                 ["links"] = BuildCompactLinksCard(p),
                 ["fileshelf"] = BuildCompactFileShelfCard(p),
                 ["units"] = BuildCompactUnitsCard(p),
-                ["fileconverter"] = BuildCompactConverterCard(p)
+                ["fileconverter"] = BuildCompactConverterCard(p),
+                ["message"] = BuildCompactMessageCard(p),
+                ["water"] = BuildCompactWaterCard(p),
+                ["stopwatch"] = BuildCompactStopwatchCard(p),
+                ["analytics"] = BuildCompactAnalyticsCard(p),
+                ["revenue"] = BuildCompactRevenueCard(p),
+                ["aicoding"] = BuildCompactAICodingCard(p)
             };
 
             var activeWidgets = AppPreferences.Instance.Raw.HomeWidgets ?? new List<string> { "screentime", "system", "weather", "focus", "clipboard", "notes" };
@@ -839,6 +845,148 @@ namespace WindowsBuddy.Tools
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             stack.Children.Add(new TextBlock { Text = "File Converter", FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
             stack.Children.Add(new TextBlock { Text = "PNG, JPG, PDF, WEBP", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactMessageCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("message");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "💬 MESSAGE", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            string msg = WindowsBuddy.Tools.Message.MessageService.Instance.Settings?.Text;
+            stack.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(msg) ? "Notch Message" : msg, FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), TextTrimming = TextTrimming.CharacterEllipsis });
+            stack.Children.Add(new TextBlock { Text = "Flash message on notch", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static int _waterGlasses = 4;
+        private static BuddyCard BuildCompactWaterCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "💧 WATER", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var mainGrid = new Grid { VerticalAlignment = VerticalAlignment.Center };
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var stack = new StackPanel();
+            var glassText = new TextBlock { Text = $"{_waterGlasses} / 8 glasses", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) };
+            stack.Children.Add(glassText);
+            stack.Children.Add(new TextBlock { Text = "Goal: 2000 ml", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            Grid.SetColumn(stack, 0);
+            mainGrid.Children.Add(stack);
+
+            var plusBtn = new Border
+            {
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(14),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0)
+            };
+            plusBtn.Child = new TextBlock
+            {
+                Text = "+1",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Accent),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            plusBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                _waterGlasses = Math.Min(12, _waterGlasses + 1);
+                glassText.Text = $"{_waterGlasses} / 8 glasses";
+            };
+            Grid.SetColumn(plusBtn, 1);
+            mainGrid.Children.Add(plusBtn);
+
+            dock.Children.Add(mainGrid);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactStopwatchCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("focus");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "⏱ STOPWATCH", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "00:00.0", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "Tap to open Stopwatch", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactAnalyticsCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "📊 ANALYTICS", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "1,420 Visits", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "+18.4% today", FontSize = 10.5, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactRevenueCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "💵 REVENUE", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "$540.00", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "3 licenses today", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactAICodingCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "🤖 AI CODING", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "Claude & Codex", FontSize = 15, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "Online · 4.2k tokens", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Accent), Margin = new Thickness(0, 2, 0, 0) });
             dock.Children.Add(stack);
             card.Child = dock;
             return card;
