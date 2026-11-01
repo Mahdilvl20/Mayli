@@ -188,9 +188,6 @@ namespace WindowsBuddy.Tools
             stDock.Children.Add(stCenter);
 
             screenTimeCard.Child = stDock;
-            Grid.SetRow(screenTimeCard, 0);
-            Grid.SetColumn(screenTimeCard, 0);
-            rootGrid.Children.Add(screenTimeCard);
 
             // -------------------------------------------------------------
             // CARD 2: SYSTEM (Row 0, Col 1) - Synchronized with SystemMonitorService
@@ -527,13 +524,22 @@ namespace WindowsBuddy.Tools
                 ["aicoding"] = BuildCompactAICodingCard(p)
             };
 
-            var activeWidgets = AppPreferences.Instance.Raw.HomeWidgets ?? new List<string> { "screentime", "system", "weather", "focus", "clipboard", "notes" };
+            var activeWidgets = (AppPreferences.Instance.Raw.HomeWidgets ?? new List<string> { "screentime", "system", "weather", "focus", "clipboard", "notes" })
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             int slot = 0;
             foreach (var wId in activeWidgets)
             {
                 if (slot >= 6) break;
                 if (cardMap.TryGetValue(wId, out var c) && c != null)
                 {
+                    if (c.Parent is Panel pnl)
+                        pnl.Children.Remove(c);
+                    else if (c.Parent is ContentControl cc)
+                        cc.Content = null;
+                    else if (c.Parent is Decorator dec)
+                        dec.Child = null;
+
                     int r = slot / 3;
                     int col = slot % 3;
                     Grid.SetRow(c, r);
