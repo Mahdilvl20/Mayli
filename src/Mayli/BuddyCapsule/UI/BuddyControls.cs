@@ -580,6 +580,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(160) };
             _timer.Tick += (_, _) =>
             {
+                if (!IsVisible) return;
                 var currentAccent = CapsuleTheme.Brush(CapsuleTheme.Current.Accent);
                 for (int i = 0; i < _bars.Length; i++)
                 {
@@ -590,7 +591,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     }
                 }
             };
-            _timer.Start();
+            Loaded += (_, _) => { if (IsVisible) _timer.Start(); };
+            Unloaded += (_, _) => _timer.Stop();
+            IsVisibleChanged += (_, _) =>
+            {
+                if (IsVisible && IsLoaded) _timer.Start();
+                else _timer.Stop();
+            };
         }
     }
 
@@ -616,24 +623,21 @@ namespace WindowsBuddy.BuddyCapsule.UI
             new[] { 0.180, 0.20 }
         };
 
-        private readonly struct CometStrokeEntry
+        private struct CometStrokeEntry
         {
-            public readonly Path PathElement;
-            public readonly double SegFrac;
-            public readonly double Thickness;
-
-            public CometStrokeEntry(Path pathElement, double segFrac, double thickness)
-            {
-                PathElement = pathElement;
-                SegFrac = segFrac;
-                Thickness = thickness;
-            }
+            public Path PathElement;
+            public double SegFrac;
+            public double Thickness;
+            public bool IsGlow;
+            public bool IsReverse;
+            public double Alpha;
         }
 
         private readonly Grid _pulseContainer;
         private readonly Grid _glowLayer;
         private readonly Grid _coreLayer;
-        private readonly List<CometStrokeEntry> _cometEntries = new();
+        private readonly Path _baseBorderPath;
+        private readonly CometStrokeEntry[] _cometEntries;
         private readonly DispatcherTimer _animTimer;
 
         private double _lastW = -1;
@@ -661,20 +665,62 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Opacity = 0.96
             };
 
+            _baseBorderPath = new Path { StrokeThickness = 1.0 };
+            _coreLayer.Children.Add(_baseBorderPath);
+
+            double tailScale = 0.15 / 0.18;
+            _cometEntries = new CometStrokeEntry[CometLayers.Length * 4];
+            int idx = 0;
+            foreach (var layer in CometLayers)
+            {
+                double segFrac = layer[0] * tailScale;
+                double alpha = layer[1];
+
+                var gf = CreateReusableCometPath();
+                var gr = CreateReusableCometPath();
+                _glowLayer.Children.Add(gf);
+                _glowLayer.Children.Add(gr);
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = gf, SegFrac = segFrac, IsGlow = true, IsReverse = false, Alpha = alpha };
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = gr, SegFrac = segFrac, IsGlow = true, IsReverse = true, Alpha = alpha };
+
+                var cf = CreateReusableCometPath();
+                var cr = CreateReusableCometPath();
+                _coreLayer.Children.Add(cf);
+                _coreLayer.Children.Add(cr);
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = cf, SegFrac = segFrac, IsGlow = false, IsReverse = false, Alpha = alpha };
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = cr, SegFrac = segFrac, IsGlow = false, IsReverse = true, Alpha = alpha };
+            }
+
             _pulseContainer.Children.Add(_glowLayer);
             _pulseContainer.Children.Add(_coreLayer);
             Children.Add(_pulseContainer);
 
-            _animTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
+            _animTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(25) };
             _animTimer.Tick += OnAnimTick;
             _animTimer.Start();
 
+            Loaded += (_, _) =>
+            {
+                if (IsVisible && !_isMorphing) _animTimer.Start();
+            };
+            Unloaded += (_, _) => _animTimer.Stop();
             IsVisibleChanged += (_, _) =>
             {
                 if (IsVisible && !_isMorphing)
                     _animTimer.Start();
                 else
                     _animTimer.Stop();
+            };
+        }
+
+        private static Path CreateReusableCometPath()
+        {
+            return new Path
+            {
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                StrokeDashCap = PenLineCap.Round,
+                StrokeDashArray = new DoubleCollection { 1.0, 10.0 }
             };
         }
 
@@ -705,7 +751,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public void UpdateGeometry(Geometry geometry, bool isExpanded, double width = 228.0, double height = 35.0)
         {
             if (_isMorphing) return;
-            if (Math.Abs(width - _lastW) < 0.5 && Math.Abs(height - _lastH) < 0.5 && _cometEntries.Count > 0)
+            if (Math.Abs(width - _lastW) < 0.5 && Math.Abs(height - _lastH) < 0.5)
                 return;
 
             _lastW = width;
@@ -716,10 +762,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private void RebuildCometPaths(double width, double height, double cornerRadius, double coreThickness)
         {
-            _glowLayer.Children.Clear();
-            _coreLayer.Children.Clear();
-            _cometEntries.Clear();
-
             // Fade top 9px so shoulder tops blend seamlessly into the top screen bezel
             double fadeStop = Math.Clamp(9.0 / Math.Max(1.0, height), 0.08, 0.45);
             var mask = new LinearGradientBrush
@@ -741,69 +783,50 @@ namespace WindowsBuddy.BuddyCapsule.UI
             Geometry geoReverse = BuildPolylineGeometry(pts, reverse: true);
 
             // Subtle base border stroke along bottom & corners
-            double baseUnits = _totalLength / coreThickness;
             var baseBrush = new SolidColorBrush(Color.FromArgb(32, _lightColor.R, _lightColor.G, _lightColor.B));
             baseBrush.Freeze();
-            _coreLayer.Children.Add(new Path
+            _baseBorderPath.Data = geoForward;
+            _baseBorderPath.Stroke = baseBrush;
+
+            double glowThickness = coreThickness * 2.4;
+            for (int i = 0; i < _cometEntries.Length; i++)
             {
-                Data = geoForward,
-                Stroke = baseBrush,
-                StrokeThickness = 1.0
-            });
+                ref var entry = ref _cometEntries[i];
+                double th = Math.Max(0.5, entry.IsGlow ? glowThickness : coreThickness);
+                entry.Thickness = th;
 
-            // Add 11-layer tapered twin comets (Forward = Left-to-Center, Reverse = Right-to-Center)
-            double tailScale = 0.15 / 0.18; // TwinTail = 0.15, CometTail = 0.18
-            foreach (var layer in CometLayers)
-            {
-                double segFrac = layer[0] * tailScale;
-                double alpha = layer[1];
+                double totalInStrokeUnits = _totalLength / th;
+                double dashLen = Math.Max(0.25, entry.SegFrac * totalInStrokeUnits);
+                double gapLen = Math.Max(2.0, 4.0 * totalInStrokeUnits);
 
-                double glowThickness = coreThickness * 2.4;
-                var gf = CreateCometStroke(geoForward, _lightColor, alpha, glowThickness, segFrac, _totalLength);
-                var gr = CreateCometStroke(geoReverse, _lightColor, alpha, glowThickness, segFrac, _totalLength);
-                _glowLayer.Children.Add(gf);
-                _glowLayer.Children.Add(gr);
-                _cometEntries.Add(new CometStrokeEntry(gf, segFrac, glowThickness));
-                _cometEntries.Add(new CometStrokeEntry(gr, segFrac, glowThickness));
+                Color c = entry.IsGlow ? _lightColor : Colors.White;
+                byte a = (byte)Math.Clamp(Math.Round(entry.Alpha * 255.0), 0, 255);
+                var brush = new SolidColorBrush(Color.FromArgb(a, c.R, c.G, c.B));
+                brush.Freeze();
 
-                var cf = CreateCometStroke(geoForward, Colors.White, alpha, coreThickness, segFrac, _totalLength);
-                var cr = CreateCometStroke(geoReverse, Colors.White, alpha, coreThickness, segFrac, _totalLength);
-                _coreLayer.Children.Add(cf);
-                _coreLayer.Children.Add(cr);
-                _cometEntries.Add(new CometStrokeEntry(cf, segFrac, coreThickness));
-                _cometEntries.Add(new CometStrokeEntry(cr, segFrac, coreThickness));
+                var p = entry.PathElement;
+                p.Data = entry.IsReverse ? geoReverse : geoForward;
+                p.Stroke = brush;
+                p.StrokeThickness = th;
+                if (p.StrokeDashArray != null && p.StrokeDashArray.Count == 2 && !p.StrokeDashArray.IsFrozen)
+                {
+                    p.StrokeDashArray[0] = dashLen;
+                    p.StrokeDashArray[1] = gapLen;
+                }
+                else
+                {
+                    p.StrokeDashArray = new DoubleCollection { dashLen, gapLen };
+                }
             }
 
             UpdateDashOffsets();
         }
 
-        private static Path CreateCometStroke(Geometry geo, Color color, double alpha, double thickness, double segFrac, double totalLength)
-        {
-            double thicknessSafe = Math.Max(0.5, thickness);
-            double totalInStrokeUnits = totalLength / thicknessSafe;
-            double dashLen = Math.Max(0.25, segFrac * totalInStrokeUnits);
-            double gapLen = Math.Max(2.0, 4.0 * totalInStrokeUnits);
-
-            byte a = (byte)Math.Clamp(Math.Round(alpha * 255.0), 0, 255);
-            var brush = new SolidColorBrush(Color.FromArgb(a, color.R, color.G, color.B));
-            brush.Freeze();
-
-            return new Path
-            {
-                Data = geo,
-                Stroke = brush,
-                StrokeThickness = thicknessSafe,
-                StrokeStartLineCap = PenLineCap.Round,
-                StrokeEndLineCap = PenLineCap.Round,
-                StrokeDashCap = PenLineCap.Round,
-                StrokeDashArray = new DoubleCollection { dashLen, gapLen }
-            };
-        }
-
         private void OnAnimTick(object sender, EventArgs e)
         {
+            if (!IsVisible || _isMorphing) return;
             // ~3.0 second back-and-forth ("رفت و آمدی") cycle matching Vayli video (00:00 - 00:19)
-            _cyclePhase = (_cyclePhase + 0.0055) % 1.0;
+            _cyclePhase = (_cyclePhase + 0.0068) % 1.0;
             UpdateDashOffsets();
         }
 
@@ -819,9 +842,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
             // Gentle breathing opacity on _pulseContainer matching EdgeLightWpf.RebuildCore
             _pulseContainer.Opacity = 0.65 + 0.35 * wave;
 
-            for (int i = 0; i < _cometEntries.Count; i++)
+            for (int i = 0; i < _cometEntries.Length; i++)
             {
                 var entry = _cometEntries[i];
+                if (entry.Thickness <= 0) continue;
                 // Exact formula from EdgeLightWpf.<AddComet>b__19:
                 // StrokeDashOffset = -(p - segFrac) * L / Th = (segFrac - p) * (L / Th)
                 // This aligns the bright front head of all 11 layers at arc position p * L!
@@ -1128,9 +1152,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             Children.Add(_terminalCap);
         }
 
+        private int _lastPercent = -1;
+
         public void SetBattery(int percent)
         {
             int clamped = Math.Clamp(percent, 5, 100);
+            if (_lastPercent == clamped) return;
+            _lastPercent = clamped;
+
             Color c = clamped <= 20
                 ? Color.FromRgb(255, 69, 58)
                 : Color.FromRgb(48, 209, 88);

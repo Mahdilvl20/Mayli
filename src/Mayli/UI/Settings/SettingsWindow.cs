@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -289,7 +290,7 @@ namespace WindowsBuddy.UI.Settings
             footerLinks.Children.Add(new TextBlock { Text = "·", FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromRgb(70, 70, 78)), Margin = new Thickness(2, 0, 2, 0) });
             footerLinks.Children.Add(CreateFooterLink("Feedback", () => Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli/issues") { UseShellExecute = true })));
             footerLinks.Children.Add(new TextBlock { Text = "·", FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromRgb(70, 70, 78)), Margin = new Thickness(2, 0, 2, 0) });
-            footerLinks.Children.Add(new TextBlock { Text = "v1.1.57", FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromRgb(104, 104, 114)), Margin = new Thickness(4, 0, 4, 0) });
+            footerLinks.Children.Add(new TextBlock { Text = "v" + UpdateService.CurrentVersion, FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromRgb(104, 104, 114)), Margin = new Thickness(4, 0, 4, 0) });
 
             footerStack.Children.Add(footerLinks);
             DockPanel.SetDock(footerStack, Dock.Bottom);
@@ -2796,16 +2797,17 @@ namespace WindowsBuddy.UI.Settings
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(12, 6, 12, 6)
             };
-            versionBadge.Child = new TextBlock
+            var versionText = new TextBlock
             {
-                Text = "✓ Up to date (v1.1.57)",
+                Text = $"✓ Up to date (v{UpdateService.CurrentVersion})",
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88))
             };
+            versionBadge.Child = versionText;
             stack.Children.Add(new MayliSettingRow(
                 "Installed version",
-                "Mayli v1.1.57 (Windows x64 Architecture).",
+                $"Mayli v{UpdateService.CurrentVersion} (Windows x64 Architecture).",
                 versionBadge
             ));
 
@@ -2816,11 +2818,55 @@ namespace WindowsBuddy.UI.Settings
                 Padding = new Thickness(16, 6, 16, 6),
                 Cursor = Cursors.Hand
             };
-            checkBtn.Child = new TextBlock { Text = "Check Now ↗", FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
-            checkBtn.MouseLeftButtonUp += (_, e) =>
+            var checkBtnText = new TextBlock { Text = "Check Now", FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+            checkBtn.Child = checkBtnText;
+            checkBtn.MouseLeftButtonUp += async (_, e) =>
             {
                 e.Handled = true;
-                Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli/releases") { UseShellExecute = true });
+                checkBtnText.Text = "Checking...";
+                checkBtn.IsEnabled = false;
+
+                try
+                {
+                    var info = await UpdateService.CheckForUpdatesAsync();
+                    if (info.HasUpdate)
+                    {
+                        versionText.Text = $"🚀 Update available: v{info.LatestVersion}";
+                        versionText.Foreground = new SolidColorBrush(Color.FromRgb(255, 149, 0));
+                        versionBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(255, 149, 0));
+                        versionBadge.Background = new SolidColorBrush(Color.FromArgb(40, 255, 149, 0));
+
+                        checkBtnText.Text = "Download v" + info.LatestVersion + " ↗";
+                        checkBtn.Background = new SolidColorBrush(Color.FromRgb(48, 209, 88));
+                        checkBtn.IsEnabled = true;
+                        checkBtn.MouseLeftButtonUp -= null;
+                        checkBtn.MouseLeftButtonUp += (_, _) =>
+                        {
+                            Process.Start(new ProcessStartInfo(info.HtmlUrl) { UseShellExecute = true });
+                        };
+
+                        RealtimeNotchActionService.Instance.TriggerNotification(new NotchNotificationPayload
+                        {
+                            Icon = "🚀",
+                            Title = "Update Available",
+                            Subtitle = $" · v{info.LatestVersion} is ready",
+                            DurationMs = 7000
+                        });
+                    }
+                    else
+                    {
+                        checkBtnText.Text = "You're on latest!";
+                        await Task.Delay(2000);
+                        checkBtnText.Text = "Check Now";
+                        checkBtn.IsEnabled = true;
+                    }
+                }
+                catch
+                {
+                    checkBtnText.Text = "Check Now";
+                    checkBtn.IsEnabled = true;
+                    Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli/releases") { UseShellExecute = true });
+                }
             };
             stack.Children.Add(new MayliSettingRow(
                 "Check for updates",
@@ -2880,7 +2926,7 @@ namespace WindowsBuddy.UI.Settings
             });
             aboutStack.Children.Add(new TextBlock
             {
-                Text = "Version 1.1.57 (Release x64) • The Notch for Windows",
+                Text = $"Version {UpdateService.CurrentVersion} (Release x64) • The Notch for Windows",
                 FontSize = 13,
                 Foreground = new SolidColorBrush(Color.FromRgb(255, 85, 0)),
                 FontWeight = FontWeights.SemiBold,

@@ -42,6 +42,8 @@ namespace WindowsBuddy
                 _capsuleWindow = new CapsuleWindow();
                 _capsuleWindow.Show();
 
+                UpdateService.CheckOnStartup();
+
                 LogWriter.WriteNow("boot", "Mayli CapsuleWindow started successfully.");
                 return app.Run();
             }

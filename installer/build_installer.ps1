@@ -20,13 +20,7 @@ if (-not (Test-Path $distDir)) {
 
 $releaseBin = Join-Path $solutionRoot "src\Mayli\bin\Release\net10.0-windows"
 
-Write-Host ">>> [2/3] Creating Portable ZIP Package..." -ForegroundColor Cyan
-$zipPath = Join-Path $distDir "Mayli-v1.1.57-win-x64-portable.zip"
-if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-Compress-Archive -Path "$releaseBin\*" -DestinationPath $zipPath -Force
-Write-Host "    Portable package created at: $zipPath" -ForegroundColor Green
-
-Write-Host ">>> [3/3] Checking for Inno Setup Compiler (iscc.exe)..." -ForegroundColor Cyan
+Write-Host ">>> [2/2] Checking for Inno Setup Compiler (iscc.exe)..." -ForegroundColor Cyan
 $isccCandidates = @(
     "iscc.exe",
     "$env:LocalAppData\Programs\Inno Setup 6\iscc.exe",

@@ -470,10 +470,31 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             Content = _rootGrid;
 
-            // 1-second auto-refresh timer for live metrics
+            // 1-second auto-refresh timer for live metrics (only active while visible)
             _telemetryTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _telemetryTimer.Tick += (_, _) => RefreshAllMetrics();
-            _telemetryTimer.Start();
+            _telemetryTimer.Tick += (_, _) =>
+            {
+                if (IsVisible && IsLoaded) RefreshAllMetrics();
+            };
+
+            Loaded += (_, _) =>
+            {
+                RefreshAllMetrics();
+                if (IsVisible) _telemetryTimer.Start();
+            };
+            Unloaded += (_, _) => _telemetryTimer.Stop();
+            IsVisibleChanged += (_, _) =>
+            {
+                if (IsVisible && IsLoaded)
+                {
+                    RefreshAllMetrics();
+                    _telemetryTimer.Start();
+                }
+                else
+                {
+                    _telemetryTimer.Stop();
+                }
+            };
 
             CoreAudioService.Instance.VolumeChanged += () => Dispatcher.InvokeAsync(UpdateVolumeVisual);
 

@@ -66,7 +66,7 @@ namespace WindowsBuddy.Services
 
             try
             {
-                var proc = Process.GetCurrentProcess();
+                using var proc = Process.GetCurrentProcess();
                 var now = DateTime.UtcNow;
                 if (_lastSampleUtc != DateTime.MinValue)
                 {

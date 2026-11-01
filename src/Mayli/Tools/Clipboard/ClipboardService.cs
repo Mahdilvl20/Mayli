@@ -345,7 +345,7 @@ namespace WindowsBuddy.Tools.Clipboard
                     NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
                     if (pid > 0)
                     {
-                        var proc = Process.GetProcessById((int)pid);
+                        using var proc = Process.GetProcessById((int)pid);
                         string name = proc.ProcessName.ToLowerInvariant();
                         item.SourceAppExe = name + ".exe";
                         item.SourceApp = name switch

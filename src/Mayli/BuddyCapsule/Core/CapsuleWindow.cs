@@ -116,12 +116,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private double _spectrumPhase;
 
         private double _morphProgress; // 0.0 = Collapsed, 1.0 = Expanded
-        private readonly System.Diagnostics.Stopwatch _morphStopwatch = new();
-        private double _morphStartProgress;
-        private double _morphTargetProgress;
-        private double _morphDurationSeconds = 0.22;
-        private bool _isMorphingActive;
-        private DateTime _lastMorphTickUtc = DateTime.UtcNow;
+        private double _targetProgress;
         private string _activeToolId = "home";
 
         private bool _isBannerActive = false;
@@ -680,19 +675,22 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _envelopeRoot.Children.Add(_capsuleCard);
             Content = _envelopeRoot;
 
-            // High-precision morph timer running at render priority
-            _morphTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(10) };
+            // Morph Animation timer
+            _morphTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(14) };
             _morphTimer.Tick += OnMorphTick;
 
             _machine.PhaseChanged += (_, next, _) =>
             {
                 if (next == NotchPhase.Opening || next == NotchPhase.Open)
                 {
-                    StartMorphAnimation(1.0);
+                    _targetProgress = 1.0;
+                    _expandedContent.Visibility = Visibility.Visible;
+                    _morphTimer.Start();
                 }
                 else if (next == NotchPhase.Closing || next == NotchPhase.Resting)
                 {
-                    StartMorphAnimation(0.0);
+                    _targetProgress = 0.0;
+                    _morphTimer.Start();
                 }
             };
 
@@ -742,19 +740,25 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     UpdateMediaTimelineVisuals();
                 }
 
-                // Ensure notch stays on top layer above all windows when not tucked away
-                if (!_isTucked)
+                // Ensure notch stays on top layer above all windows when not tucked away (every 5s to avoid per-second P/Invoke overhead)
+                _topmostTickCounter++;
+                if (!_isTucked && (_topmostTickCounter % 5 == 0))
                 {
                     EnsureTopmost();
                 }
             };
             _clockTimer.Start();
 
-            // 30fps Real-time Spectrum & Equalizer Animation Timer
+            // 30fps Real-time Spectrum & Equalizer Animation Timer (only active when music is playing)
             _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
             _spectrumTimer.Tick += (_, _) =>
             {
-                if (!_isMusicActive || _morphProgress > 0.4) return;
+                if (!_isMusicActive)
+                {
+                    _spectrumTimer.Stop();
+                    return;
+                }
+                if (_morphProgress > 0.4) return;
                 _spectrumPhase += 0.085;
 
                 AudioSpectrumService.Instance.Read(_fftBands28, out bool isAudioLive);
@@ -772,7 +776,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _waveformProgress.SetSpectrumLevels(_mappedBars40, _isMusicActive, isAudioLive, _spectrumPhase);
                 }
             };
-            _spectrumTimer.Start();
 
             // Wide Music Card Dismissal Timer (Track switch / song play, then smoothly settles)
             _mediaWideDismissTimer = new DispatcherTimer();
@@ -813,8 +816,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             actionService.NotificationRequested += OnRealNotificationRequested;
             actionService.MediaSessionChanged += OnRealMediaSessionChanged;
 
-            CapsuleTheme.ThemeChanged += ApplyThemeAndGeometry;
-            AppPreferences.Instance.Changed += ApplyThemeAndGeometry;
+            CapsuleTheme.ThemeChanged += RequestApplyThemeAndGeometry;
+            AppPreferences.Instance.Changed += RequestApplyThemeAndGeometry;
 
             // Alt+1 .. Alt+0, Alt+M, Alt+S Navigation Shortcuts
             PreviewKeyDown += (_, e) =>
@@ -846,7 +849,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
 
             NavigateToTool("home");
-            UpdateMorphVisuals(0.0, settled: true);
+            UpdateMorphVisuals(0.0);
         }
 
         #region Real-Time Action Handlers
@@ -887,7 +890,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 if (_morphProgress <= 0.1)
                 {
-                    StartMorphAnimation(0.0);
+                    _targetProgress = 0.0;
+                    _morphTimer.Start();
                 }
 
                 int durationMs = AppPreferences.Instance.LiveActivityEventDuration switch
@@ -910,6 +914,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 if (!AppPreferences.Instance.ShowMediaActivity || (snapshot.IsPlaying && !string.IsNullOrWhiteSpace(snapshot.SourceApp) && AppPreferences.Instance.IsAudioAppExcluded(snapshot.SourceApp)))
                 {
                     _isMusicActive = false;
+                    _spectrumTimer.Stop();
                     _miniEqualizer.IsPlaying = false;
                     _wideTransportControls.SetPlaying(false);
                     _isMediaWideActive = false;
@@ -920,6 +925,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 bool wasPlaying = _isMusicActive;
                 _isMusicActive = snapshot.IsPlaying;
+                if (_isMusicActive)
+                {
+                    _spectrumTimer.Start();
+                }
+                else
+                {
+                    _spectrumTimer.Stop();
+                }
                 string track = string.IsNullOrWhiteSpace(snapshot.Title) ? "Future Calling" : snapshot.Title;
                 string artist = string.IsNullOrWhiteSpace(snapshot.Artist) ? "ZOYA" : snapshot.Artist;
 
@@ -1129,7 +1142,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             if (_morphProgress <= 0.1)
             {
-                StartMorphAnimation(0.0);
+                _targetProgress = 0.0;
+                _morphTimer.Start();
             }
         }
 
@@ -1168,7 +1182,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 if (_morphProgress > 0.4)
                 {
-                    StartMorphAnimation(0.0);
+                    _targetProgress = 0.0;
+                    _morphTimer.Start();
                 }
             });
         }
@@ -1672,80 +1687,43 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
         }
 
-        private void StartMorphAnimation(double targetProgress)
+        private int _topmostTickCounter;
+        private bool _themeUpdatePending;
+
+        private void RequestApplyThemeAndGeometry()
         {
-            targetProgress = Math.Clamp(targetProgress, 0.0, 1.0);
-            if (Math.Abs(_morphTargetProgress - targetProgress) < 0.001 && _isMorphingActive)
-                return;
-
-            _morphStartProgress = _morphProgress;
-            _morphTargetProgress = targetProgress;
-
-            double diff = Math.Abs(_morphTargetProgress - _morphStartProgress);
-            if (diff < 0.005)
+            if (_themeUpdatePending) return;
+            _themeUpdatePending = true;
+            Dispatcher.InvokeAsync(() =>
             {
-                _morphProgress = _morphTargetProgress;
-                _isMorphingActive = false;
-                _morphStopwatch.Stop();
-                _morphTimer.Stop();
-                if (_morphProgress <= 0.001)
-                {
-                    _expandedContent.Visibility = Visibility.Collapsed;
-                }
-                _edgeLight.SetMorphing(false);
-                UpdateMorphVisuals(_morphProgress, settled: true);
-                return;
-            }
-
-            // Exactly 0.22s to open, 0.18s to close, proportional to remaining distance
-            double fullDuration = _morphTargetProgress > _morphStartProgress ? 0.22 : 0.18;
-            _morphDurationSeconds = Math.Max(0.06, fullDuration * diff);
-
-            _morphStopwatch.Restart();
-            _isMorphingActive = true;
-            _lastMorphTickUtc = DateTime.UtcNow;
-            _edgeLight.SetMorphing(true);
-
-            if (_morphTargetProgress > 0.5)
-            {
-                _expandedContent.Visibility = Visibility.Visible;
-            }
-
-            _morphTimer.Start();
+                _themeUpdatePending = false;
+                ApplyThemeAndGeometry();
+            }, DispatcherPriority.Send);
         }
 
         private void OnMorphTick(object sender, EventArgs e)
         {
-            DateTime now = DateTime.UtcNow;
-            double dt = Math.Clamp((now - _lastMorphTickUtc).TotalSeconds, 0.001, 0.05);
-            _lastMorphTickUtc = now;
+            double step = _targetProgress > _morphProgress ? 0.14 : 0.18;
+            bool morphSettled = false;
 
-            bool morphSettled = !_isMorphingActive;
-            if (_isMorphingActive)
+            if (Math.Abs(_targetProgress - _morphProgress) <= step)
             {
-                double elapsed = _morphStopwatch.Elapsed.TotalSeconds;
-                double rawT = _morphDurationSeconds > 0.001 ? Math.Clamp(elapsed / _morphDurationSeconds, 0.0, 1.0) : 1.0;
-
-                _morphProgress = _morphStartProgress + (_morphTargetProgress - _morphStartProgress) * rawT;
-
-                if (rawT >= 1.0)
+                _morphProgress = _targetProgress;
+                morphSettled = true;
+                if (_morphProgress <= 0.001)
                 {
-                    _morphProgress = _morphTargetProgress;
-                    _isMorphingActive = false;
-                    _morphStopwatch.Stop();
-                    morphSettled = true;
-                    if (_morphProgress <= 0.001)
-                    {
-                        _expandedContent.Visibility = Visibility.Collapsed;
-                    }
-                    _edgeLight.SetMorphing(false);
+                    _expandedContent.Visibility = Visibility.Collapsed;
                 }
             }
+            else
+            {
+                _morphProgress += Math.Sign(_targetProgress - _morphProgress) * step;
+            }
 
-            // Smoothly interpolate collapsed pill width & height with time-independent exponential decay
+            // Smoothly interpolate collapsed pill width & height (Resting <-> Music <-> Banner)
             double dw = _currentBaseCollapsedWidth - _displayedCollapsedWidth;
             double dh = _currentBaseCollapsedHeight - _displayedCollapsedHeight;
-            bool sizeSettled = Math.Abs(dw) < 0.5 && Math.Abs(dh) < 0.4;
+            bool sizeSettled = Math.Abs(dw) < 0.6 && Math.Abs(dh) < 0.4;
 
             if (sizeSettled)
             {
@@ -1754,23 +1732,24 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
             else
             {
-                double decay = 1.0 - Math.Exp(-22.0 * dt);
-                _displayedCollapsedWidth += dw * decay;
-                _displayedCollapsedHeight += dh * decay;
+                _displayedCollapsedWidth += dw * 0.28;
+                _displayedCollapsedHeight += dh * 0.28;
             }
 
-            if (morphSettled && sizeSettled)
+            bool allSettled = morphSettled && sizeSettled;
+            _edgeLight.SetMorphing(!allSettled);
+
+            if (allSettled)
             {
                 _morphTimer.Stop();
             }
 
-            UpdateMorphVisuals(_morphProgress, morphSettled && sizeSettled);
+            UpdateMorphVisuals(_morphProgress);
         }
 
-        private void UpdateMorphVisuals(double progress, bool settled = false)
+        private void UpdateMorphVisuals(double progress)
         {
             double t = Math.Clamp(progress, 0.0, 1.0);
-            // Cubic Ease Out: starts fast & responsive, settles silky smooth
             double ease = 1.0 - Math.Pow(1.0 - t, 3);
 
             double baseW = _displayedCollapsedWidth;
@@ -1790,24 +1769,20 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 baseH,
                 ExpandedWidth,
                 ExpandedHeight,
-                ease);
+                t);
 
             _notchBackdropPath.Data = geo;
             _notchOutlinePath.Data = geo;
             _notchTopBlackLine.X2 = curW;
+            _edgeLight.UpdateGeometry(geo, t > 0.5, curW, curH);
 
-            if (settled)
-            {
-                _edgeLight.UpdateGeometry(geo, t > 0.5, curW, curH);
-            }
+            double collapsedOpacity = Math.Clamp(1.0 - t * 2.5, 0.0, 1.0);
+            _collapsedContent.Opacity = collapsedOpacity;
+            _collapsedContent.Visibility = collapsedOpacity <= 0.001 ? Visibility.Collapsed : Visibility.Visible;
+            _collapsedContent.IsHitTestVisible = t < 0.25;
 
-            // Collapsed content quickly fades out
-            _collapsedContent.Opacity = Math.Clamp(1.0 - ease * 3.2, 0.0, 1.0);
-            _collapsedContent.IsHitTestVisible = ease < 0.2;
-
-            // Expanded content fades in smoothly during middle-to-end of expansion
-            _expandedContent.Opacity = Math.Clamp((ease - 0.22) / 0.78, 0.0, 1.0);
-            _expandedContent.IsHitTestVisible = ease > 0.6;
+            _expandedContent.Opacity = Math.Clamp((t - 0.25) / 0.75, 0.0, 1.0);
+            _expandedContent.IsHitTestVisible = t > 0.6;
         }
 
         private void ApplyThemeAndGeometry()
@@ -1934,7 +1909,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             RebuildNavTabs();
             NavigateToTool(_activeToolId);
-            UpdateMorphVisuals(_morphProgress, settled: true);
+            UpdateMorphVisuals(_morphProgress);
         }
 
         public void ToggleFromExternal() => _machine.Toggle("tray-or-cli");

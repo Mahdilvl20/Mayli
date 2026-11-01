@@ -60,12 +60,15 @@ namespace WindowsBuddy.Tools.Timer
         private void OnClockTick(object sender, EventArgs e)
         {
             bool secondElapsed = (DateTime.UtcNow - _lastSecondTick).TotalSeconds >= 1.0;
+            bool shouldNotify = StopwatchIsRunning;
+
             if (secondElapsed)
             {
                 _lastSecondTick = DateTime.UtcNow;
 
                 if (PomoIsRunning)
                 {
+                    shouldNotify = true;
                     if (PomoRemainingSeconds > 0)
                     {
                         PomoRemainingSeconds--;
@@ -78,6 +81,7 @@ namespace WindowsBuddy.Tools.Timer
 
                 if (CountIsRunning)
                 {
+                    shouldNotify = true;
                     if (CountRemainingSeconds > 0)
                     {
                         CountRemainingSeconds--;
@@ -89,7 +93,10 @@ namespace WindowsBuddy.Tools.Timer
                 }
             }
 
-            Tick?.Invoke();
+            if (shouldNotify)
+            {
+                Tick?.Invoke();
+            }
         }
 
         private void OnPomoPhaseCompleted()

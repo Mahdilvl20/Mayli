@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -52,6 +53,8 @@ namespace WindowsBuddy.Services
 
         private readonly DispatcherTimer _pollTimer;
         private readonly HashSet<string> _knownBluetoothDevices = new(StringComparer.OrdinalIgnoreCase);
+        private readonly object _btLock = new();
+        private int _isBackgroundPolling = 0;
         private readonly List<FileSystemWatcher> _screenshotWatchers = new();
         private DateTime _lastClipboardTrigger = DateTime.MinValue;
         private string _lastCopiedText = null;
@@ -72,19 +75,42 @@ namespace WindowsBuddy.Services
 
             StartGsmtcBackgroundWorker();
 
-            _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+            _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             _pollTimer.Tick += (_, _) =>
             {
-                if ((DateTime.UtcNow - _lastGsmtcHeartbeatUtc).TotalSeconds > 4.0)
+                if (System.Threading.Interlocked.CompareExchange(ref _isBackgroundPolling, 1, 0) != 0)
+                    return;
+
+                Task.Run(() =>
                 {
-                    CheckFallbackMediaPlayback();
-                }
-                CheckBluetoothDevices();
+                    try
+                    {
+                        if ((DateTime.UtcNow - _lastGsmtcHeartbeatUtc).TotalSeconds > 4.0)
+                        {
+                            CheckFallbackMediaPlayback();
+                        }
+                        CheckBluetoothDevices();
+                    }
+                    catch { }
+                    finally
+                    {
+                        System.Threading.Interlocked.Exchange(ref _isBackgroundPolling, 0);
+                    }
+                });
             };
             _pollTimer.Start();
 
             InitScreenshotWatchers();
-            InitKnownBluetoothDevices();
+            Task.Run(InitKnownBluetoothDevices);
+        }
+
+        public void TriggerNotification(NotchNotificationPayload payload)
+        {
+            if (payload == null) return;
+            Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                NotificationRequested?.Invoke(payload);
+            });
         }
 
         #region 1. Clipboard & Screenshot Detection (WM_CLIPBOARDUPDATE)
@@ -224,7 +250,7 @@ namespace WindowsBuddy.Services
         {
             if (eventCode is 0x8000 or 0x8004 or 0x0007)
             {
-                CheckBluetoothDevices(isDirectEvent: true);
+                Task.Run(() => CheckBluetoothDevices(isDirectEvent: true));
             }
         }
 
@@ -233,9 +259,12 @@ namespace WindowsBuddy.Services
             try
             {
                 var current = QueryActiveBluetoothDevices();
-                foreach (var d in current)
+                lock (_btLock)
                 {
-                    _knownBluetoothDevices.Add(d);
+                    foreach (var d in current)
+                    {
+                        _knownBluetoothDevices.Add(d);
+                    }
                 }
             }
             catch { }
@@ -247,40 +276,45 @@ namespace WindowsBuddy.Services
             {
                 var activeDevices = QueryActiveBluetoothDevices();
 
-                foreach (var device in activeDevices)
+                lock (_btLock)
                 {
-                    if (!_knownBluetoothDevices.Contains(device))
+                    foreach (var device in activeDevices)
                     {
-                        _knownBluetoothDevices.Add(device);
-                        Application.Current?.Dispatcher?.InvokeAsync(() =>
+                        if (!_knownBluetoothDevices.Contains(device))
                         {
-                            NotificationRequested?.Invoke(new NotchNotificationPayload
+                            _knownBluetoothDevices.Add(device);
+                            var capturedDevice = device;
+                            Application.Current?.Dispatcher?.InvokeAsync(() =>
                             {
-                                Icon = "🎧",
-                                Title = device,
-                                Subtitle = "  Connected",
-                                DurationMs = 3800
+                                NotificationRequested?.Invoke(new NotchNotificationPayload
+                                {
+                                    Icon = "🎧",
+                                    Title = capturedDevice,
+                                    Subtitle = "  Connected",
+                                    DurationMs = 3800
+                                });
                             });
-                        });
+                        }
                     }
-                }
 
-                var disconnected = _knownBluetoothDevices.Where(d => !activeDevices.Contains(d)).ToList();
-                foreach (var d in disconnected)
-                {
-                    _knownBluetoothDevices.Remove(d);
-                    if (isDirectEvent)
+                    var disconnected = _knownBluetoothDevices.Where(d => !activeDevices.Contains(d)).ToList();
+                    foreach (var d in disconnected)
                     {
-                        Application.Current?.Dispatcher?.InvokeAsync(() =>
+                        _knownBluetoothDevices.Remove(d);
+                        if (isDirectEvent)
                         {
-                            NotificationRequested?.Invoke(new NotchNotificationPayload
+                            var capturedDisc = d;
+                            Application.Current?.Dispatcher?.InvokeAsync(() =>
                             {
-                                Icon = "🎧",
-                                Title = d,
-                                Subtitle = "  Disconnected",
-                                DurationMs = 2800
+                                NotificationRequested?.Invoke(new NotchNotificationPayload
+                                {
+                                    Icon = "🎧",
+                                    Title = capturedDisc,
+                                    Subtitle = "  Disconnected",
+                                    DurationMs = 2800
+                                });
                             });
-                        });
+                        }
                     }
                 }
             }
@@ -508,7 +542,15 @@ while ($true) {
                 artist = "";
             }
 
+            if (!playing && !IsMusicPlaying && string.IsNullOrEmpty(base64Thumb))
+            {
+                return;
+            }
+
+            string cleanArtist = string.IsNullOrWhiteSpace(artist) ? "Music" : artist;
             BitmapSource decodedArt = null;
+            Color? preExtractedColor = null;
+
             if (!string.IsNullOrEmpty(base64Thumb))
             {
                 try
@@ -523,13 +565,13 @@ while ($true) {
                     bmp.EndInit();
                     bmp.Freeze();
                     decodedArt = bmp;
+                    preExtractedColor = DominantColorExtractor.ExtractBeatColor(decodedArt, title, cleanArtist);
                 }
                 catch { }
             }
 
             Application.Current?.Dispatcher?.InvokeAsync(() =>
             {
-                string cleanArtist = string.IsNullOrWhiteSpace(artist) ? "Music" : artist;
                 bool trackChanged = playing && (!string.Equals(title, CurrentTrack, StringComparison.Ordinal)
                                                 || !string.Equals(cleanArtist, CurrentArtist, StringComparison.Ordinal));
                 bool stateChanged = playing != IsMusicPlaying || trackChanged || decodedArt != null;
@@ -537,7 +579,7 @@ while ($true) {
                 if (decodedArt != null)
                 {
                     CurrentArtwork = decodedArt;
-                    CurrentBeatColor = DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, cleanArtist);
+                    CurrentBeatColor = preExtractedColor ?? DominantColorExtractor.ExtractBeatColor(CurrentArtwork, title, cleanArtist);
                 }
                 else if (trackChanged)
                 {
@@ -593,28 +635,38 @@ while ($true) {
                 if (!AppPreferences.Instance.IsAudioAppExcluded("Spotify") && !AppPreferences.Instance.IsAudioAppExcluded("Spotify.exe"))
                 {
                     var spotifyProcs = Process.GetProcessesByName("Spotify");
-                    foreach (var proc in spotifyProcs)
+                    try
                     {
-                        string title = proc.MainWindowTitle;
-                        if (!string.IsNullOrWhiteSpace(title) &&
-                            !string.Equals(title, "Spotify", StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(title, "Spotify Free", StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(title, "Spotify Premium", StringComparison.OrdinalIgnoreCase))
+                        foreach (var proc in spotifyProcs)
                         {
-                            detected = true;
-                            sourceApp = "Spotify.exe";
-                            int dash = title.IndexOf(" - ", StringComparison.Ordinal);
-                            if (dash > 0)
+                            string title = proc.MainWindowTitle;
+                            if (!string.IsNullOrWhiteSpace(title) &&
+                                !string.Equals(title, "Spotify", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(title, "Spotify Free", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(title, "Spotify Premium", StringComparison.OrdinalIgnoreCase))
                             {
-                                artist = title.Substring(0, dash).Trim();
-                                track = title.Substring(dash + 3).Trim();
+                                detected = true;
+                                sourceApp = "Spotify.exe";
+                                int dash = title.IndexOf(" - ", StringComparison.Ordinal);
+                                if (dash > 0)
+                                {
+                                    artist = title.Substring(0, dash).Trim();
+                                    track = title.Substring(dash + 3).Trim();
+                                }
+                                else
+                                {
+                                    track = title;
+                                    artist = "Spotify";
+                                }
+                                break;
                             }
-                            else
-                            {
-                                track = title;
-                                artist = "Spotify";
-                            }
-                            break;
+                        }
+                    }
+                    finally
+                    {
+                        foreach (var proc in spotifyProcs)
+                        {
+                            try { proc.Dispose(); } catch { }
                         }
                     }
                 }
@@ -627,34 +679,44 @@ while ($true) {
                             continue;
 
                         var procs = Process.GetProcessesByName(procName);
-                        foreach (var proc in procs)
+                        try
                         {
-                            string wTitle = proc.MainWindowTitle;
-                            if (!string.IsNullOrWhiteSpace(wTitle) &&
-                                (wTitle.Contains("YouTube", StringComparison.OrdinalIgnoreCase) ||
-                                 wTitle.Contains("SoundCloud", StringComparison.OrdinalIgnoreCase) ||
-                                 wTitle.Contains("Spotify", StringComparison.OrdinalIgnoreCase)))
+                            foreach (var proc in procs)
                             {
-                                detected = true;
-                                sourceApp = procName + ".exe";
-                                string clean = wTitle.Replace(" - YouTube", "")
-                                                     .Replace(" - Google Chrome", "")
-                                                     .Replace(" - Microsoft\u200B Edge", "")
-                                                     .Replace(" - Microsoft Edge", "")
-                                                     .Replace(" - Mozilla Firefox", "")
-                                                     .Replace("▶", "").Trim();
-                                int dash = clean.IndexOf(" - ", StringComparison.Ordinal);
-                                if (dash > 0)
+                                string wTitle = proc.MainWindowTitle;
+                                if (!string.IsNullOrWhiteSpace(wTitle) &&
+                                    (wTitle.Contains("YouTube", StringComparison.OrdinalIgnoreCase) ||
+                                     wTitle.Contains("SoundCloud", StringComparison.OrdinalIgnoreCase) ||
+                                     wTitle.Contains("Spotify", StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    artist = clean.Substring(0, dash).Trim();
-                                    track = clean.Substring(dash + 3).Trim();
+                                    detected = true;
+                                    sourceApp = procName + ".exe";
+                                    string clean = wTitle.Replace(" - YouTube", "")
+                                                         .Replace(" - Google Chrome", "")
+                                                         .Replace(" - Microsoft\u200B Edge", "")
+                                                         .Replace(" - Microsoft Edge", "")
+                                                         .Replace(" - Mozilla Firefox", "")
+                                                         .Replace("▶", "").Trim();
+                                    int dash = clean.IndexOf(" - ", StringComparison.Ordinal);
+                                    if (dash > 0)
+                                    {
+                                        artist = clean.Substring(0, dash).Trim();
+                                        track = clean.Substring(dash + 3).Trim();
+                                    }
+                                    else
+                                    {
+                                        track = clean;
+                                        artist = "Music";
+                                    }
+                                    break;
                                 }
-                                else
-                                {
-                                    track = clean;
-                                    artist = "Music";
-                                }
-                                break;
+                            }
+                        }
+                        finally
+                        {
+                            foreach (var proc in procs)
+                            {
+                                try { proc.Dispose(); } catch { }
                             }
                         }
                         if (detected) break;

@@ -573,13 +573,39 @@ namespace WindowsBuddy.Tools
             }
 
             // Timer update for all synchronized components
-            _tickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _tickTimer.Tick += (_, _) => RefreshAllCards();
+            if (_tickTimer != null)
+            {
+                _tickTimer.Stop();
+            }
+            else
+            {
+                _tickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                _tickTimer.Tick += (_, _) =>
+                {
+                    if (_activeRootGrid != null && _activeRootGrid.IsVisible && _activeRootGrid.IsLoaded)
+                    {
+                        RefreshAllCards();
+                    }
+                };
+            }
+
+            _activeRootGrid = rootGrid;
+            rootGrid.Loaded += (_, _) => _tickTimer?.Start();
+            rootGrid.Unloaded += (_, _) => _tickTimer?.Stop();
+            rootGrid.IsVisibleChanged += (_, _) =>
+            {
+                if (rootGrid.IsVisible && rootGrid.IsLoaded) _tickTimer?.Start();
+                else _tickTimer?.Stop();
+            };
             _tickTimer.Start();
 
+            _lastClipSignature = null;
             RefreshAllCards();
             return rootGrid;
         }
+
+        private Grid _activeRootGrid;
+        private string _lastClipSignature;
 
         private void RefreshAllCards()
         {
@@ -601,25 +627,43 @@ namespace WindowsBuddy.Tools
                 if (topApp != null)
                 {
                     _stAppText.Text = $"{topApp.Name} · {topApp.DurationFormatted}";
-                    _stAppIcon.Source = topApp.IconSource;
+                    if (!ReferenceEquals(_stAppIcon.Source, topApp.IconSource))
+                    {
+                        _stAppIcon.Source = topApp.IconSource;
+                    }
                 }
 
-                // Render 7-day mini bars
-                _stBarsPanel.Children.Clear();
+                // Render 7-day mini bars (reuse existing Borders when count matches)
                 var days = stSvc.GetRolling7Days();
-                foreach (var d in days)
+                if (_stBarsPanel.Children.Count != days.Count)
                 {
-                    double h = d.IsToday ? 16 : (d.TotalSeconds > 0 ? Math.Max(4, d.HeightFraction * 14) : 2.5);
-                    var bar = new Border
+                    _stBarsPanel.Children.Clear();
+                    foreach (var d in days)
                     {
-                        Width = 10,
-                        Height = h,
-                        CornerRadius = new CornerRadius(1.5),
-                        Background = d.IsToday ? Brushes.White : CapsuleTheme.Brush(d.TotalSeconds > 0 ? p.Accent : p.Border),
-                        Margin = new Thickness(2, 0, 2, 0),
-                        VerticalAlignment = VerticalAlignment.Bottom
-                    };
-                    _stBarsPanel.Children.Add(bar);
+                        double h = d.IsToday ? 16 : (d.TotalSeconds > 0 ? Math.Max(4, d.HeightFraction * 14) : 2.5);
+                        var bar = new Border
+                        {
+                            Width = 10,
+                            Height = h,
+                            CornerRadius = new CornerRadius(1.5),
+                            Background = d.IsToday ? Brushes.White : CapsuleTheme.Brush(d.TotalSeconds > 0 ? p.Accent : p.Border),
+                            Margin = new Thickness(2, 0, 2, 0),
+                            VerticalAlignment = VerticalAlignment.Bottom
+                        };
+                        _stBarsPanel.Children.Add(bar);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < days.Count; i++)
+                    {
+                        var d = days[i];
+                        if (_stBarsPanel.Children[i] is Border bar)
+                        {
+                            bar.Height = d.IsToday ? 16 : (d.TotalSeconds > 0 ? Math.Max(4, d.HeightFraction * 14) : 2.5);
+                            bar.Background = d.IsToday ? Brushes.White : CapsuleTheme.Brush(d.TotalSeconds > 0 ? p.Accent : p.Border);
+                        }
+                    }
                 }
             }
 
@@ -652,25 +696,33 @@ namespace WindowsBuddy.Tools
             // 4. Refresh Focus
             UpdateFocusState();
 
-            // 5. Refresh Clipboard
+            // 5. Refresh Clipboard (only rebuild when items or relative timestamps change)
             if (_clipRowsStack != null)
             {
-                _clipRowsStack.Children.Clear();
                 var items = WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Take(2).ToList();
-                if (items.Count == 0)
+                string sig = items.Count == 0
+                    ? "empty"
+                    : string.Join("|", items.Select(it => $"{it.GetDisplayTitle()}@{it.GetTimestampFormatted()}"));
+
+                if (!string.Equals(sig, _lastClipSignature, StringComparison.Ordinal))
                 {
-                    _clipRowsStack.Children.Add(CreateClipRow("Nothing copied yet", "Just now"));
-                }
-                else
-                {
-                    foreach (var it in items)
+                    _lastClipSignature = sig;
+                    _clipRowsStack.Children.Clear();
+                    if (items.Count == 0)
                     {
-                        string snippet = it.GetDisplayTitle();
-                        if (string.IsNullOrWhiteSpace(snippet))
+                        _clipRowsStack.Children.Add(CreateClipRow("Nothing copied yet", "Just now"));
+                    }
+                    else
+                    {
+                        foreach (var it in items)
                         {
-                            snippet = it.Kind == WindowsBuddy.Tools.Clipboard.ClipKind.Image ? "Image" : "Item";
+                            string snippet = it.GetDisplayTitle();
+                            if (string.IsNullOrWhiteSpace(snippet))
+                            {
+                                snippet = it.Kind == WindowsBuddy.Tools.Clipboard.ClipKind.Image ? "Image" : "Item";
+                            }
+                            _clipRowsStack.Children.Add(CreateClipRow(snippet, it.GetTimestampFormatted()));
                         }
-                        _clipRowsStack.Children.Add(CreateClipRow(snippet, it.GetTimestampFormatted()));
                     }
                 }
             }
@@ -1036,9 +1088,42 @@ namespace WindowsBuddy.Tools
         public string Title => "File Shelf";
         public string IconGlyph => "📁";
 
-        public FrameworkElement BuildView() => new WindowsBuddy.Tools.FileShelf.FileShelfToolView();
+        private WindowsBuddy.Tools.FileShelf.FileShelfToolView _view;
+
+        public FrameworkElement BuildView()
+        {
+            _view ??= new WindowsBuddy.Tools.FileShelf.FileShelfToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
+            return _view;
+        }
 
         public void OnActivated() { }
+    }
+
+    internal static class ToolViewLifecycleHelper
+    {
+        public static void DetachFromParent(FrameworkElement element)
+        {
+            if (element == null) return;
+            try
+            {
+                if (element.Parent is Panel pnl)
+                    pnl.Children.Remove(element);
+                else if (element.Parent is Decorator dec)
+                    dec.Child = null;
+                else if (element.Parent is ContentControl cc)
+                    cc.Content = null;
+
+                var vParent = VisualTreeHelper.GetParent(element);
+                if (vParent is Panel vpnl)
+                    vpnl.Children.Remove(element);
+                else if (vParent is Decorator vdec)
+                    vdec.Child = null;
+                else if (vParent is ContentControl vcc)
+                    vcc.Content = null;
+            }
+            catch { }
+        }
     }
 
     /// <summary>
@@ -1050,7 +1135,14 @@ namespace WindowsBuddy.Tools
         public string Title => "Links";
         public string IconGlyph => "🔗";
 
-        public FrameworkElement BuildView() => new WindowsBuddy.Tools.Links.LinksToolView();
+        private WindowsBuddy.Tools.Links.LinksToolView _view;
+
+        public FrameworkElement BuildView()
+        {
+            _view ??= new WindowsBuddy.Tools.Links.LinksToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
+            return _view;
+        }
 
         public void OnActivated() { }
     }
@@ -1074,7 +1166,8 @@ namespace WindowsBuddy.Tools
         public FrameworkElement BuildView()
         {
             WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
-            _view = new WindowsBuddy.Tools.Clipboard.ClipboardToolView();
+            _view ??= new WindowsBuddy.Tools.Clipboard.ClipboardToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
             return _view;
         }
 
@@ -1098,7 +1191,8 @@ namespace WindowsBuddy.Tools
 
         public FrameworkElement BuildView()
         {
-            _view = new WindowsBuddy.BuddyCapsule.UI.NotesToolView();
+            _view ??= new WindowsBuddy.BuddyCapsule.UI.NotesToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
             return _view;
         }
 
@@ -1126,7 +1220,8 @@ namespace WindowsBuddy.Tools
 
         public FrameworkElement BuildView()
         {
-            _view = new WindowsBuddy.BuddyCapsule.UI.TimerToolView();
+            _view ??= new WindowsBuddy.BuddyCapsule.UI.TimerToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
             return _view;
         }
 
@@ -1151,7 +1246,8 @@ namespace WindowsBuddy.Tools
 
         public FrameworkElement BuildView()
         {
-            _view = new WindowsBuddy.BuddyCapsule.UI.SystemToolView();
+            _view ??= new WindowsBuddy.BuddyCapsule.UI.SystemToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
             return _view;
         }
 
@@ -1166,7 +1262,13 @@ namespace WindowsBuddy.Tools
         public string Id => "clock";
         public string Title => "Clock";
         public string IconGlyph => "🕐";
-        public FrameworkElement BuildView() => new WindowsBuddy.Tools.Clock.ClockToolView();
+        private WindowsBuddy.Tools.Clock.ClockToolView _view;
+        public FrameworkElement BuildView()
+        {
+            _view ??= new WindowsBuddy.Tools.Clock.ClockToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
+            return _view;
+        }
         public void OnActivated() { }
     }
 
@@ -1193,7 +1295,13 @@ namespace WindowsBuddy.Tools
         public string Id => "transfer";
         public string Title => "Transfer";
         public string IconGlyph => "⇄";
-        public FrameworkElement BuildView() => new FileShelfTool().BuildView();
+        private WindowsBuddy.Tools.FileShelf.FileShelfToolView _view;
+        public FrameworkElement BuildView()
+        {
+            _view ??= new WindowsBuddy.Tools.FileShelf.FileShelfToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
+            return _view;
+        }
         public void OnActivated() { }
     }
 
@@ -1202,7 +1310,13 @@ namespace WindowsBuddy.Tools
         public string Id => "units";
         public string Title => "Units";
         public string IconGlyph => "📐";
-        public FrameworkElement BuildView() => new WindowsBuddy.Tools.Units.UnitsToolView();
+        private WindowsBuddy.Tools.Units.UnitsToolView _view;
+        public FrameworkElement BuildView()
+        {
+            _view ??= new WindowsBuddy.Tools.Units.UnitsToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
+            return _view;
+        }
         public void OnActivated() { }
     }
 
@@ -1214,7 +1328,13 @@ namespace WindowsBuddy.Tools
         public string Id => "message";
         public string Title => "Message";
         public string IconGlyph => "🪪";
-        public FrameworkElement BuildView() => new WindowsBuddy.Tools.Message.MessageToolView();
+        private WindowsBuddy.Tools.Message.MessageToolView _view;
+        public FrameworkElement BuildView()
+        {
+            _view ??= new WindowsBuddy.Tools.Message.MessageToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
+            return _view;
+        }
         public void OnActivated() { }
     }
 
@@ -1223,16 +1343,22 @@ namespace WindowsBuddy.Tools
         public string Id => "audio";
         public string Title => "Audio";
         public string IconGlyph => "🎚";
+        private BuddyCard _card;
         public FrameworkElement BuildView()
         {
+            if (_card != null)
+            {
+                ToolViewLifecycleHelper.DetachFromParent(_card);
+                return _card;
+            }
             var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4) };
+            _card = new BuddyCard { Margin = new Thickness(4) };
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
             stack.Children.Add(new TextBlock { Text = "MEDIA & SOUND", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Accent), HorizontalAlignment = HorizontalAlignment.Center });
             stack.Children.Add(new StaticBeatBars(8, 24) { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12, 0, 12) });
             stack.Children.Add(new TextBlock { Text = "AirPods Pro Connected · Volume 74%", FontSize = 11.5, Foreground = CapsuleTheme.Brush(p.Text2), HorizontalAlignment = HorizontalAlignment.Center });
-            card.Child = stack;
-            return card;
+            _card.Child = stack;
+            return _card;
         }
         public void OnActivated() { }
     }
@@ -1242,10 +1368,16 @@ namespace WindowsBuddy.Tools
         public string Id => "pet";
         public string Title => "Buddy";
         public string IconGlyph => "✨";
+        private BuddyCard _card;
         public FrameworkElement BuildView()
         {
+            if (_card != null)
+            {
+                ToolViewLifecycleHelper.DetachFromParent(_card);
+                return _card;
+            }
             var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4) };
+            _card = new BuddyCard { Margin = new Thickness(4) };
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(16) };
 
             var petView = new PetView("happy", 88)
@@ -1314,8 +1446,8 @@ namespace WindowsBuddy.Tools
             moodRow.Children.Add(pokeBtn);
 
             stack.Children.Add(moodRow);
-            card.Child = stack;
-            return card;
+            _card.Child = stack;
+            return _card;
         }
         public void OnActivated() { }
     }

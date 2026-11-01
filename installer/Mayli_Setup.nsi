@@ -45,7 +45,7 @@ Section "Mayli Core" SecCore
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Mayli" "DisplayName" "Mayli — The Notch for Windows"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Mayli" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Mayli" "DisplayIcon" "$INSTDIR\Mayli.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Mayli" "DisplayVersion" "1.1.57"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Mayli" "DisplayVersion" "1.1.58"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Mayli" "Publisher" "Modi Studio"
 SectionEnd
 

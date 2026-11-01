@@ -627,6 +627,7 @@ namespace WindowsBuddy.Tools.Clock
         #region UI Updates
         private void OnSecondTick()
         {
+            if (!IsVisible || !IsLoaded) return;
             Dispatcher.Invoke(UpdateDisplay);
         }
 
@@ -635,9 +636,12 @@ namespace WindowsBuddy.Tools.Clock
             Dispatcher.Invoke(() =>
             {
                 UpdateSettingsUI();
+                RebuildWorldClockRows();
                 UpdateDisplay();
             });
         }
+
+        private string _lastWorldClocksSig;
 
         private void UpdateDisplay()
         {
@@ -654,7 +658,13 @@ namespace WindowsBuddy.Tools.Clock
                 _localDateText.Visibility = Visibility.Collapsed;
             }
 
-            RebuildWorldClockRows();
+            var clocks = _service.Settings.WorldClocks;
+            string sig = string.Join("|", clocks.Select(c => $"{c.Id}:{_service.FormatTime(_service.GetCityInfo(c).time)}"));
+            if (!string.Equals(sig, _lastWorldClocksSig, StringComparison.Ordinal))
+            {
+                _lastWorldClocksSig = sig;
+                RebuildWorldClockRows();
+            }
         }
 
         private void UpdateSettingsUI()

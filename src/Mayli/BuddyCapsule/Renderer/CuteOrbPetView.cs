@@ -343,6 +343,19 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
             _lifeTimer.Tick += OnLifeTimerTick;
             _lifeTimer.Start();
 
+            Loaded += (_, _) =>
+            {
+                if (IsVisible) _lifeTimer.Start();
+            };
+            Unloaded += (_, _) => _lifeTimer.Stop();
+            IsVisibleChanged += (_, _) =>
+            {
+                if (IsVisible && IsLoaded)
+                    _lifeTimer.Start();
+                else
+                    _lifeTimer.Stop();
+            };
+
             // Interactions
             MouseEnter += (_, _) =>
             {
@@ -800,6 +813,8 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
 
         private void OnLifeTimerTick(object sender, EventArgs e)
         {
+            if (!IsVisible || !IsLoaded) return;
+
             // 1. Organic Breathing & Floating Bob
             if (EnableBreathing)
             {
