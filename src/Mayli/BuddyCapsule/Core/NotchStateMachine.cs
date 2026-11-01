@@ -78,7 +78,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         public NotchPhase Phase { get; private set; } = NotchPhase.Resting;
         public NotchPresence Presence { get; private set; } = NotchPresence.Full;
         public bool PointerInside { get; private set; }
-        public int HoverDelayMs { get; set; } = 120;
+        public int HoverDelayMs { get; set; } = 25;
         public bool OpensOnClick { get; set; } = false;
         public Func<bool> HoldOpen { get; set; }
         public int TransitionCount { get; private set; }
@@ -87,20 +87,20 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         public NotchStateMachine()
         {
-            HoverDelayMs = AppPreferences.Instance.HoverDelayMs;
+            HoverDelayMs = Math.Clamp(AppPreferences.Instance.HoverDelayMs, 15, 45);
             OpensOnClick = AppPreferences.Instance.OpensOnClick;
 
-            _dwellTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Math.Max(30, HoverDelayMs)) };
+            _dwellTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(HoverDelayMs) };
             _dwellTimer.Tick += (_, _) =>
             {
                 _dwellTimer.Stop();
-                if (PointerInside && !OpensOnClick && (Phase == NotchPhase.Resting || Phase == NotchPhase.Peeking || Phase == NotchPhase.Transient))
+                if (PointerInside && !OpensOnClick && (Phase == NotchPhase.Resting || Phase == NotchPhase.Peeking || Phase == NotchPhase.Transient || Phase == NotchPhase.Closing))
                 {
                     RequestOpen("hover-dwell");
                 }
             };
 
-            _graceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(CloseGraceMs) };
+            _graceTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(CloseGraceMs) };
             _graceTimer.Tick += (_, _) =>
             {
                 _graceTimer.Stop();
@@ -125,7 +125,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _graceTimer.Stop();
                 if (!OpensOnClick && !IsOpenOrOpening)
                 {
-                    _dwellTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(30, AppPreferences.Instance.HoverDelayMs));
+                    _dwellTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(AppPreferences.Instance.HoverDelayMs, 15, 40));
                     _dwellTimer.Start();
                 }
             }

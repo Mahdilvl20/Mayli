@@ -65,6 +65,7 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
 
         /// <summary>
         /// Builds the signature Vayli top-docked MacBook-style notch with smooth top-left and top-right concave ears (EarUnitW = 12, EarUnitH = 10).
+        /// Uses low-allocation StreamGeometry for zero-lag 60/120fps morphing.
         /// </summary>
         public static Geometry BuildShoulderedGeometry(double width, double height, double bottomRadius, bool isOutline)
         {
@@ -74,60 +75,62 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
             double bodyLeft = earW;
             double bodyRight = Math.Max(bodyLeft + 2 * r + 10, width - earW);
 
-            var fig = new PathFigure
+            var streamGeo = new StreamGeometry();
+            using (StreamGeometryContext ctx = streamGeo.Open())
             {
-                StartPoint = new Point(0, 0),
-                IsClosed = true,
-                IsFilled = true
-            };
+                ctx.BeginFigure(new Point(0, 0), isFilled: true, isClosed: true);
 
-            // Top-left concave shoulder into vertical wall
-            fig.Segments.Add(new BezierSegment(
-                new Point(earW * 0.65, 0),
-                new Point(bodyLeft, earH * 0.35),
-                new Point(bodyLeft, earH),
-                isStroked: true));
+                // Top-left concave shoulder into vertical wall
+                ctx.BezierTo(
+                    new Point(earW * 0.65, 0),
+                    new Point(bodyLeft, earH * 0.35),
+                    new Point(bodyLeft, earH),
+                    isStroked: true,
+                    isSmoothJoin: true);
 
-            // Left vertical wall down to bottom-left corner
-            fig.Segments.Add(new LineSegment(new Point(bodyLeft, height - r), isStroked: true));
+                // Left vertical wall down to bottom-left corner
+                ctx.LineTo(new Point(bodyLeft, height - r), isStroked: true, isSmoothJoin: true);
 
-            // Bottom-left rounded corner
-            fig.Segments.Add(new ArcSegment(
-                new Point(bodyLeft + r, height),
-                new Size(r, r),
-                0,
-                isLargeArc: false,
-                SweepDirection.Counterclockwise,
-                isStroked: true));
+                // Bottom-left rounded corner
+                ctx.ArcTo(
+                    new Point(bodyLeft + r, height),
+                    new Size(r, r),
+                    0,
+                    isLargeArc: false,
+                    SweepDirection.Counterclockwise,
+                    isStroked: true,
+                    isSmoothJoin: true);
 
-            // Bottom flat edge
-            fig.Segments.Add(new LineSegment(new Point(bodyRight - r, height), isStroked: true));
+                // Bottom flat edge
+                ctx.LineTo(new Point(bodyRight - r, height), isStroked: true, isSmoothJoin: true);
 
-            // Bottom-right rounded corner
-            fig.Segments.Add(new ArcSegment(
-                new Point(bodyRight, height - r),
-                new Size(r, r),
-                0,
-                isLargeArc: false,
-                SweepDirection.Counterclockwise,
-                isStroked: true));
+                // Bottom-right rounded corner
+                ctx.ArcTo(
+                    new Point(bodyRight, height - r),
+                    new Size(r, r),
+                    0,
+                    isLargeArc: false,
+                    SweepDirection.Counterclockwise,
+                    isStroked: true,
+                    isSmoothJoin: true);
 
-            // Right vertical wall up to top-right concave shoulder
-            fig.Segments.Add(new LineSegment(new Point(bodyRight, earH), isStroked: true));
+                // Right vertical wall up to top-right concave shoulder
+                ctx.LineTo(new Point(bodyRight, earH), isStroked: true, isSmoothJoin: true);
 
-            // Top-right concave shoulder out to top edge
-            fig.Segments.Add(new BezierSegment(
-                new Point(bodyRight, earH * 0.35),
-                new Point(width - earW * 0.65, 0),
-                new Point(width, 0),
-                isStroked: true));
+                // Top-right concave shoulder out to top edge
+                ctx.BezierTo(
+                    new Point(bodyRight, earH * 0.35),
+                    new Point(width - earW * 0.65, 0),
+                    new Point(width, 0),
+                    isStroked: true,
+                    isSmoothJoin: true);
 
-            // Top flush edge along screen top - strictly unstroked so it stays pure black and blends seamlessly into the top screen bezel
-            fig.Segments.Add(new LineSegment(new Point(0, 0), isStroked: false));
+                // Top flush edge along screen top - strictly unstroked so it stays pure black and blends seamlessly into the top screen bezel
+                ctx.LineTo(new Point(0, 0), isStroked: false, isSmoothJoin: false);
+            }
 
-            var pathGeo = new PathGeometry(new[] { fig });
-            pathGeo.Freeze();
-            return pathGeo;
+            streamGeo.Freeze();
+            return streamGeo;
         }
 
         public static Geometry BuildExpandedGeometry(double width, double height, double cornerRadius)
@@ -141,14 +144,12 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
             double collapsedH,
             double expandedW,
             double expandedH,
-            double progress)
+            double easedProgress)
         {
-            double t = Math.Clamp(progress, 0.0, 1.0);
-            // Smooth cubic ease out
-            double ease = 1.0 - Math.Pow(1.0 - t, 3);
-            double w = collapsedW + (expandedW - collapsedW) * ease;
-            double h = collapsedH + (expandedH - collapsedH) * ease;
-            double r = 15.0 + (24.0 - 15.0) * ease;
+            double t = Math.Clamp(easedProgress, 0.0, 1.0);
+            double w = collapsedW + (expandedW - collapsedW) * t;
+            double h = collapsedH + (expandedH - collapsedH) * t;
+            double r = 15.0 + (24.0 - 15.0) * t;
             return BuildSilhouetteCore(style, w, h, r, isOutline: false);
         }
     }

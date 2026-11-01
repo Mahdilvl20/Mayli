@@ -641,6 +641,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private double _totalLength = 276.0;
         private double _cyclePhase; // 0.0 .. 1.0
         private Color _lightColor = Colors.White;
+        private bool _isMorphing;
 
         public EdgeLightWpf()
         {
@@ -653,7 +654,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _glowLayer = new Grid
             {
                 Opacity = 0.52,
-                Effect = new BlurEffect { Radius = 6.0, KernelType = KernelType.Gaussian }
+                Effect = new BlurEffect { Radius = 5.0, KernelType = KernelType.Box, RenderingBias = RenderingBias.Performance }
             };
             _coreLayer = new Grid
             {
@@ -664,9 +665,34 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _pulseContainer.Children.Add(_coreLayer);
             Children.Add(_pulseContainer);
 
-            _animTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            _animTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
             _animTimer.Tick += OnAnimTick;
             _animTimer.Start();
+
+            IsVisibleChanged += (_, _) =>
+            {
+                if (IsVisible && !_isMorphing)
+                    _animTimer.Start();
+                else
+                    _animTimer.Stop();
+            };
+        }
+
+        public void SetMorphing(bool isMorphing)
+        {
+            if (_isMorphing == isMorphing) return;
+            _isMorphing = isMorphing;
+            if (_isMorphing)
+            {
+                _animTimer.Stop();
+                _pulseContainer.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                _pulseContainer.Visibility = Visibility.Visible;
+                if (IsVisible)
+                    _animTimer.Start();
+            }
         }
 
         public void SetLightColor(Color c)
@@ -678,6 +704,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public void UpdateGeometry(Geometry geometry, bool isExpanded, double width = 228.0, double height = 35.0)
         {
+            if (_isMorphing) return;
             if (Math.Abs(width - _lastW) < 0.5 && Math.Abs(height - _lastH) < 0.5 && _cometEntries.Count > 0)
                 return;
 
@@ -704,6 +731,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             mask.GradientStops.Add(new GradientStop(Color.FromArgb(140, 255, 255, 255), fadeStop * 0.55));
             mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), fadeStop));
             mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), 1.0));
+            mask.Freeze();
             OpacityMask = mask;
 
             Point[] pts = BuildOpenNotchOutlinePoints(width, height, 12.0, 10.0, cornerRadius, out double totalLen);
