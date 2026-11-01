@@ -1387,6 +1387,219 @@ namespace WindowsBuddy.UI.Settings
             return canvas;
         }
 
+        private static FrameworkElement CreateThemeIllustration(string themeId)
+        {
+            bool isSilver = themeId == "silver";
+            bool isEmber = themeId == "ember-dark";
+            bool isVivid = themeId == "vivid";
+
+            // Colors based on theme
+            Color panelBg = isSilver ? Color.FromRgb(240, 240, 244) : Color.FromRgb(12, 12, 14);
+            Color panelBorder = isSilver ? Color.FromRgb(210, 210, 218) : Color.FromRgb(28, 28, 34);
+            Color miniCardBg = isSilver ? Color.FromRgb(255, 255, 255) : Color.FromRgb(19, 19, 23);
+            Color miniCardBorder = isSilver ? Color.FromRgb(225, 225, 232) : Color.FromRgb(32, 32, 38);
+
+            Color line1 = isSilver ? Color.FromRgb(160, 160, 170) : Color.FromRgb(90, 90, 100);
+            Color line2 = isSilver ? Color.FromRgb(190, 190, 200) : Color.FromRgb(65, 65, 75);
+
+            Color outerRingColor, midRingColor, innerRingColor, dotColor;
+            if (isEmber)
+            {
+                outerRingColor = Color.FromRgb(255, 85, 0);
+                midRingColor = Color.FromRgb(255, 136, 0);
+                innerRingColor = Color.FromRgb(255, 187, 51);
+                dotColor = Color.FromRgb(255, 85, 0);
+            }
+            else if (isVivid)
+            {
+                outerRingColor = Color.FromRgb(10, 132, 255);
+                midRingColor = Color.FromRgb(48, 176, 255);
+                innerRingColor = Color.FromRgb(104, 208, 255);
+                dotColor = Color.FromRgb(10, 132, 255);
+            }
+            else if (isSilver)
+            {
+                outerRingColor = Color.FromRgb(34, 34, 38);
+                midRingColor = Color.FromRgb(85, 85, 94);
+                innerRingColor = Color.FromRgb(136, 136, 148);
+                dotColor = Color.FromRgb(34, 34, 38);
+            }
+            else // Pure Black
+            {
+                outerRingColor = Color.FromRgb(220, 220, 230);
+                midRingColor = Color.FromRgb(140, 140, 150);
+                innerRingColor = Color.FromRgb(80, 80, 90);
+                dotColor = Color.FromRgb(255, 255, 255);
+            }
+
+            // Main Mini Dashboard Container Box
+            var panel = new Border
+            {
+                Width = 120,
+                Height = 56,
+                CornerRadius = new CornerRadius(5),
+                Background = new SolidColorBrush(panelBg),
+                BorderBrush = new SolidColorBrush(panelBorder),
+                BorderThickness = new Thickness(1),
+                SnapsToDevicePixels = true,
+                ClipToBounds = true
+            };
+
+            var rootGrid = new Grid();
+
+            // Notch at the top
+            var notch = new Border
+            {
+                Width = 32,
+                Height = 5.5,
+                CornerRadius = new CornerRadius(0, 0, 3, 3),
+                Background = Brushes.Black,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            rootGrid.Children.Add(notch);
+
+            // Three mini cards container
+            var cardsGrid = new Grid
+            {
+                Margin = new Thickness(5, 7, 5, 13),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            cardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            cardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) });
+            cardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Card 1: Left Card
+            var leftCard = new Border
+            {
+                Background = new SolidColorBrush(miniCardBg),
+                BorderBrush = new SolidColorBrush(miniCardBorder),
+                BorderThickness = new Thickness(0.8),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(1, 0, 1, 0),
+                Height = 26
+            };
+            var leftStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 3, 0) };
+            leftStack.Children.Add(new Border { Width = 16, Height = 2, CornerRadius = new CornerRadius(1), Background = new SolidColorBrush(line1), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 2) });
+            leftStack.Children.Add(new Border { Width = 22, Height = 2, CornerRadius = new CornerRadius(1), Background = new SolidColorBrush(line2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 2) });
+            leftStack.Children.Add(new Border { Width = 11, Height = 2, CornerRadius = new CornerRadius(1), Background = new SolidColorBrush(line2), HorizontalAlignment = HorizontalAlignment.Left });
+            leftCard.Child = leftStack;
+            Grid.SetColumn(leftCard, 0);
+            cardsGrid.Children.Add(leftCard);
+
+            // Card 2: Center Card (3 Concentric Activity/Gauge Rings)
+            var centerCard = new Border
+            {
+                Background = new SolidColorBrush(miniCardBg),
+                BorderBrush = new SolidColorBrush(miniCardBorder),
+                BorderThickness = new Thickness(0.8),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(1, 0, 1, 0),
+                Height = 26
+            };
+            var ringCanvas = new Canvas { Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+
+            // Outer Ring
+            var outerRing = new Ellipse
+            {
+                Width = 22,
+                Height = 22,
+                Stroke = new SolidColorBrush(outerRingColor),
+                StrokeThickness = 1.6
+            };
+            Canvas.SetLeft(outerRing, 1);
+            Canvas.SetTop(outerRing, 1);
+            ringCanvas.Children.Add(outerRing);
+
+            // Mid Ring
+            var midRing = new Ellipse
+            {
+                Width = 15,
+                Height = 15,
+                Stroke = new SolidColorBrush(midRingColor),
+                StrokeThickness = 1.5
+            };
+            Canvas.SetLeft(midRing, 4.5);
+            Canvas.SetTop(midRing, 4.5);
+            ringCanvas.Children.Add(midRing);
+
+            // Inner Ring
+            var innerRing = new Ellipse
+            {
+                Width = 8,
+                Height = 8,
+                Stroke = new SolidColorBrush(innerRingColor),
+                StrokeThickness = 1.5
+            };
+            Canvas.SetLeft(innerRing, 8);
+            Canvas.SetTop(innerRing, 8);
+            ringCanvas.Children.Add(innerRing);
+
+            centerCard.Child = ringCanvas;
+            Grid.SetColumn(centerCard, 1);
+            cardsGrid.Children.Add(centerCard);
+
+            // Card 3: Right Card (Lines + Indicator Dot)
+            var rightCard = new Border
+            {
+                Background = new SolidColorBrush(miniCardBg),
+                BorderBrush = new SolidColorBrush(miniCardBorder),
+                BorderThickness = new Thickness(0.8),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(1, 0, 1, 0),
+                Height = 26
+            };
+            var rightGrid = new Grid { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 3, 0) };
+            var rightStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left };
+            rightStack.Children.Add(new Border { Width = 16, Height = 2, CornerRadius = new CornerRadius(1), Background = new SolidColorBrush(line1), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 2) });
+            rightStack.Children.Add(new Border { Width = 12, Height = 2, CornerRadius = new CornerRadius(1), Background = new SolidColorBrush(line2), HorizontalAlignment = HorizontalAlignment.Left });
+            rightGrid.Children.Add(rightStack);
+
+            var indicatorDot = new Ellipse
+            {
+                Width = 4,
+                Height = 4,
+                Fill = new SolidColorBrush(dotColor),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 1, 2, 0)
+            };
+            rightGrid.Children.Add(indicatorDot);
+
+            rightCard.Child = rightGrid;
+            Grid.SetColumn(rightCard, 2);
+            cardsGrid.Children.Add(rightCard);
+
+            rootGrid.Children.Add(cardsGrid);
+
+            // Bottom Dock Row (7 mini dots, with active dot matching theme)
+            var dockRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            Color inactiveDot = isSilver ? Color.FromRgb(185, 185, 195) : Color.FromRgb(55, 55, 65);
+
+            for (int i = 0; i < 7; i++)
+            {
+                bool isActive = (i == 2); // 3rd dot active
+                dockRow.Children.Add(new Ellipse
+                {
+                    Width = 2.5,
+                    Height = 2.5,
+                    Fill = new SolidColorBrush(isActive ? dotColor : inactiveDot),
+                    Margin = new Thickness(1.5, 0, 1.5, 0)
+                });
+            }
+            rootGrid.Children.Add(dockRow);
+
+            panel.Child = rootGrid;
+            return panel;
+        }
+
         // =================================================================
         // PAGE 3: APPEARANCE
         // =================================================================
@@ -1403,187 +1616,149 @@ namespace WindowsBuddy.UI.Settings
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Accent colors, glow effects and Mayli Orb companion",
+                Text = "Theme, surface and notch effects",
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
                 Margin = new Thickness(0, 4, 0, 26)
             });
 
-            // Accent Colors
-            var swatchesPanel = new WrapPanel { MaxWidth = 280 };
-            var swatches = new (string Name, string Hex)[]
-            {
-                ("Cyan", "#54D8E8"),
-                ("Emerald", "#30D158"),
-                ("Blue", "#0A84FF"),
-                ("Violet", "#BF5AF2"),
-                ("Amber", "#FF9F0A"),
-                ("Crimson", "#FF453A")
-            };
+            // -------------------------------------------------------------
+            // SECTION: THEME (4 Visual Cards)
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("THEME"));
 
-            foreach (var sw in swatches)
+            var themeGrid = new Grid { Margin = new Thickness(0, 0, 0, 24) };
+            themeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            themeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            themeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            themeGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            themeGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var themeCards = new List<MayliVisualCard>();
+
+            void AddThemeCard(string key, string title, string desc, FrameworkElement illus, int col, int row)
             {
-                string hex = sw.Hex;
-                var dot = new Border
+                bool isSel = string.Equals(AppPreferences.Instance.Theme, key, StringComparison.OrdinalIgnoreCase) ||
+                             (string.Equals(key, "Ember Dark", StringComparison.OrdinalIgnoreCase) &&
+                              (string.IsNullOrEmpty(AppPreferences.Instance.Theme) || string.Equals(AppPreferences.Instance.Theme, "Dark", StringComparison.OrdinalIgnoreCase)));
+                var card = new MayliVisualCard(key, title, desc, illus, isSel);
+                card.Selected += selectedKey =>
                 {
-                    Width = 26,
-                    Height = 26,
-                    CornerRadius = new CornerRadius(13),
-                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)),
-                    Margin = new Thickness(4),
-                    Cursor = Cursors.Hand,
-                    BorderThickness = new Thickness(string.Equals(AppPreferences.Instance.Accent, hex, StringComparison.OrdinalIgnoreCase) ? 2.5 : 0),
-                    BorderBrush = Brushes.White
+                    AppPreferences.Instance.Theme = selectedKey;
+                    CapsuleTheme.SetTheme(selectedKey);
+                    foreach (var c in themeCards) c.IsSelected = (c.Key == selectedKey);
                 };
-                dot.MouseLeftButtonUp += (_, e) =>
-                {
-                    e.Handled = true;
-                    AppPreferences.Instance.Accent = hex;
-                    foreach (var child in swatchesPanel.Children)
-                        if (child is Border b) b.BorderThickness = new Thickness(b == dot ? 2.5 : 0);
-                };
-                swatchesPanel.Children.Add(dot);
+                themeCards.Add(card);
+                Grid.SetColumn(card, col);
+                Grid.SetRow(card, row);
+                themeGrid.Children.Add(card);
             }
 
-            stack.Children.Add(new MayliSettingRow(
-                "Accent color",
-                "Primary edge glow, button accents, and highlight color throughout Mayli.",
-                swatchesPanel
-            ));
+            AddThemeCard("Pure Black", "Pure Black", "Monochrome on true black", CreateThemeIllustration("pure-black"), 0, 0);
+            AddThemeCard("Ember Dark", "Ember Dark", "Black with an orange accent", CreateThemeIllustration("ember-dark"), 1, 0);
+            AddThemeCard("Vivid", "Vivid", "Black with a blue accent", CreateThemeIllustration("vivid"), 2, 0);
+            AddThemeCard("Silver", "Silver", "Light panel; the notch stays black", CreateThemeIllustration("silver"), 0, 1);
 
-            // Edge Light Effect
-            var edgePicker = new MayliSegmentedControl(new[] { "Aura Glow", "Orbit Comet", "Breathing", "Off" }, AppPreferences.Instance.EdgeLightMode);
-            edgePicker.SelectionChanged += m => AppPreferences.Instance.EdgeLightMode = m;
-            stack.Children.Add(new MayliSettingRow(
-                "Edge light animation",
-                "Dynamic light beam tracing along the notch boundary during alerts and charging.",
-                edgePicker
-            ));
+            stack.Children.Add(themeGrid);
 
-            // Interactive Companion Orb
-            var petCard = new Border
+            // -------------------------------------------------------------
+            // SECTION: SURFACE
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("SURFACE"));
+
+            // 1. Outline Switch
+            var outlineSwitch = new MayliToggleSwitch(AppPreferences.Instance.SurfaceOutline);
+            var outlineRow = new MayliSettingRow("Outline", "A hairline around the notch", outlineSwitch);
+            stack.Children.Add(outlineRow);
+
+            // 2. Outline Width Segmented Control
+            var widthOptions = new[] { "1 px", "2 px", "3 px" };
+            var widthPicker = new MayliSegmentedControl(widthOptions, AppPreferences.Instance.SurfaceOutlineWidth);
+            widthPicker.SelectionChanged += val =>
             {
-                Background = new SolidColorBrush(Color.FromRgb(17, 17, 20)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                AppPreferences.Instance.SurfaceOutlineWidth = val;
+            };
+            var outlineWidthRow = new MayliSettingRow("Outline width", null, widthPicker);
+            stack.Children.Add(outlineWidthRow);
+
+            // 3. Tint outline from wallpaper
+            var tintSwitch = new MayliToggleSwitch(AppPreferences.Instance.TintOutlineFromWallpaper);
+            tintSwitch.CheckedChanged += state =>
+            {
+                AppPreferences.Instance.TintOutlineFromWallpaper = state;
+            };
+            var tintRow = new MayliSettingRow("Tint outline from wallpaper", "Picks up your wallpaper's main color", tintSwitch);
+            stack.Children.Add(tintRow);
+
+            void UpdateOutlineDependents(bool outlineOn)
+            {
+                outlineWidthRow.Opacity = outlineOn ? 1.0 : 0.4;
+                outlineWidthRow.IsEnabled = outlineOn;
+                tintRow.Opacity = outlineOn ? 1.0 : 0.4;
+                tintRow.IsEnabled = outlineOn;
+            }
+            UpdateOutlineDependents(AppPreferences.Instance.SurfaceOutline);
+
+            outlineSwitch.CheckedChanged += state =>
+            {
+                AppPreferences.Instance.SurfaceOutline = state;
+                UpdateOutlineDependents(state);
+            };
+
+            // 4. Shadow
+            var shadowOptions = new[] { "None", "Subtle", "Medium", "Deep" };
+            var shadowPicker = new MayliSegmentedControl(shadowOptions, AppPreferences.Instance.NotchShadowDepth);
+            shadowPicker.SelectionChanged += val =>
+            {
+                AppPreferences.Instance.NotchShadowDepth = val;
+            };
+            stack.Children.Add(new MayliSettingRow("Shadow", "Depth under the open notch", shadowPicker));
+
+            // 5. Soft edge
+            var softOptions = new[] { "None", "Low", "Medium", "High" };
+            var softPicker = new MayliSegmentedControl(softOptions, AppPreferences.Instance.NotchSoftEdge);
+            softPicker.SelectionChanged += val =>
+            {
+                AppPreferences.Instance.NotchSoftEdge = val;
+            };
+            stack.Children.Add(new MayliSettingRow("Soft edge", "Softens the notch edge; unavailable in reduced-effects mode", softPicker));
+
+            // -------------------------------------------------------------
+            // RESTORE DEFAULTS BUTTON
+            // -------------------------------------------------------------
+            var resetBtn = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 56)),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(20),
-                Margin = new Thickness(0, 10, 0, 16)
-            };
-
-            var petStack = new StackPanel();
-            petStack.Children.Add(new TextBlock
-            {
-                Text = "Mayli Orb Companion (گوگولی مگولی)",
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
-                Margin = new Thickness(0, 0, 0, 4)
-            });
-            petStack.Children.Add(new TextBlock
-            {
-                Text = "Expressive animated vector orb that reacts to your mouse, music, and tasks.",
-                FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
-                Margin = new Thickness(0, 0, 0, 14)
-            });
-
-            var liveOrb = new CuteOrbPetView(PetEngine.Instance.CurrentMood, 84)
-            {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 4, 0, 10),
-                ToolTip = "Click to interact / کلیک کنید!"
-            };
-            petStack.Children.Add(liveOrb);
-
-            var statusLine = new TextBlock
-            {
-                Text = PetEngine.Instance.CurrentStatusLine,
-                FontSize = 12.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(255, 85, 0)),
-                FontWeight = FontWeights.SemiBold,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 12)
-            };
-            petStack.Children.Add(statusLine);
-
-            var moodsRow = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 10) };
-            var quickMoods = new (string Glyph, string Name, OrbMood Mood)[]
-            {
-                ("😊", "شاد", OrbMood.Happy),
-                ("💖", "عشق", OrbMood.Love),
-                ("😉", "چشمک", OrbMood.Wink),
-                ("😠", "اخم", OrbMood.Angry),
-                ("😴", "خواب", OrbMood.Sleepy),
-                ("🌟", "عادی", OrbMood.Idle)
-            };
-
-            foreach (var qm in quickMoods)
-            {
-                var captured = qm.Mood;
-                var pill = new Border
-                {
-                    CornerRadius = new CornerRadius(6),
-                    Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(42, 42, 50)),
-                    BorderThickness = new Thickness(1),
-                    Padding = new Thickness(10, 4, 10, 4),
-                    Margin = new Thickness(3),
-                    Cursor = Cursors.Hand
-                };
-                var pillTxt = new TextBlock { Text = $"{qm.Glyph} {qm.Name}", FontSize = 11.5, Foreground = Brushes.White };
-                pill.Child = pillTxt;
-
-                pill.MouseLeftButtonUp += (_, e) =>
-                {
-                    e.Handled = true;
-                    PetEngine.Instance.SetMood(captured);
-                    liveOrb.SetMood(captured);
-                    statusLine.Text = PetEngine.Instance.CurrentStatusLine;
-                };
-                moodsRow.Children.Add(pill);
-            }
-            petStack.Children.Add(moodsRow);
-
-            var pokeRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-            var pokeBtn = new Border
-            {
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromRgb(36, 36, 44)),
-                Padding = new Thickness(12, 5, 12, 5),
-                Margin = new Thickness(4),
+                Padding = new Thickness(18, 9, 18, 9),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 16, 0, 36),
                 Cursor = Cursors.Hand
             };
-            pokeBtn.Child = new TextBlock { Text = "🐾 قلقلک (Poke)", FontSize = 12, Foreground = Brushes.White };
-            pokeBtn.MouseLeftButtonUp += (_, e) =>
+            var resetTxt = new TextBlock
+            {
+                Text = "Restore defaults",
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+            resetBtn.Child = resetTxt;
+
+            resetBtn.MouseEnter += (_, _) => resetBtn.Background = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+            resetBtn.MouseLeave += (_, _) => resetBtn.Background = new SolidColorBrush(Color.FromRgb(28, 28, 34));
+
+            resetBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
-                liveOrb.Poke();
-                statusLine.Text = "قلقلکم اومد! (◕‿◕)✨";
+                AppPreferences.Instance.ResetAppearanceDefaults();
+                CapsuleTheme.SetTheme("Ember Dark");
+                _mainContentArea.Content = BuildAppearancePage();
+                MessageBox.Show("Appearance settings have been restored to factory defaults.", "Mayli Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             };
-            pokeRow.Children.Add(pokeBtn);
 
-            var burstBtn = new Border
-            {
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromRgb(36, 36, 44)),
-                Padding = new Thickness(12, 5, 12, 5),
-                Margin = new Thickness(4),
-                Cursor = Cursors.Hand
-            };
-            burstBtn.Child = new TextBlock { Text = "✨ جرقه و قلب (Burst)", FontSize = 12, Foreground = Brushes.White };
-            burstBtn.MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                liveOrb.SpawnHeartBurst();
-                liveOrb.SpawnSparkleBurst();
-                statusLine.Text = "یک عالمه درخشش! 💖🌟";
-            };
-            pokeRow.Children.Add(burstBtn);
-
-            petStack.Children.Add(pokeRow);
-            petCard.Child = petStack;
-            stack.Children.Add(petCard);
+            stack.Children.Add(resetBtn);
 
             return stack;
         }

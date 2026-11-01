@@ -1622,7 +1622,66 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             var p = CapsuleTheme.Current;
             _notchBackdropPath.Fill = CapsuleTheme.Brush(p.Bg);
-            _notchOutlinePath.Stroke = CapsuleTheme.Brush(p.BorderStrong);
+
+            bool outlineEnabled = AppPreferences.Instance.SurfaceOutline;
+            _notchOutlinePath.Visibility = outlineEnabled ? Visibility.Visible : Visibility.Collapsed;
+            if (outlineEnabled)
+            {
+                double strokeWidth = 1.0;
+                if (AppPreferences.Instance.SurfaceOutlineWidth.Contains("2")) strokeWidth = 2.0;
+                else if (AppPreferences.Instance.SurfaceOutlineWidth.Contains("3")) strokeWidth = 3.0;
+                _notchOutlinePath.StrokeThickness = strokeWidth;
+
+                if (AppPreferences.Instance.TintOutlineFromWallpaper)
+                {
+                    _notchOutlinePath.Stroke = CapsuleTheme.Brush(p.Accent);
+                }
+                else
+                {
+                    _notchOutlinePath.Stroke = CapsuleTheme.Brush(p.BorderStrong);
+                }
+            }
+
+            // Shadow depth effect under open notch
+            string shadowMode = AppPreferences.Instance.NotchShadowDepth ?? "Medium";
+            if (string.Equals(shadowMode, "None", StringComparison.OrdinalIgnoreCase))
+            {
+                _capsuleCard.Effect = null;
+            }
+            else if (string.Equals(shadowMode, "Subtle", StringComparison.OrdinalIgnoreCase))
+            {
+                _capsuleCard.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 14,
+                    ShadowDepth = 4,
+                    Opacity = 0.25,
+                    Direction = 270,
+                    Color = Colors.Black
+                };
+            }
+            else if (string.Equals(shadowMode, "Deep", StringComparison.OrdinalIgnoreCase))
+            {
+                _capsuleCard.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 38,
+                    ShadowDepth = 12,
+                    Opacity = 0.65,
+                    Direction = 270,
+                    Color = Colors.Black
+                };
+            }
+            else // Medium
+            {
+                _capsuleCard.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 24,
+                    ShadowDepth = 7,
+                    Opacity = 0.45,
+                    Direction = 270,
+                    Color = Colors.Black
+                };
+            }
+
             _headerTitleText.Foreground = CapsuleTheme.Brush(p.Text);
             _headerSubtitleText.Foreground = CapsuleTheme.Brush(p.Text2);
             _collapsedClockText.Foreground = CapsuleTheme.Brush(p.Text);

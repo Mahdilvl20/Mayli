@@ -6,7 +6,7 @@ namespace WindowsBuddy.Services
 {
     public class AppPreferencesModel
     {
-        public string Theme { get; set; } = "Dark";
+        public string Theme { get; set; } = "Ember Dark";
         public string ColorStyle { get; set; } = "Obsidian";
         public string Accent { get; set; } = "#30D158";
         public string NotchSilhouette { get; set; } = "Shouldered";
@@ -68,6 +68,13 @@ namespace WindowsBuddy.Services
         public bool ShowClosedBattery { get; set; } = true;
         public bool ShowClosedNowPlaying { get; set; } = false;
         public bool ShowClosedBluetooth { get; set; } = false;
+
+        // Surface Settings (matching Appearance screenshots)
+        public bool SurfaceOutline { get; set; } = false;
+        public string SurfaceOutlineWidth { get; set; } = "1 px";
+        public bool TintOutlineFromWallpaper { get; set; } = false;
+        public string NotchShadowDepth { get; set; } = "Medium"; // "None", "Subtle", "Medium", "Deep"
+        public string NotchSoftEdge { get; set; } = "Medium"; // "None", "Low", "Medium", "High"
     }
 
     public sealed class AppPreferences
@@ -356,6 +363,36 @@ namespace WindowsBuddy.Services
             set { Raw.ShowClosedBluetooth = value; Save(); }
         }
 
+        public bool SurfaceOutline
+        {
+            get => Raw.SurfaceOutline;
+            set { Raw.SurfaceOutline = value; Save(); }
+        }
+
+        public string SurfaceOutlineWidth
+        {
+            get => Raw.SurfaceOutlineWidth;
+            set { Raw.SurfaceOutlineWidth = value; Save(); }
+        }
+
+        public bool TintOutlineFromWallpaper
+        {
+            get => Raw.TintOutlineFromWallpaper;
+            set { Raw.TintOutlineFromWallpaper = value; Save(); }
+        }
+
+        public string NotchShadowDepth
+        {
+            get => Raw.NotchShadowDepth;
+            set { Raw.NotchShadowDepth = value; Save(); }
+        }
+
+        public string NotchSoftEdge
+        {
+            get => Raw.NotchSoftEdge;
+            set { Raw.NotchSoftEdge = value; Save(); }
+        }
+
         public void ResetNotchDefaults()
         {
             Raw.NotchVisibility = "Always";
@@ -385,6 +422,17 @@ namespace WindowsBuddy.Services
             Raw.ShowClosedBattery = true;
             Raw.ShowClosedNowPlaying = false;
             Raw.ShowClosedBluetooth = false;
+            Save();
+        }
+
+        public void ResetAppearanceDefaults()
+        {
+            Raw.Theme = "Ember Dark";
+            Raw.SurfaceOutline = false;
+            Raw.SurfaceOutlineWidth = "1 px";
+            Raw.TintOutlineFromWallpaper = false;
+            Raw.NotchShadowDepth = "Medium";
+            Raw.NotchSoftEdge = "Medium";
             Save();
         }
     }
