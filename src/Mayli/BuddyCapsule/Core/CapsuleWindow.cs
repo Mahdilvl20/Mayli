@@ -127,6 +127,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private bool _isBannerActive = false;
         private bool _isMusicActive = false;
         private bool _isMediaWideActive = false;
+        private string _lastObservedTrack = "";
+        private string _lastObservedArtist = "";
         private double _mediaPosSeconds = 0.0;
         private double _mediaDurSeconds = 202.0;
         private DateTime _lastMediaTimelineSyncUtc = DateTime.UtcNow;
@@ -267,6 +269,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             Grid.SetColumn(_collapsedBatteryText, 3);
             _collapsedNormalView.Children.Add(_collapsedBatteryText);
+
+            // Right-clicking resting notch while music plays summons the Wide Music Card on demand
+            _collapsedNormalView.MouseRightButtonUp += (_, e) =>
+            {
+                if (_isMusicActive)
+                {
+                    e.Handled = true;
+                    ActivateMediaWideCard();
+                }
+            };
+
             _collapsedContent.Children.Add(_collapsedNormalView);
 
             // View 2A: Compact Live Media Playback View (296 x 45, matching video 00:00-00:06 & 00:11-00:19)
@@ -761,8 +774,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             _spectrumTimer.Start();
 
-            // 4-Second Wide Music Card Dismissal Timer (Track Switch / Next Song Popup)
-            _mediaWideDismissTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(MediaWideDurationSeconds) };
+            // Wide Music Card Dismissal Timer (Track switch / song play, then smoothly settles)
+            _mediaWideDismissTimer = new DispatcherTimer();
             _mediaWideDismissTimer.Tick += (_, _) =>
             {
                 _mediaWideDismissTimer.Stop();
@@ -951,20 +964,34 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
                 UpdateMediaTimelineVisuals();
 
+                bool trackChanged = !string.Equals(track, _lastObservedTrack, StringComparison.Ordinal) ||
+                                    !string.Equals(artist, _lastObservedArtist, StringComparison.Ordinal);
+                _lastObservedTrack = track;
+                _lastObservedArtist = artist;
+
                 if (!_isMusicActive)
                 {
                     _isMediaWideActive = false;
                     _mediaWideDismissTimer.Stop();
+                    if (!_isBannerActive)
+                    {
+                        UpdateCollapsedViewState();
+                    }
                 }
-                else if (snapshot.IsTrackSwitch)
+                else
                 {
-                    ActivateMediaWideCard();
-                    return;
-                }
+                    // Whenever a song starts playing or track switches, expand the notch to show track & progress bar, then settle
+                    bool shouldExpandWide = (!wasPlaying && _isMusicActive) || snapshot.IsTrackSwitch || trackChanged;
+                    if (shouldExpandWide)
+                    {
+                        ActivateMediaWideCard();
+                        return;
+                    }
 
-                if (!_isBannerActive)
-                {
-                    UpdateCollapsedViewState(animateCompactEntrance: !wasPlaying && _isMusicActive && !_isMediaWideActive);
+                    if (!_isBannerActive)
+                    {
+                        UpdateCollapsedViewState();
+                    }
                 }
             });
         }
@@ -986,7 +1013,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private void ResetMediaWideTimer()
         {
             _mediaWideDismissTimer.Stop();
-            _mediaWideDismissTimer.Interval = TimeSpan.FromSeconds(MediaWideDurationSeconds);
+            int durationSec = AppPreferences.Instance.LiveActivityEventDuration switch
+            {
+                "2 s" => 2,
+                "5 s" => 5,
+                _ => 3
+            };
+            _mediaWideDismissTimer.Interval = TimeSpan.FromSeconds(durationSec);
             _mediaWideDismissTimer.Start();
         }
 
@@ -1068,7 +1101,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _currentBaseCollapsedWidth = MediaWideCollapsedWidth;
                 _currentBaseCollapsedHeight = MediaWideCollapsedHeight;
             }
-            else if (_isMusicActive)
+            else if (_isMusicActive && AppPreferences.Instance.ShowClosedNowPlaying)
             {
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
