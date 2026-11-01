@@ -1269,9 +1269,21 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _dockButtons.Clear();
             var p = CapsuleTheme.Current;
 
+            // If current tool was disabled, fallback to home
+            string activeCheckId = _activeToolId == "drop" || _activeToolId == "transfer" ? "maylidrop" : _activeToolId;
+            if (!AppPreferences.Instance.IsModuleEnabled(activeCheckId, true) && !string.Equals(_activeToolId, "home", StringComparison.OrdinalIgnoreCase))
+            {
+                _activeToolId = "home";
+                _viewportHost.Child = ToolRegistry.GetById("home").BuildView();
+            }
+
             foreach (var tool in ToolRegistry.All)
             {
                 string id = tool.Id;
+                string checkId = id == "drop" || id == "transfer" ? "maylidrop" : id;
+                if (!AppPreferences.Instance.IsModuleEnabled(checkId, true))
+                    continue;
+
                 bool isActive = string.Equals(id, _activeToolId, StringComparison.OrdinalIgnoreCase);
 
                 var itemContainer = new Grid

@@ -1779,32 +1779,178 @@ namespace WindowsBuddy.UI.Settings
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Customize active tools in the bottom navigation dock",
+                Text = "Choose what lives in your notch. Drag to reorder.",
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
                 Margin = new Thickness(0, 4, 0, 26)
             });
 
-            var modules = new (string Title, string Desc)[]
+            // -------------------------------------------------------------
+            // DOCK - CATEGORY HEADER
+            // -------------------------------------------------------------
+            stack.Children.Add(new TextBlock
             {
-                ("Home Dashboard", "Unified 6-card glance widget hub (Screen Time, System, Weather, Timers, Clipboard, Notes)."),
-                ("System Monitor", "Real-time CPU, RAM, GPU, network and disk activity gauges."),
-                ("Clipboard History", "Live copy-paste manager with search, code formatting, and instant restore."),
-                ("Quick Notes", "Markdown scratchpad for persistent thoughts and task tracking."),
-                ("Timers & Focus", "Pomodoro work sprint cycles, custom countdowns, and stopwatch."),
-                ("File Shelf", "Drag and drop staging shelf for temporary documents and downloads."),
-                ("Weather Forecast", "Real-time Open-Meteo forecasts, hourly graphs, and precipitation charts."),
-                ("World Clock", "Dual-zone time tracking with seamless 12/24-hour switching."),
-                ("Unit Converter", "Instant conversion across Length, Mass, Temperature, Data, and Volume."),
-                ("Bookmarks & Links", "Fast website bookmark launcher with custom search provider triggers."),
-                ("Notch Message Banner", "Broadcast custom text and motivational banners directly on the notch."),
-                ("Screen Time Analytics", "Windows active foreground process monitoring and daily usage limits.")
+                Text = "DOCK",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 110)),
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            void AddModuleRow(string id, string title, string desc, Color iconBg, string glyph, bool def)
+            {
+                bool isEnabled = AppPreferences.Instance.IsModuleEnabled(id, def);
+                var row = new MayliModuleRow(id, title, desc, iconBg, glyph, isEnabled);
+                row.Toggle.CheckedChanged += state =>
+                {
+                    AppPreferences.Instance.SetModuleEnabled(id, state);
+                };
+                stack.Children.Add(row);
+            }
+
+            // -------------------------------------------------------------
+            // SECTION 1: ESSENTIALS
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("ESSENTIALS"));
+            AddModuleRow("home", "Home", "Now playing, your next event and quick stats", Color.FromRgb(43, 102, 245), "⌂", true);
+            AddModuleRow("system", "System", "CPU, memory, disk and battery", Color.FromRgb(0, 180, 216), "⊞", true);
+            AddModuleRow("focus", "Timers", "Pomodoro, countdown, stopwatch and water", Color.FromRgb(255, 122, 0), "⏱", true);
+            AddModuleRow("weather", "Weather", "Now, hourly and five-day forecast", Color.FromRgb(56, 166, 245), "⛅", true);
+            AddModuleRow("clock", "Clock", "World clocks, digital or analog", Color.FromRgb(255, 170, 0), "🕒", true);
+            AddModuleRow("calendar", "Calendar", "Agenda, festivals and reminders", Color.FromRgb(230, 57, 70), "📅", false);
+
+            // -------------------------------------------------------------
+            // SECTION 2: PRODUCTIVITY
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("PRODUCTIVITY"));
+            AddModuleRow("clipboard", "Clipboard", "Everything you copied, searchable", Color.FromRgb(94, 92, 230), "📋", true);
+            AddModuleRow("notes", "Notes", "Quick notes that stay with the notch", Color.FromRgb(255, 183, 3), "📝", true);
+            AddModuleRow("fileshelf", "File Shelf", "Park files and drag them anywhere", Color.FromRgb(0, 194, 203), "📁", true);
+            AddModuleRow("maylidrop", "Mayli Drop", "Share with your phone on your private network", Color.FromRgb(139, 128, 249), "📱", true);
+            AddModuleRow("units", "Units", "Length, weight, temperature and more", Color.FromRgb(123, 44, 191), "⇄", true);
+            AddModuleRow("links", "Links", "Bookmarks and quick web searches", Color.FromRgb(255, 89, 100), "🔗", true);
+            AddModuleRow("message", "Message", "Flash your own text on the notch", Color.FromRgb(247, 37, 133), "💬", true);
+            AddModuleRow("fileconverter", "File Converter", "Convert images and documents", Color.FromRgb(214, 34, 165), "📄", false);
+
+            // -------------------------------------------------------------
+            // SECTION 3: INSIGHTS
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("INSIGHTS"));
+            AddModuleRow("screentime", "Screen Time", "Where your day went, app by app", Color.FromRgb(114, 9, 183), "⏳", true);
+            AddModuleRow("analytics", "Analytics", "Website visitors, pages and sources", Color.FromRgb(46, 196, 182), "📊", false);
+            AddModuleRow("aicoding", "AI Coding", "Claude Code and Codex usage", Color.FromRgb(90, 98, 106), "🤖", false);
+            AddModuleRow("revenue", "Revenue", "Sales and license revenue at a glance", Color.FromRgb(112, 224, 0), "💵", false);
+
+            // Reset order button
+            var resetOrderBtn = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 56)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(18, 9, 18, 9),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 16, 0, 12),
+                Cursor = Cursors.Hand
+            };
+            var resetTxt = new TextBlock
+            {
+                Text = "Reset order",
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+            resetOrderBtn.Child = resetTxt;
+            resetOrderBtn.MouseEnter += (_, _) => resetOrderBtn.Background = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+            resetOrderBtn.MouseLeave += (_, _) => resetOrderBtn.Background = new SolidColorBrush(Color.FromRgb(28, 28, 34));
+            resetOrderBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AppPreferences.Instance.ResetModulesDefaults();
+                _mainContentArea.Content = BuildModulesPage();
+                MessageBox.Show("Dock module order and settings have been restored to defaults.", "Mayli Modules", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+            stack.Children.Add(resetOrderBtn);
+
+            var tipText = new TextBlock
+            {
+                Text = "Tip: drag the handle, or focus a row and press Alt+Up / Alt+Down. Changes show in the dock right away.",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 120)),
+                Margin = new Thickness(0, 0, 0, 32),
+                TextWrapping = TextWrapping.Wrap
+            };
+            stack.Children.Add(tipText);
+
+            // -------------------------------------------------------------
+            // SECTION 4: HOME WIDGETS (Screenshots 4 & 5)
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("HOME WIDGETS"));
+
+            var homeWidgetsList = new (string Id, string Title)[]
+            {
+                ("screentime", "Screen Time"),
+                ("system", "System"),
+                ("weather", "Weather"),
+                ("focus", "Focus"),
+                ("clipboard", "Clipboard"),
+                ("notes", "Notes"),
+                ("clock", "Clock"),
+                ("calendar", "Calendar"),
+                ("nowplaying", "Now Playing"),
+                ("links", "Links"),
+                ("fileshelf", "File Shelf"),
+                ("units", "Units"),
+                ("fileconverter", "File Converter")
             };
 
-            foreach (var m in modules)
+            var widgetRows = new List<MayliHomeWidgetRow>();
+
+            void RefreshAllWidgetSubtitles()
             {
-                var toggle = new MayliToggleSwitch(true);
-                stack.Children.Add(new MayliSettingRow(m.Title, m.Desc, toggle));
+                int count = AppPreferences.Instance.GetActiveHomeWidgetCount();
+                foreach (var r in widgetRows)
+                {
+                    if (r.Toggle.IsChecked)
+                    {
+                        r.UpdateSubtitle("Show on Home");
+                    }
+                    else
+                    {
+                        r.UpdateSubtitle(count >= 6 ? "Remove a widget to make room" : "Show on Home");
+                    }
+                }
+            }
+
+            foreach (var (wId, wTitle) in homeWidgetsList)
+            {
+                bool isWidgetActive = AppPreferences.Instance.IsHomeWidgetEnabled(wId);
+                int currentActive = AppPreferences.Instance.GetActiveHomeWidgetCount();
+                string initialSubtitle = isWidgetActive ? "Show on Home" : (currentActive >= 6 ? "Remove a widget to make room" : "Show on Home");
+
+                var wRow = new MayliHomeWidgetRow(wId, wTitle, isWidgetActive, initialSubtitle);
+
+                wRow.Toggle.CheckedChanged += isChecked =>
+                {
+                    if (isChecked)
+                    {
+                        bool success = AppPreferences.Instance.SetHomeWidgetEnabled(wId, true);
+                        if (!success)
+                        {
+                            wRow.Toggle.IsChecked = false;
+                            MessageBox.Show("You can display up to 6 widgets on Home. Remove one to add another.", "Home Widgets", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        AppPreferences.Instance.SetHomeWidgetEnabled(wId, false);
+                    }
+                    RefreshAllWidgetSubtitles();
+                };
+
+                widgetRows.Add(wRow);
+                stack.Children.Add(wRow);
             }
 
             return stack;

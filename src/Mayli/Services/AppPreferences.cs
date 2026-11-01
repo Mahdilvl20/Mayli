@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Interop;
 using WindowsBuddy.Core;
 
@@ -75,6 +77,46 @@ namespace WindowsBuddy.Services
         public bool TintOutlineFromWallpaper { get; set; } = false;
         public string NotchShadowDepth { get; set; } = "Medium"; // "None", "Subtle", "Medium", "Deep"
         public string NotchSoftEdge { get; set; } = "Medium"; // "None", "Low", "Medium", "High"
+
+        // Modules & Dock Settings
+        public Dictionary<string, bool> EnabledDockModules { get; set; } = new()
+        {
+            ["home"] = true,
+            ["system"] = true,
+            ["focus"] = true,
+            ["weather"] = true,
+            ["clock"] = true,
+            ["calendar"] = false,
+            ["clipboard"] = true,
+            ["notes"] = true,
+            ["fileshelf"] = true,
+            ["maylidrop"] = true,
+            ["units"] = true,
+            ["links"] = true,
+            ["message"] = true,
+            ["fileconverter"] = false,
+            ["screentime"] = true,
+            ["analytics"] = false,
+            ["aicoding"] = false,
+            ["revenue"] = false
+        };
+
+        public List<string> HomeWidgets { get; set; } = new()
+        {
+            "screentime",
+            "system",
+            "weather",
+            "focus",
+            "clipboard",
+            "notes"
+        };
+
+        public List<string> DockModulesOrder { get; set; } = new()
+        {
+            "home", "system", "focus", "weather", "clock", "calendar",
+            "clipboard", "notes", "fileshelf", "maylidrop", "units", "links", "message", "fileconverter",
+            "screentime", "analytics", "aicoding", "revenue"
+        };
     }
 
     public sealed class AppPreferences
@@ -433,6 +475,98 @@ namespace WindowsBuddy.Services
             Raw.TintOutlineFromWallpaper = false;
             Raw.NotchShadowDepth = "Medium";
             Raw.NotchSoftEdge = "Medium";
+            Save();
+        }
+
+        public bool IsModuleEnabled(string moduleId, bool defaultValue = true)
+        {
+            if (Raw.EnabledDockModules != null && Raw.EnabledDockModules.TryGetValue(moduleId, out bool val))
+                return val;
+            return defaultValue;
+        }
+
+        public void SetModuleEnabled(string moduleId, bool enabled)
+        {
+            if (Raw.EnabledDockModules == null)
+                Raw.EnabledDockModules = new Dictionary<string, bool>();
+            Raw.EnabledDockModules[moduleId] = enabled;
+            Save();
+        }
+
+        public bool IsHomeWidgetEnabled(string widgetId)
+        {
+            if (Raw.HomeWidgets == null)
+                return false;
+            return Raw.HomeWidgets.Contains(widgetId, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public bool SetHomeWidgetEnabled(string widgetId, bool enabled)
+        {
+            if (Raw.HomeWidgets == null)
+                Raw.HomeWidgets = new List<string>();
+
+            if (enabled)
+            {
+                if (Raw.HomeWidgets.Contains(widgetId, StringComparer.OrdinalIgnoreCase))
+                    return true;
+                if (Raw.HomeWidgets.Count >= 6)
+                    return false; // Max 6 widgets allowed
+                Raw.HomeWidgets.Add(widgetId);
+            }
+            else
+            {
+                Raw.HomeWidgets.RemoveAll(w => string.Equals(w, widgetId, StringComparison.OrdinalIgnoreCase));
+            }
+            Save();
+            return true;
+        }
+
+        public int GetActiveHomeWidgetCount()
+        {
+            return Raw.HomeWidgets?.Count ?? 0;
+        }
+
+        public void ResetModulesDefaults()
+        {
+            Raw.EnabledDockModules = new Dictionary<string, bool>
+            {
+                ["home"] = true,
+                ["system"] = true,
+                ["focus"] = true,
+                ["weather"] = true,
+                ["clock"] = true,
+                ["calendar"] = false,
+                ["clipboard"] = true,
+                ["notes"] = true,
+                ["fileshelf"] = true,
+                ["maylidrop"] = true,
+                ["units"] = true,
+                ["links"] = true,
+                ["message"] = true,
+                ["fileconverter"] = false,
+                ["screentime"] = true,
+                ["analytics"] = false,
+                ["aicoding"] = false,
+                ["revenue"] = false
+            };
+
+            Raw.HomeWidgets = new List<string>
+            {
+                "screentime",
+                "system",
+                "weather",
+                "focus",
+                "clipboard",
+                "notes"
+            };
+
+            Raw.DockModulesOrder = new List<string>
+            {
+                "home", "system", "focus", "weather", "clock", "calendar",
+                "clipboard", "notes", "fileshelf", "maylidrop", "units", "links", "message", "fileconverter",
+                "screentime", "analytics", "aicoding", "revenue"
+            };
+
             Save();
         }
     }

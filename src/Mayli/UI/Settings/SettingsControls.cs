@@ -630,4 +630,159 @@ namespace WindowsBuddy.UI.Settings
             };
         }
     }
+
+    /// <summary>
+    /// Rich Module Item row for DOCK categories (ESSENTIALS, PRODUCTIVITY, INSIGHTS).
+    /// Features colorful rounded icon box, Title, Subtitle, vibrant orange toggle switch, and chevron.
+    /// </summary>
+    public sealed class MayliModuleRow : Border
+    {
+        public string ModuleId { get; }
+        public MayliToggleSwitch Toggle { get; }
+
+        public MayliModuleRow(string moduleId, string title, string description, Color iconBg, string glyph, bool isEnabled)
+        {
+            ModuleId = moduleId;
+            Background = Brushes.Transparent;
+            CornerRadius = new CornerRadius(8);
+            Padding = new Thickness(6, 6, 6, 6);
+            Margin = new Thickness(0, 0, 0, 6);
+            SnapsToDevicePixels = true;
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Icon
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Text
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Toggle & Chevron
+
+            // 1. Icon Box (36x36 rounded square with vibrant app color)
+            var iconBox = new Border
+            {
+                Width = 36,
+                Height = 36,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(iconBg),
+                Margin = new Thickness(0, 0, 14, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var glyphBlock = new TextBlock
+            {
+                Text = glyph,
+                FontSize = 17,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
+            iconBox.Child = glyphBlock;
+            Grid.SetColumn(iconBox, 0);
+            grid.Children.Add(iconBox);
+
+            // 2. Text Stack (Title and Subtitle)
+            var textStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 16, 0)
+            };
+            var titleBlock = new TextBlock
+            {
+                Text = title,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+            var descBlock = new TextBlock
+            {
+                Text = description,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            textStack.Children.Add(titleBlock);
+            textStack.Children.Add(descBlock);
+            Grid.SetColumn(textStack, 1);
+            grid.Children.Add(textStack);
+
+            // 3. Right Controls (Toggle & Chevron)
+            var rightStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Toggle = new MayliToggleSwitch(isEnabled);
+            rightStack.Children.Add(Toggle);
+
+            var chevron = new TextBlock
+            {
+                Text = "›",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(70, 70, 80)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(14, 0, 6, 2)
+            };
+            rightStack.Children.Add(chevron);
+
+            Grid.SetColumn(rightStack, 2);
+            grid.Children.Add(rightStack);
+
+            Child = grid;
+
+            MouseEnter += (_, _) => Background = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
+            MouseLeave += (_, _) => Background = Brushes.Transparent;
+        }
+    }
+
+    /// <summary>
+    /// Home Widget item row for HOME WIDGETS section.
+    /// Features Title, dynamic subtitle ("Show on Home" or "Remove a widget to make room"), and toggle switch.
+    /// </summary>
+    public sealed class MayliHomeWidgetRow : Grid
+    {
+        public string WidgetId { get; }
+        public MayliToggleSwitch Toggle { get; }
+        private readonly TextBlock _descBlock;
+
+        public MayliHomeWidgetRow(string widgetId, string title, bool isEnabled, string subtitle)
+        {
+            WidgetId = widgetId;
+            Margin = new Thickness(0, 0, 0, 20);
+            SnapsToDevicePixels = true;
+
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var textStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 16, 0)
+            };
+            var titleBlock = new TextBlock
+            {
+                Text = title,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+            _descBlock = new TextBlock
+            {
+                Text = subtitle,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 3, 0, 0)
+            };
+            textStack.Children.Add(titleBlock);
+            textStack.Children.Add(_descBlock);
+            Grid.SetColumn(textStack, 0);
+            Children.Add(textStack);
+
+            Toggle = new MayliToggleSwitch(isEnabled);
+            Grid.SetColumn(Toggle, 1);
+            Children.Add(Toggle);
+        }
+
+        public void UpdateSubtitle(string newSubtitle)
+        {
+            _descBlock.Text = newSubtitle;
+        }
+    }
 }

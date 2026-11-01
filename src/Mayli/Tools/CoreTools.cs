@@ -234,9 +234,6 @@ namespace WindowsBuddy.Tools
             sysDock.Children.Add(gaugesRow);
 
             systemCard.Child = sysDock;
-            Grid.SetRow(systemCard, 0);
-            Grid.SetColumn(systemCard, 1);
-            rootGrid.Children.Add(systemCard);
 
             // -------------------------------------------------------------
             // CARD 3: WEATHER (Row 0, Col 2) - Synchronized with WeatherService
@@ -312,9 +309,6 @@ namespace WindowsBuddy.Tools
 
             wDock.Children.Add(wMain);
             weatherCard.Child = wDock;
-            Grid.SetRow(weatherCard, 0);
-            Grid.SetColumn(weatherCard, 2);
-            rootGrid.Children.Add(weatherCard);
 
             // -------------------------------------------------------------
             // CARD 4: FOCUS (Row 1, Col 0) - Synchronized with Timers
@@ -397,9 +391,6 @@ namespace WindowsBuddy.Tools
 
             fDock.Children.Add(fContent);
             focusCard.Child = fDock;
-            Grid.SetRow(focusCard, 1);
-            Grid.SetColumn(focusCard, 0);
-            rootGrid.Children.Add(focusCard);
 
             // -------------------------------------------------------------
             // CARD 5: CLIPBOARD (Row 1, Col 1) - Synchronized with ClipboardService
@@ -432,9 +423,6 @@ namespace WindowsBuddy.Tools
             cDock.Children.Add(_clipRowsStack);
 
             clipCard.Child = cDock;
-            Grid.SetRow(clipCard, 1);
-            Grid.SetColumn(clipCard, 1);
-            rootGrid.Children.Add(clipCard);
 
             // -------------------------------------------------------------
             // CARD 6: NOTES (Row 1, Col 2) - Synchronized with NotesService
@@ -514,9 +502,40 @@ namespace WindowsBuddy.Tools
             nDock.Children.Add(nCenter);
 
             notesCard.Child = nDock;
-            Grid.SetRow(notesCard, 1);
-            Grid.SetColumn(notesCard, 2);
-            rootGrid.Children.Add(notesCard);
+
+            // Map all potential widgets
+            var cardMap = new Dictionary<string, BuddyCard>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["screentime"] = screenTimeCard,
+                ["system"] = systemCard,
+                ["weather"] = weatherCard,
+                ["focus"] = focusCard,
+                ["clipboard"] = clipCard,
+                ["notes"] = notesCard,
+                ["clock"] = BuildCompactClockCard(p),
+                ["calendar"] = BuildCompactCalendarCard(p),
+                ["nowplaying"] = BuildCompactNowPlayingCard(p),
+                ["links"] = BuildCompactLinksCard(p),
+                ["fileshelf"] = BuildCompactFileShelfCard(p),
+                ["units"] = BuildCompactUnitsCard(p),
+                ["fileconverter"] = BuildCompactConverterCard(p)
+            };
+
+            var activeWidgets = AppPreferences.Instance.Raw.HomeWidgets ?? new List<string> { "screentime", "system", "weather", "focus", "clipboard", "notes" };
+            int slot = 0;
+            foreach (var wId in activeWidgets)
+            {
+                if (slot >= 6) break;
+                if (cardMap.TryGetValue(wId, out var c) && c != null)
+                {
+                    int r = slot / 3;
+                    int col = slot % 3;
+                    Grid.SetRow(c, r);
+                    Grid.SetColumn(c, col);
+                    rootGrid.Children.Add(c);
+                    slot++;
+                }
+            }
 
             // Timer update for all synchronized components
             _tickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -697,6 +716,132 @@ namespace WindowsBuddy.Tools
                 try { System.Windows.Clipboard.SetText(title); } catch { }
             };
             return border;
+        }
+
+        private static BuddyCard BuildCompactClockCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("clock");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "🕒 CLOCK", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = DateTime.Now.ToString("h:mm tt"), FontSize = 22, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = DateTime.Now.ToString("dddd, MMM d"), FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactCalendarCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("calendar");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "📅 CALENDAR", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = DateTime.Now.ToString("MMMM d"), FontSize = 20, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "No upcoming events", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactNowPlayingCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("audio");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "🎵 NOW PLAYING", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(RealtimeNotchActionService.Instance.CurrentTrack) ? "No Media Playing" : RealtimeNotchActionService.Instance.CurrentTrack, FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), TextTrimming = TextTrimming.CharacterEllipsis });
+            stack.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(RealtimeNotchActionService.Instance.CurrentArtist) ? "Windows Audio" : RealtimeNotchActionService.Instance.CurrentArtist, FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactLinksCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("links");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "🔗 LINKS", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "Quick Bookmarks", FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "Google · GitHub · YouTube", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactFileShelfCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("fileshelf");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "📁 FILE SHELF", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "File Staging Shelf", FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "Drag & drop files here", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactUnitsCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("units");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "⇄ UNITS", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "Unit Converter", FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "Length · Weight · Temp", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
+        }
+
+        private static BuddyCard BuildCompactConverterCard(ThemePalette p)
+        {
+            var card = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
+            card.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("fileshelf");
+            var dock = new DockPanel();
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            header.Children.Add(new TextBlock { Text = "📄 CONVERTER", FontSize = 9.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text2) });
+            DockPanel.SetDock(header, Dock.Top);
+            dock.Children.Add(header);
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(new TextBlock { Text = "File Converter", FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) });
+            stack.Children.Add(new TextBlock { Text = "PNG, JPG, PDF, WEBP", FontSize = 10.5, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 2, 0, 0) });
+            dock.Children.Add(stack);
+            card.Child = dock;
+            return card;
         }
 
         public void OnActivated()
