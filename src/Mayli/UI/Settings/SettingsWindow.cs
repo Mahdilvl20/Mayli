@@ -1182,6 +1182,206 @@ namespace WindowsBuddy.UI.Settings
             ));
 
             // -------------------------------------------------------------
+            // SECTION: EXCLUDED AUDIO APPS (Ignore sound per .exe)
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("EXCLUDED AUDIO APPS"));
+
+            var excludedPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 16) };
+
+            var headerRow = new DockPanel { Margin = new Thickness(0, 4, 0, 10) };
+            var textStack = new StackPanel();
+            textStack.Children.Add(new TextBlock
+            {
+                Text = "Ignore audio from specific apps",
+                FontSize = 13.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            });
+            textStack.Children.Add(new TextBlock
+            {
+                Text = "When audio plays from selected apps, the notch will not show now playing or media activities.",
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(Color.FromRgb(138, 140, 153)),
+                Margin = new Thickness(0, 2, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            });
+            DockPanel.SetDock(textStack, Dock.Left);
+            headerRow.Children.Add(textStack);
+
+            // Add .exe button
+            var addExeBtn = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromRgb(36, 36, 44)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(60, 60, 72)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 6, 12, 6),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Cursor = Cursors.Hand
+            };
+            var addExeTxt = new TextBlock
+            {
+                Text = "➕ Select .exe...",
+                FontSize = 12,
+                FontWeight = FontWeights.Medium,
+                Foreground = Brushes.White
+            };
+            addExeBtn.Child = addExeTxt;
+            addExeBtn.MouseEnter += (_, _) => addExeBtn.Background = new SolidColorBrush(Color.FromRgb(48, 48, 58));
+            addExeBtn.MouseLeave += (_, _) => addExeBtn.Background = new SolidColorBrush(Color.FromRgb(36, 36, 44));
+            addExeBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select executable to ignore",
+                    Filter = "Executables (*.exe)|*.exe|All files (*.*)|*.*",
+                    CheckFileExists = true
+                };
+                if (ofd.ShowDialog() == true)
+                {
+                    AppPreferences.Instance.AddExcludedAudioApp(ofd.FileName);
+                    _mainContentArea.Content = BuildNotchPage();
+                }
+            };
+            DockPanel.SetDock(addExeBtn, Dock.Right);
+            headerRow.Children.Add(addExeBtn);
+            excludedPanel.Children.Add(headerRow);
+
+            // Quick suggestions row
+            var quickRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+            quickRow.Children.Add(new TextBlock
+            {
+                Text = "Quick add: ",
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 125)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0)
+            });
+
+            var quickSuggestions = new[] { "chrome.exe", "msedge.exe", "Telegram.exe", "Spotify.exe", "vlc.exe", "Discord.exe", "firefox.exe" };
+            foreach (var app in quickSuggestions)
+            {
+                bool isAlreadyExcluded = AppPreferences.Instance.IsAudioAppExcluded(app);
+                var pill = new Border
+                {
+                    CornerRadius = new CornerRadius(12),
+                    Background = isAlreadyExcluded ? new SolidColorBrush(Color.FromArgb(40, 255, 69, 58)) : new SolidColorBrush(Color.FromRgb(26, 26, 32)),
+                    BorderBrush = isAlreadyExcluded ? new SolidColorBrush(Color.FromRgb(255, 69, 58)) : new SolidColorBrush(Color.FromRgb(50, 50, 60)),
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 3, 8, 3),
+                    Margin = new Thickness(0, 0, 6, 6),
+                    Cursor = Cursors.Hand,
+                    Opacity = isAlreadyExcluded ? 0.6 : 1.0
+                };
+                var pillTxt = new TextBlock
+                {
+                    Text = (isAlreadyExcluded ? "✓ " : "+ ") + app,
+                    FontSize = 11,
+                    Foreground = isAlreadyExcluded ? Brushes.LightGray : new SolidColorBrush(Color.FromRgb(200, 202, 215))
+                };
+                pill.Child = pillTxt;
+                if (!isAlreadyExcluded)
+                {
+                    pill.MouseEnter += (_, _) => pill.Background = new SolidColorBrush(Color.FromRgb(38, 38, 48));
+                    pill.MouseLeave += (_, _) => pill.Background = new SolidColorBrush(Color.FromRgb(26, 26, 32));
+                    pill.MouseLeftButtonUp += (_, e) =>
+                    {
+                        e.Handled = true;
+                        AppPreferences.Instance.AddExcludedAudioApp(app);
+                        _mainContentArea.Content = BuildNotchPage();
+                    };
+                }
+                quickRow.Children.Add(pill);
+            }
+            excludedPanel.Children.Add(quickRow);
+
+            // Container for excluded chips
+            var chipsBox = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(Color.FromRgb(20, 20, 24)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(38, 38, 46)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10)
+            };
+
+            var chipsWrap = new WrapPanel();
+            var excludedList = AppPreferences.Instance.ExcludedAudioApps;
+            if (excludedList == null || excludedList.Count == 0)
+            {
+                chipsBox.Child = new TextBlock
+                {
+                    Text = "No apps excluded. Audio and media from all players and browsers will show on the notch.",
+                    FontSize = 11.5,
+                    Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 125)),
+                    FontStyle = FontStyles.Italic,
+                    Margin = new Thickness(2)
+                };
+            }
+            else
+            {
+                foreach (var item in excludedList)
+                {
+                    string captured = item;
+                    var chip = new Border
+                    {
+                        CornerRadius = new CornerRadius(14),
+                        Background = new SolidColorBrush(Color.FromRgb(32, 32, 40)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(55, 55, 68)),
+                        BorderThickness = new Thickness(1),
+                        Padding = new Thickness(10, 4, 8, 4),
+                        Margin = new Thickness(0, 0, 8, 8)
+                    };
+
+                    var chipDock = new StackPanel { Orientation = Orientation.Horizontal };
+                    chipDock.Children.Add(new TextBlock
+                    {
+                        Text = "🚫 " + captured,
+                        FontSize = 11.5,
+                        Foreground = Brushes.White,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 8, 0)
+                    });
+
+                    var removeBtn = new Border
+                    {
+                        Width = 18,
+                        Height = 18,
+                        CornerRadius = new CornerRadius(9),
+                        Background = new SolidColorBrush(Color.FromRgb(48, 48, 58)),
+                        Cursor = Cursors.Hand,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Child = new TextBlock
+                        {
+                            Text = "✕",
+                            FontSize = 9.5,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush(Color.FromRgb(255, 100, 100)),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    };
+                    removeBtn.MouseEnter += (_, _) => removeBtn.Background = new SolidColorBrush(Color.FromRgb(255, 69, 58));
+                    removeBtn.MouseLeave += (_, _) => removeBtn.Background = new SolidColorBrush(Color.FromRgb(48, 48, 58));
+                    removeBtn.MouseLeftButtonUp += (_, e) =>
+                    {
+                        e.Handled = true;
+                        AppPreferences.Instance.RemoveExcludedAudioApp(captured);
+                        _mainContentArea.Content = BuildNotchPage();
+                    };
+
+                    chipDock.Children.Add(removeBtn);
+                    chip.Child = chipDock;
+                    chipsWrap.Children.Add(chip);
+                }
+                chipsBox.Child = chipsWrap;
+            }
+
+            excludedPanel.Children.Add(chipsBox);
+            stack.Children.Add(excludedPanel);
+
+            // -------------------------------------------------------------
             // RESTORE DEFAULTS BUTTON (At the end of the page)
             // -------------------------------------------------------------
             var resetBtn = new Border

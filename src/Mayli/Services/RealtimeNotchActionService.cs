@@ -33,6 +33,7 @@ namespace WindowsBuddy.Services
         public double DurationSeconds { get; set; }
         public BitmapSource Artwork { get; set; }
         public Color BeatColor { get; set; } = Color.FromRgb(245, 245, 250);
+        public string SourceApp { get; set; } = "";
     }
 
     /// <summary>
@@ -360,6 +361,7 @@ while ($true) {
         }
         $session = $mgr.GetCurrentSession()
         if ($null -ne $session) {
+            $srcApp = if ($session.SourceAppUserModelId) { $session.SourceAppUserModelId.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
             $info = $session.GetPlaybackInfo()
             $status = $info.PlaybackStatus.ToString()
             $tl = $session.GetTimelineProperties()
@@ -393,12 +395,12 @@ while ($true) {
                 }
                 $b64 = $cachedB64
             }
-            [Console]::WriteLine(""GSMTC`t$status`t$title`t$artist`t$posStr`t$durStr`t$b64"")
+            [Console]::WriteLine(""GSMTC`t$status`t$title`t$artist`t$posStr`t$durStr`t$b64`t$srcApp"")
         } else {
-            [Console]::WriteLine(""GSMTC`tStopped`t`t`t0`t0`t"")
+            [Console]::WriteLine(""GSMTC`tStopped`t`t`t0`t0`t`t"")
         }
     } catch {
-        [Console]::WriteLine(""GSMTC`tError`t`t`t0`t0`t"")
+        [Console]::WriteLine(""GSMTC`tError`t`t`t0`t0`t`t"")
     }
     Start-Sleep -Milliseconds 850
 }
@@ -444,12 +446,20 @@ while ($true) {
                             double.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out double posSec);
                             double.TryParse(parts[5], NumberStyles.Float, CultureInfo.InvariantCulture, out double durSec);
                             string b64 = parts.Length >= 7 ? parts[6].Trim() : "";
+                            string srcApp = parts.Length >= 8 ? parts[7].Trim() : "";
 
                             bool playing = string.Equals(status, "Playing", StringComparison.OrdinalIgnoreCase)
                                            && !string.IsNullOrWhiteSpace(title);
 
+                            if (playing && !string.IsNullOrWhiteSpace(srcApp) && AppPreferences.Instance.IsAudioAppExcluded(srcApp))
+                            {
+                                playing = false;
+                                title = "";
+                                artist = "";
+                            }
+
                             CleanTitleAndArtist(ref title, ref artist);
-                            PublishMediaUpdate(title, artist, playing, posSec, durSec, b64);
+                            PublishMediaUpdate(title, artist, playing, posSec, durSec, b64, srcApp);
                         }
                     }
                     catch
@@ -489,8 +499,15 @@ while ($true) {
             }
         }
 
-        private void PublishMediaUpdate(string title, string artist, bool playing, double posSec, double durSec, string base64Thumb)
+        private void PublishMediaUpdate(string title, string artist, bool playing, double posSec, double durSec, string base64Thumb, string sourceApp = "")
         {
+            if (playing && !string.IsNullOrWhiteSpace(sourceApp) && AppPreferences.Instance.IsAudioAppExcluded(sourceApp))
+            {
+                playing = false;
+                title = "";
+                artist = "";
+            }
+
             BitmapSource decodedArt = null;
             if (!string.IsNullOrEmpty(base64Thumb))
             {
@@ -554,7 +571,8 @@ while ($true) {
                         PositionSeconds = MediaService.Instance.State.PositionSeconds,
                         DurationSeconds = MediaService.Instance.State.DurationSeconds,
                         Artwork = CurrentArtwork,
-                        BeatColor = CurrentBeatColor
+                        BeatColor = CurrentBeatColor,
+                        SourceApp = sourceApp
                     });
                 }
             });
@@ -570,36 +588,44 @@ while ($true) {
                 bool detected = false;
                 string track = null;
                 string artist = null;
+                string sourceApp = "";
 
-                var spotifyProcs = Process.GetProcessesByName("Spotify");
-                foreach (var proc in spotifyProcs)
+                if (!AppPreferences.Instance.IsAudioAppExcluded("Spotify") && !AppPreferences.Instance.IsAudioAppExcluded("Spotify.exe"))
                 {
-                    string title = proc.MainWindowTitle;
-                    if (!string.IsNullOrWhiteSpace(title) &&
-                        !string.Equals(title, "Spotify", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(title, "Spotify Free", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(title, "Spotify Premium", StringComparison.OrdinalIgnoreCase))
+                    var spotifyProcs = Process.GetProcessesByName("Spotify");
+                    foreach (var proc in spotifyProcs)
                     {
-                        detected = true;
-                        int dash = title.IndexOf(" - ", StringComparison.Ordinal);
-                        if (dash > 0)
+                        string title = proc.MainWindowTitle;
+                        if (!string.IsNullOrWhiteSpace(title) &&
+                            !string.Equals(title, "Spotify", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(title, "Spotify Free", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(title, "Spotify Premium", StringComparison.OrdinalIgnoreCase))
                         {
-                            artist = title.Substring(0, dash).Trim();
-                            track = title.Substring(dash + 3).Trim();
+                            detected = true;
+                            sourceApp = "Spotify.exe";
+                            int dash = title.IndexOf(" - ", StringComparison.Ordinal);
+                            if (dash > 0)
+                            {
+                                artist = title.Substring(0, dash).Trim();
+                                track = title.Substring(dash + 3).Trim();
+                            }
+                            else
+                            {
+                                track = title;
+                                artist = "Spotify";
+                            }
+                            break;
                         }
-                        else
-                        {
-                            track = title;
-                            artist = "Spotify";
-                        }
-                        break;
                     }
                 }
 
                 if (!detected)
                 {
-                    foreach (var procName in new[] { "chrome", "msedge", "firefox", "vlc", "Music.UI" })
+                    foreach (var procName in new[] { "chrome", "msedge", "firefox", "vlc", "Music.UI", "Telegram" })
                     {
+                        if (AppPreferences.Instance.IsAudioAppExcluded(procName) || AppPreferences.Instance.IsAudioAppExcluded(procName + ".exe"))
+                            continue;
+
                         var procs = Process.GetProcessesByName(procName);
                         foreach (var proc in procs)
                         {
@@ -610,6 +636,7 @@ while ($true) {
                                  wTitle.Contains("Spotify", StringComparison.OrdinalIgnoreCase)))
                             {
                                 detected = true;
+                                sourceApp = procName + ".exe";
                                 string clean = wTitle.Replace(" - YouTube", "")
                                                      .Replace(" - Google Chrome", "")
                                                      .Replace(" - Microsoft\u200B Edge", "")
@@ -619,7 +646,7 @@ while ($true) {
                                 int dash = clean.IndexOf(" - ", StringComparison.Ordinal);
                                 if (dash > 0)
                                 {
-     artist = clean.Substring(0, dash).Trim();
+                                    artist = clean.Substring(0, dash).Trim();
                                     track = clean.Substring(dash + 3).Trim();
                                 }
                                 else
@@ -634,7 +661,7 @@ while ($true) {
                     }
                 }
 
-                PublishMediaUpdate(track ?? "", artist ?? "", detected, MediaService.Instance.State.PositionSeconds, MediaService.Instance.State.DurationSeconds, "");
+                PublishMediaUpdate(track ?? "", artist ?? "", detected, MediaService.Instance.State.PositionSeconds, MediaService.Instance.State.DurationSeconds, "", sourceApp);
             }
             catch { }
         }

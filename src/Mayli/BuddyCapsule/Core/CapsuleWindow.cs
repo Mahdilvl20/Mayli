@@ -894,11 +894,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             Dispatcher.InvokeAsync(() =>
             {
-                if (!AppPreferences.Instance.ShowMediaActivity)
+                if (!AppPreferences.Instance.ShowMediaActivity || (snapshot.IsPlaying && !string.IsNullOrWhiteSpace(snapshot.SourceApp) && AppPreferences.Instance.IsAudioAppExcluded(snapshot.SourceApp)))
                 {
                     _isMusicActive = false;
                     _miniEqualizer.IsPlaying = false;
                     _wideTransportControls.SetPlaying(false);
+                    _isMediaWideActive = false;
+                    _mediaWideDismissTimer.Stop();
+                    UpdateCollapsedViewState();
                     return;
                 }
 

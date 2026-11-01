@@ -533,6 +533,21 @@ namespace WindowsBuddy.Tools
                 if (slot >= 6) break;
                 if (cardMap.TryGetValue(wId, out var c) && c != null)
                 {
+                    if (rootGrid.Children.Contains(c))
+                        continue;
+
+                    try
+                    {
+                        var parentVisual = VisualTreeHelper.GetParent(c);
+                        if (parentVisual is Panel vpnl)
+                            vpnl.Children.Remove(c);
+                        else if (parentVisual is Decorator vdec)
+                            vdec.Child = null;
+                        else if (parentVisual is ContentControl vcc)
+                            vcc.Content = null;
+                    }
+                    catch { }
+
                     if (c.Parent is Panel pnl)
                         pnl.Children.Remove(c);
                     else if (c.Parent is ContentControl cc)
@@ -540,12 +555,15 @@ namespace WindowsBuddy.Tools
                     else if (c.Parent is Decorator dec)
                         dec.Child = null;
 
-                    int r = slot / 3;
-                    int col = slot % 3;
-                    Grid.SetRow(c, r);
-                    Grid.SetColumn(c, col);
-                    rootGrid.Children.Add(c);
-                    slot++;
+                    if (!rootGrid.Children.Contains(c))
+                    {
+                        int r = slot / 3;
+                        int col = slot % 3;
+                        Grid.SetRow(c, r);
+                        Grid.SetColumn(c, col);
+                        rootGrid.Children.Add(c);
+                        slot++;
+                    }
                 }
             }
 

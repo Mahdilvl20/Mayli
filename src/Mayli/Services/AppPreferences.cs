@@ -65,6 +65,9 @@ namespace WindowsBuddy.Services
         public bool TabAnimations { get; set; } = true;
         public bool EnablePetBeta { get; set; } = false;
 
+        // Excluded Audio Applications (Ignore notch sound/media activity for these exes)
+        public List<string> ExcludedAudioApps { get; set; } = new();
+
         // Edge Light
         public bool EnableEdgeLight { get; set; } = true;
         public string EdgeLightPattern { get; set; } = "Twin comets"; // "Comet", "Twin comets", "Breathe"
@@ -281,6 +284,60 @@ namespace WindowsBuddy.Services
         {
             get => Raw.ShowBrowserMediaInNotch;
             set { Raw.ShowBrowserMediaInNotch = value; Save(); }
+        }
+
+        public List<string> ExcludedAudioApps
+        {
+            get => Raw.ExcludedAudioApps ??= new();
+            set { Raw.ExcludedAudioApps = value; Save(); }
+        }
+
+        public bool IsAudioAppExcluded(string processOrExeName)
+        {
+            if (string.IsNullOrWhiteSpace(processOrExeName) || Raw.ExcludedAudioApps == null || Raw.ExcludedAudioApps.Count == 0)
+                return false;
+
+            string cleanInput = System.IO.Path.GetFileNameWithoutExtension(processOrExeName).Trim();
+            string cleanWithExt = System.IO.Path.GetFileName(processOrExeName).Trim();
+
+            foreach (var excluded in Raw.ExcludedAudioApps)
+            {
+                if (string.IsNullOrWhiteSpace(excluded)) continue;
+                string cleanExcluded = System.IO.Path.GetFileNameWithoutExtension(excluded).Trim();
+                string cleanExcludedWithExt = System.IO.Path.GetFileName(excluded).Trim();
+
+                if (string.Equals(cleanInput, cleanExcluded, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(cleanWithExt, cleanExcludedWithExt, StringComparison.OrdinalIgnoreCase) ||
+                    processOrExeName.Contains(cleanExcluded, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void AddExcludedAudioApp(string exePathOrName)
+        {
+            if (string.IsNullOrWhiteSpace(exePathOrName)) return;
+            string fileName = System.IO.Path.GetFileName(exePathOrName).Trim();
+            if (string.IsNullOrWhiteSpace(fileName)) fileName = exePathOrName.Trim();
+
+            if (!ExcludedAudioApps.Any(x => string.Equals(x, fileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                ExcludedAudioApps.Add(fileName);
+                Save();
+            }
+        }
+
+        public void RemoveExcludedAudioApp(string exePathOrName)
+        {
+            if (string.IsNullOrWhiteSpace(exePathOrName)) return;
+            string fileName = System.IO.Path.GetFileName(exePathOrName).Trim();
+            if (string.IsNullOrWhiteSpace(fileName)) fileName = exePathOrName.Trim();
+
+            ExcludedAudioApps.RemoveAll(x => string.Equals(x, fileName, StringComparison.OrdinalIgnoreCase));
+            Save();
         }
 
         public string MusicBeatColor
@@ -534,6 +591,7 @@ namespace WindowsBuddy.Services
             Raw.ShowClosedBattery = true;
             Raw.ShowClosedNowPlaying = false;
             Raw.ShowClosedBluetooth = false;
+            Raw.ExcludedAudioApps?.Clear();
             Save();
         }
 
