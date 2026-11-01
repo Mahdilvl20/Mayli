@@ -37,6 +37,37 @@ namespace WindowsBuddy.Services
         public bool ShowFileShelfActivity { get; set; } = true;
         public bool ShowBatteryActivity { get; set; } = true;
         public bool ShowTimerActivity { get; set; } = true;
+
+        // Notch Page detailed preferences (matching exact screenshots)
+        public string NotchVisibility { get; set; } = "Always"; // "Always", "Smart", "Minimal", "Hidden"
+        public string NotchStyle { get; set; } = "Notch"; // "Line", "Notch", "Island"
+        public string NotchShape { get; set; } = "Compact"; // "Compact", "Wide", "Classic", "Ultra-Compact"
+        public int NotchScalePercent { get; set; } = 90; // 60 - 140
+        public string NotchRestingLayout { get; set; } = "Corners"; // "Corners", "Center"
+        public string NotchOpenTrigger { get; set; } = "Hover"; // "Hover", "Click"
+        public string NotchDisplay { get; set; } = "Primary display"; // "Primary display", "All displays"
+        public bool ShowNotchBar { get; set; } = true;
+
+        // Behavior
+        public bool ShowEventsOverApps { get; set; } = true;
+        public bool TabAnimations { get; set; } = true;
+        public bool EnablePetBeta { get; set; } = false;
+
+        // Edge Light
+        public bool EnableEdgeLight { get; set; } = true;
+        public string EdgeLightPattern { get; set; } = "Twin comets"; // "Comet", "Twin comets", "Breathe"
+        public string EdgeLightColor { get; set; } = "#FFFFFF";
+        public int EdgeLightIntensity { get; set; } = 80; // 0 - 100
+        public string EdgeLightSpeed { get; set; } = "Normal"; // "Slow", "Normal", "Fast"
+        public string EdgeLightTrigger { get; set; } = "Always"; // "Always", "On events & hover"
+
+        // When Closed, Show
+        public bool ShowClosedTime { get; set; } = true;
+        public string ClosedClockStyle { get; set; } = "Digital"; // "Digital", "Analog"
+        public bool ShowClosedDate { get; set; } = false;
+        public bool ShowClosedBattery { get; set; } = true;
+        public bool ShowClosedNowPlaying { get; set; } = false;
+        public bool ShowClosedBluetooth { get; set; } = false;
     }
 
     public sealed class AppPreferences
@@ -185,6 +216,176 @@ namespace WindowsBuddy.Services
         {
             get => Raw.ShowTimerActivity;
             set { Raw.ShowTimerActivity = value; Save(); }
+        }
+
+        public string NotchVisibility
+        {
+            get => Raw.NotchVisibility;
+            set { Raw.NotchVisibility = value; Save(); }
+        }
+
+        public string NotchStyle
+        {
+            get => Raw.NotchStyle;
+            set { Raw.NotchStyle = value; Save(); }
+        }
+
+        public string NotchShape
+        {
+            get => Raw.NotchShape;
+            set { Raw.NotchShape = value; Save(); }
+        }
+
+        public int NotchScalePercent
+        {
+            get => Raw.NotchScalePercent;
+            set { Raw.NotchScalePercent = value; Save(); }
+        }
+
+        public string NotchRestingLayout
+        {
+            get => Raw.NotchRestingLayout;
+            set { Raw.NotchRestingLayout = value; Save(); }
+        }
+
+        public string NotchOpenTrigger
+        {
+            get => Raw.NotchOpenTrigger;
+            set { Raw.NotchOpenTrigger = value; OpensOnClick = (value == "Click"); Save(); }
+        }
+
+        public string NotchDisplay
+        {
+            get => Raw.NotchDisplay;
+            set { Raw.NotchDisplay = value; Save(); }
+        }
+
+        public bool ShowNotchBar
+        {
+            get => Raw.ShowNotchBar;
+            set { Raw.ShowNotchBar = value; Save(); }
+        }
+
+        public bool ShowEventsOverApps
+        {
+            get => Raw.ShowEventsOverApps;
+            set { Raw.ShowEventsOverApps = value; Save(); }
+        }
+
+        public bool TabAnimations
+        {
+            get => Raw.TabAnimations;
+            set { Raw.TabAnimations = value; Save(); }
+        }
+
+        public bool EnablePetBeta
+        {
+            get => Raw.EnablePetBeta;
+            set { Raw.EnablePetBeta = value; EnablePet = value; Save(); }
+        }
+
+        public bool EnableEdgeLight
+        {
+            get => Raw.EnableEdgeLight;
+            set { Raw.EnableEdgeLight = value; Save(); }
+        }
+
+        public string EdgeLightPattern
+        {
+            get => Raw.EdgeLightPattern;
+            set { Raw.EdgeLightPattern = value; Save(); }
+        }
+
+        public string EdgeLightColor
+        {
+            get => Raw.EdgeLightColor;
+            set { Raw.EdgeLightColor = value; Save(); }
+        }
+
+        public int EdgeLightIntensity
+        {
+            get => Raw.EdgeLightIntensity;
+            set { Raw.EdgeLightIntensity = value; Save(); }
+        }
+
+        public string EdgeLightSpeed
+        {
+            get => Raw.EdgeLightSpeed;
+            set { Raw.EdgeLightSpeed = value; Save(); }
+        }
+
+        public string EdgeLightTrigger
+        {
+            get => Raw.EdgeLightTrigger;
+            set { Raw.EdgeLightTrigger = value; Save(); }
+        }
+
+        public bool ShowClosedTime
+        {
+            get => Raw.ShowClosedTime;
+            set { Raw.ShowClosedTime = value; Save(); }
+        }
+
+        public string ClosedClockStyle
+        {
+            get => Raw.ClosedClockStyle;
+            set { Raw.ClosedClockStyle = value; Save(); }
+        }
+
+        public bool ShowClosedDate
+        {
+            get => Raw.ShowClosedDate;
+            set { Raw.ShowClosedDate = value; Save(); }
+        }
+
+        public bool ShowClosedBattery
+        {
+            get => Raw.ShowClosedBattery;
+            set { Raw.ShowClosedBattery = value; Save(); }
+        }
+
+        public bool ShowClosedNowPlaying
+        {
+            get => Raw.ShowClosedNowPlaying;
+            set { Raw.ShowClosedNowPlaying = value; Save(); }
+        }
+
+        public bool ShowClosedBluetooth
+        {
+            get => Raw.ShowClosedBluetooth;
+            set { Raw.ShowClosedBluetooth = value; Save(); }
+        }
+
+        public void ResetNotchDefaults()
+        {
+            Raw.NotchVisibility = "Always";
+            Raw.NotchStyle = "Notch";
+            Raw.NotchShape = "Compact";
+            Raw.NotchSilhouette = "Shouldered";
+            Raw.NotchScalePercent = 90;
+            Raw.NotchRestingLayout = "Corners";
+            Raw.NotchOpenTrigger = "Hover";
+            Raw.OpensOnClick = false;
+            Raw.NotchDisplay = "Primary display";
+            Raw.ShowNotchBar = true;
+            Raw.HideOnFullscreen = true;
+            Raw.ShowEventsOverApps = true;
+            Raw.TabAnimations = true;
+            Raw.EnablePetBeta = false;
+            Raw.EnablePet = false;
+            Raw.EnableEdgeLight = true;
+            Raw.EdgeLightPattern = "Twin comets";
+            Raw.EdgeLightColor = "#FFFFFF";
+            Raw.EdgeLightIntensity = 80;
+            Raw.EdgeLightSpeed = "Normal";
+            Raw.EdgeLightTrigger = "Always";
+            Raw.ShowClosedTime = true;
+            Raw.ClosedClockStyle = "Digital";
+            Raw.ShowClosedDate = false;
+            Raw.ShowClosedBattery = true;
+            Raw.ShowClosedNowPlaying = false;
+            Raw.ShowClosedBluetooth = false;
+            Save();
         }
     }
 

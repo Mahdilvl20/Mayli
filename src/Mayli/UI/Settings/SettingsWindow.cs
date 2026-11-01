@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
+using WpfPath = System.Windows.Shapes.Path;
 using WindowsBuddy.BuddyCapsule.Renderer;
 using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.BuddyCapsule.UI;
@@ -648,12 +649,13 @@ namespace WindowsBuddy.UI.Settings
         }
 
         // =================================================================
-        // PAGE 2: NOTCH
+        // PAGE 2: NOTCH (Full 1:1 implementation matching reference screenshots)
         // =================================================================
         private FrameworkElement BuildNotchPage()
         {
             var stack = new StackPanel();
 
+            // 1. Page Header
             stack.Children.Add(new TextBlock
             {
                 Text = "Notch",
@@ -663,58 +665,726 @@ namespace WindowsBuddy.UI.Settings
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Position, silhouette, hover behavior and displays",
+                Text = "Shape, behavior and live preview",
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
-                Margin = new Thickness(0, 4, 0, 26)
+                Margin = new Thickness(0, 4, 0, 20)
             });
 
-            // Silhouette
-            var silPicker = new MayliSegmentedControl(new[] { "Shouldered", "Island", "Compact", "Wide" }, AppPreferences.Instance.NotchSilhouette);
-            silPicker.SelectionChanged += s => AppPreferences.Instance.NotchSilhouette = s;
-            stack.Children.Add(new MayliSettingRow(
-                "Notch Silhouette",
-                "Choose between classic top-anchored shoulders, floating Dynamic Island pill, compact or wide notch.",
-                silPicker
-            ));
-
-            // Open mode
-            var clickToggle = new MayliToggleSwitch(AppPreferences.Instance.OpensOnClick);
-            clickToggle.CheckedChanged += chk => AppPreferences.Instance.OpensOnClick = chk;
-            stack.Children.Add(new MayliSettingRow(
-                "Require click to open",
-                "Only expand the notch into the full dashboard when clicked, preventing accidental triggers on hover.",
-                clickToggle
-            ));
-
-            // Hover delay
-            string delayStr = AppPreferences.Instance.HoverDelayMs <= 80 ? "Fast" : (AppPreferences.Instance.HoverDelayMs >= 200 ? "Relaxed" : "Normal");
-            var delayPicker = new MayliSegmentedControl(new[] { "Fast", "Normal", "Relaxed" }, delayStr);
-            delayPicker.SelectionChanged += d =>
+            // 2. Interactive Live Preview Card (Resting / Hover switch)
+            var previewBox = new Border
             {
-                AppPreferences.Instance.HoverDelayMs = d switch
-                {
-                    "Fast" => 60,
-                    "Relaxed" => 250,
-                    _ => 120
-                };
+                Height = 145,
+                CornerRadius = new CornerRadius(10),
+                Background = new SolidColorBrush(Color.FromRgb(20, 20, 22)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(38, 38, 44)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 0, 22),
+                ClipToBounds = true
             };
+
+            var previewGrid = new Grid();
+
+            // Simulated monitor top bezel line
+            var monitorTopLine = new Border
+            {
+                Height = 1,
+                Background = new SolidColorBrush(Color.FromRgb(55, 55, 65)),
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            previewGrid.Children.Add(monitorTopLine);
+
+            // Notch preview element container
+            var notchContainer = new Border
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+
+            void UpdateLivePreview(bool isHover)
+            {
+                if (isHover)
+                {
+                    // Expanded hover notch preview
+                    var expBorder = new Border
+                    {
+                        Width = 260,
+                        Height = 56,
+                        CornerRadius = new CornerRadius(0, 0, 16, 16),
+                        Background = Brushes.Black,
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48)),
+                        BorderThickness = new Thickness(1, 0, 1, 1),
+                        Padding = new Thickness(14, 8, 14, 8)
+                    };
+                    var expStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    string[] miniIcons = { "⌂", "⚙", "📋", "⏱", "⛅", "📊" };
+                    foreach (var ic in miniIcons)
+                    {
+                        expStack.Children.Add(new TextBlock
+                        {
+                            Text = ic,
+                            FontSize = 14,
+                            Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
+                            Margin = new Thickness(6, 0, 6, 0)
+                        });
+                    }
+                    expBorder.Child = expStack;
+                    notchContainer.Child = expBorder;
+                }
+                else
+                {
+                    // Resting notch preview
+                    bool isIsland = string.Equals(AppPreferences.Instance.NotchStyle, "Island", StringComparison.OrdinalIgnoreCase);
+                    var restBorder = new Border
+                    {
+                        Width = 175,
+                        Height = 28,
+                        CornerRadius = isIsland ? new CornerRadius(14) : new CornerRadius(0, 0, 14, 14),
+                        Background = Brushes.Black,
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(35, 35, 42)),
+                        BorderThickness = isIsland ? new Thickness(1) : new Thickness(1, 0, 1, 1),
+                        Margin = isIsland ? new Thickness(0, 4, 0, 0) : new Thickness(0),
+                        Padding = new Thickness(12, 0, 12, 0)
+                    };
+
+                    var restGrid = new Grid();
+                    restGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    restGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var clockText = new TextBlock
+                    {
+                        Text = "11:43 AM",
+                        FontSize = 11,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = Brushes.White,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(clockText, 0);
+                    restGrid.Children.Add(clockText);
+
+                    var battStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    battStack.Children.Add(new TextBlock { Text = "⚡", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)), Margin = new Thickness(0, 0, 3, 0) });
+                    battStack.Children.Add(new TextBlock { Text = "85", FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)) });
+                    Grid.SetColumn(battStack, 1);
+                    restGrid.Children.Add(battStack);
+
+                    restBorder.Child = restGrid;
+                    notchContainer.Child = restBorder;
+                }
+            }
+
+            UpdateLivePreview(false);
+            previewGrid.Children.Add(notchContainer);
+
+            // Preview switcher on top right
+            var previewModeSwitch = new MayliSegmentedControl(new[] { "Resting", "Hover" }, "Resting")
+            {
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 12, 12, 0)
+            };
+            previewModeSwitch.SelectionChanged += mode => UpdateLivePreview(mode == "Hover");
+            previewGrid.Children.Add(previewModeSwitch);
+
+            previewBox.Child = previewGrid;
+            stack.Children.Add(previewBox);
+
+            // -------------------------------------------------------------
+            // SECTION: VISIBILITY (4 Visual Cards)
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("VISIBILITY"));
+
+            var visGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            visGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            visGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            visGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            visGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var visCards = new List<MayliVisualCard>();
+
+            void AddVisCard(string key, string title, string desc, FrameworkElement illus, int col, int row)
+            {
+                bool isSel = string.Equals(AppPreferences.Instance.NotchVisibility, key, StringComparison.OrdinalIgnoreCase);
+                var card = new MayliVisualCard(key, title, desc, illus, isSel);
+                card.Selected += selectedKey =>
+                {
+                    AppPreferences.Instance.NotchVisibility = selectedKey;
+                    foreach (var c in visCards) c.IsSelected = (c.Key == selectedKey);
+                };
+                visCards.Add(card);
+                Grid.SetColumn(card, col);
+                Grid.SetRow(card, row);
+                visGrid.Children.Add(card);
+            }
+
+            AddVisCard("Always", "Always", "Always on screen. Fullscreen rules below still apply.", CreateNotchIllustration("always"), 0, 0);
+            AddVisCard("Smart", "Smart", "Full on the desktop; tucked away over maximized apps.", CreateNotchIllustration("smart"), 1, 0);
+            AddVisCard("Minimal", "Minimal", "Just a small arrow at the top. Hover to peek, open on hover or click.", CreateNotchIllustration("minimal"), 0, 1);
+            AddVisCard("Hidden", "Hidden", "Nothing on screen. Open it from the tray icon (or set a shortcut in General).", CreateNotchIllustration("hidden"), 1, 1);
+
+            stack.Children.Add(visGrid);
+
+            // -------------------------------------------------------------
+            // SECTION: STYLE (3 Visual Cards & Geometry Options)
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("STYLE"));
+
+            var styleGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            styleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            styleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            styleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var styleCards = new List<MayliVisualCard>();
+
+            void AddStyleCard(string key, string title, string desc, FrameworkElement illus, int col)
+            {
+                bool isSel = string.Equals(AppPreferences.Instance.NotchStyle, key, StringComparison.OrdinalIgnoreCase);
+                var card = new MayliVisualCard(key, title, desc, illus, isSel);
+                card.Selected += selectedKey =>
+                {
+                    AppPreferences.Instance.NotchStyle = selectedKey;
+                    AppPreferences.Instance.NotchSilhouette = selectedKey == "Island" ? "Island" : (selectedKey == "Line" ? "Compact" : "Shouldered");
+                    foreach (var c in styleCards) c.IsSelected = (c.Key == selectedKey);
+                    UpdateLivePreview(false);
+                };
+                styleCards.Add(card);
+                Grid.SetColumn(card, col);
+                styleGrid.Children.Add(card);
+            }
+
+            AddStyleCard("Line", "Line", "A slim bar along the top edge", CreateNotchIllustration("line"), 0);
+            AddStyleCard("Notch", "Notch", "Grows out of the screen edge", CreateNotchIllustration("notch"), 1);
+            AddStyleCard("Island", "Island", "A pill floating just below the edge", CreateNotchIllustration("island"), 2);
+
+            stack.Children.Add(styleGrid);
+
+            // Notch shape
+            var shapeDropdown = new MayliDropdown(new[] { "Compact", "Wide", "Classic", "Ultra-Compact" }, AppPreferences.Instance.NotchShape);
+            shapeDropdown.SelectionChanged += s => AppPreferences.Instance.NotchShape = s;
             stack.Children.Add(new MayliSettingRow(
-                "Hover delay",
-                "How long the mouse cursor must pause over the resting notch before preview expands.",
-                delayPicker
+                "Notch shape",
+                "Fine-tune the Notch style's silhouette",
+                shapeDropdown
             ));
 
-            // Hide on Fullscreen
+            // Size
+            var sizeSlider = new MayliSliderRow(60, 140, AppPreferences.Instance.NotchScalePercent, "%");
+            sizeSlider.ValueChanged += v => AppPreferences.Instance.NotchScalePercent = (int)v;
+            stack.Children.Add(new MayliSettingRow(
+                "Size",
+                "Scales the resting notch",
+                sizeSlider
+            ));
+
+            // Resting layout
+            var layoutPicker = new MayliSegmentedControl(new[] { "Corners", "Center" }, AppPreferences.Instance.NotchRestingLayout);
+            layoutPicker.SelectionChanged += l => AppPreferences.Instance.NotchRestingLayout = l;
+            stack.Children.Add(new MayliSettingRow(
+                "Resting layout",
+                "Time and battery in corners or center",
+                layoutPicker
+            ));
+
+            // Opens on
+            var openOnPicker = new MayliSegmentedControl(new[] { "Hover", "Click" }, AppPreferences.Instance.NotchOpenTrigger);
+            openOnPicker.SelectionChanged += o => AppPreferences.Instance.NotchOpenTrigger = o;
+            stack.Children.Add(new MayliSettingRow(
+                "Opens on",
+                "Hover to open at once, or click to open on purpose",
+                openOnPicker
+            ));
+
+            // Display
+            var dispDropdown = new MayliDropdown(new[] { "Primary display", "Display 1", "Display 2", "All displays" }, AppPreferences.Instance.NotchDisplay);
+            dispDropdown.SelectionChanged += d => AppPreferences.Instance.NotchDisplay = d;
+            stack.Children.Add(new MayliSettingRow(
+                "Display",
+                "Which monitor the notch lives on",
+                dispDropdown
+            ));
+
+            // Show notch
+            var showNotchToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowNotchBar);
+            showNotchToggle.CheckedChanged += s => AppPreferences.Instance.ShowNotchBar = s;
+            stack.Children.Add(new MayliSettingRow(
+                "Show notch",
+                "Hide it without quitting; the tray icon brings it back",
+                showNotchToggle
+            ));
+
+            // -------------------------------------------------------------
+            // SECTION: BEHAVIOR
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("BEHAVIOR"));
+
+            // Hide in fullscreen
             var fullToggle = new MayliToggleSwitch(AppPreferences.Instance.HideOnFullscreen);
             fullToggle.CheckedChanged += chk => AppPreferences.Instance.HideOnFullscreen = chk;
             stack.Children.Add(new MayliSettingRow(
-                "Hide on fullscreen",
-                "Automatically tuck the notch away when playing games, watching videos, or in fullscreen mode.",
+                "Hide in fullscreen",
+                "Apps, videos and games on the notch's display",
                 fullToggle
             ));
 
+            // Show events over apps
+            var eventsToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowEventsOverApps);
+            eventsToggle.CheckedChanged += e => AppPreferences.Instance.ShowEventsOverApps = e;
+            stack.Children.Add(new MayliSettingRow(
+                "Show events over apps",
+                "When the notch is tucked away, grow it briefly for events like volume, timers and a new song",
+                eventsToggle
+            ));
+
+            // Tab animations
+            var animToggle = new MayliToggleSwitch(AppPreferences.Instance.TabAnimations);
+            animToggle.CheckedChanged += a => AppPreferences.Instance.TabAnimations = a;
+            stack.Children.Add(new MayliSettingRow(
+                "Tab animations",
+                "Slide between tabs inside the open notch",
+                animToggle
+            ));
+
+            // -------------------------------------------------------------
+            // SECTION: MAYLI PET (BETA)
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("MAYLI PET (BETA)"));
+
+            var petToggle = new MayliToggleSwitch(AppPreferences.Instance.EnablePetBeta);
+            petToggle.CheckedChanged += p => AppPreferences.Instance.EnablePetBeta = p;
+            stack.Children.Add(new MayliSettingRow(
+                "Mayli Pet (Beta)",
+                "A small companion in your notch",
+                petToggle
+            ));
+
+            // -------------------------------------------------------------
+            // SECTION: EDGE LIGHT
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("EDGE LIGHT"));
+
+            var edgeToggle = new MayliToggleSwitch(AppPreferences.Instance.EnableEdgeLight);
+            edgeToggle.CheckedChanged += el => AppPreferences.Instance.EnableEdgeLight = el;
+            stack.Children.Add(new MayliSettingRow(
+                "Edge light",
+                "Light that runs along the notch outline",
+                edgeToggle
+            ));
+
+            // 3 Edge Light Pattern Cards
+            var edgeCardsGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            edgeCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            edgeCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            edgeCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var edgeCards = new List<MayliVisualCard>();
+
+            void AddEdgeCard(string key, string title, string desc, FrameworkElement illus, int col)
+            {
+                bool isSel = string.Equals(AppPreferences.Instance.EdgeLightPattern, key, StringComparison.OrdinalIgnoreCase);
+                var card = new MayliVisualCard(key, title, desc, illus, isSel);
+                card.Selected += selectedKey =>
+                {
+                    AppPreferences.Instance.EdgeLightPattern = selectedKey;
+                    foreach (var c in edgeCards) c.IsSelected = (c.Key == selectedKey);
+                };
+                edgeCards.Add(card);
+                Grid.SetColumn(card, col);
+                edgeCardsGrid.Children.Add(card);
+            }
+
+            AddEdgeCard("Comet", "Comet", "One light travels along the outline", CreateEdgeIllustration("comet"), 0);
+            AddEdgeCard("Twin comets", "Twin comets", "Two lights meet at the bottom, then return", CreateEdgeIllustration("twin"), 1);
+            AddEdgeCard("Breathe", "Breathe", "The whole outline glows softly", CreateEdgeIllustration("breathe"), 2);
+
+            stack.Children.Add(edgeCardsGrid);
+
+            // Edge Light Color Swatches
+            var colorStack = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 8) };
+            var swatchesRow1 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            var swatchesRow2 = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var lightColors = new[]
+            {
+                "#FFFFFF", "#F9E498", "#FFB340", "#30D158", "#54D8E8", "#0A84FF", "#7D6CFA", "#BF5AF2",
+                "#FF4F79", "#FF7A59", "#C49A6C", "#7CE8FF"
+            };
+
+            for (int i = 0; i < lightColors.Length; i++)
+            {
+                string hex = lightColors[i];
+                var circle = new Border
+                {
+                    Width = 22,
+                    Height = 22,
+                    CornerRadius = new CornerRadius(11),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)),
+                    Margin = new Thickness(4),
+                    Cursor = Cursors.Hand,
+                    BorderThickness = new Thickness(string.Equals(AppPreferences.Instance.EdgeLightColor, hex, StringComparison.OrdinalIgnoreCase) ? 2.5 : 0),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(255, 85, 0))
+                };
+                circle.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    AppPreferences.Instance.EdgeLightColor = hex;
+                    // refresh border
+                    _mainContentArea.Content = BuildNotchPage();
+                };
+                if (i < 8) swatchesRow1.Children.Add(circle);
+                else swatchesRow2.Children.Add(circle);
+            }
+
+            var customBtn = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 36)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 54)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 4, 12, 4),
+                Margin = new Thickness(6, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            customBtn.Child = new TextBlock { Text = "● Custom...", FontSize = 11.5, Foreground = Brushes.White };
+            swatchesRow2.Children.Add(customBtn);
+
+            colorStack.Children.Add(swatchesRow1);
+            colorStack.Children.Add(swatchesRow2);
+
+            stack.Children.Add(new MayliSettingRow(
+                "Color",
+                "",
+                colorStack
+            ));
+
+            // Intensity
+            var intensitySlider = new MayliSliderRow(10, 100, AppPreferences.Instance.EdgeLightIntensity, "%");
+            intensitySlider.ValueChanged += v => AppPreferences.Instance.EdgeLightIntensity = (int)v;
+            stack.Children.Add(new MayliSettingRow(
+                "Intensity",
+                "",
+                intensitySlider
+            ));
+
+            // Speed
+            var speedPicker = new MayliSegmentedControl(new[] { "Slow", "Normal", "Fast" }, AppPreferences.Instance.EdgeLightSpeed);
+            speedPicker.SelectionChanged += s => AppPreferences.Instance.EdgeLightSpeed = s;
+            stack.Children.Add(new MayliSettingRow(
+                "Speed",
+                "",
+                speedPicker
+            ));
+
+            // When
+            var whenPicker = new MayliSegmentedControl(new[] { "Always", "On events & hover" }, AppPreferences.Instance.EdgeLightTrigger);
+            whenPicker.SelectionChanged += w => AppPreferences.Instance.EdgeLightTrigger = w;
+            stack.Children.Add(new MayliSettingRow(
+                "When",
+                "On events & hover plays the light for a few seconds, then it fades out",
+                whenPicker
+            ));
+
+            // -------------------------------------------------------------
+            // SECTION: WHEN CLOSED, SHOW
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader("WHEN CLOSED, SHOW"));
+
+            // Time
+            var closedTimeToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedTime);
+            closedTimeToggle.CheckedChanged += t => AppPreferences.Instance.ShowClosedTime = t;
+            stack.Children.Add(new MayliSettingRow(
+                "Time",
+                "The resting clock that events return to",
+                closedTimeToggle
+            ));
+
+            // Clock style
+            var clockStylePicker = new MayliSegmentedControl(new[] { "Digital", "Analog" }, AppPreferences.Instance.ClosedClockStyle);
+            clockStylePicker.SelectionChanged += cs => AppPreferences.Instance.ClosedClockStyle = cs;
+            stack.Children.Add(new MayliSettingRow(
+                "Clock style",
+                "",
+                clockStylePicker
+            ));
+
+            // Date
+            var closedDateToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedDate);
+            closedDateToggle.CheckedChanged += d => AppPreferences.Instance.ShowClosedDate = d;
+            stack.Children.Add(new MayliSettingRow(
+                "Date",
+                "Day and date next to the time, e.g. Sat 3 · 9:41",
+                closedDateToggle
+            ));
+
+            // Battery
+            var closedBatteryToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedBattery);
+            closedBatteryToggle.CheckedChanged += b => AppPreferences.Instance.ShowClosedBattery = b;
+            stack.Children.Add(new MayliSettingRow(
+                "Battery",
+                "Level and charging",
+                closedBatteryToggle
+            ));
+
+            // Now playing
+            var closedMediaToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedNowPlaying);
+            closedMediaToggle.CheckedChanged += np => AppPreferences.Instance.ShowClosedNowPlaying = np;
+            stack.Children.Add(new MayliSettingRow(
+                "Now playing",
+                "Compact media controls while music or video plays",
+                closedMediaToggle
+            ));
+
+            // Bluetooth
+            var closedBtToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedBluetooth);
+            closedBtToggle.CheckedChanged += bt => AppPreferences.Instance.ShowClosedBluetooth = bt;
+            stack.Children.Add(new MayliSettingRow(
+                "Bluetooth",
+                "While a device is connected",
+                closedBtToggle
+            ));
+
+            // -------------------------------------------------------------
+            // RESTORE DEFAULTS BUTTON (At the end of the page)
+            // -------------------------------------------------------------
+            var resetBtn = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 56)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(18, 9, 18, 9),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 16, 0, 36),
+                Cursor = Cursors.Hand
+            };
+            var resetTxt = new TextBlock
+            {
+                Text = "Restore defaults",
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+            resetBtn.Child = resetTxt;
+
+            resetBtn.MouseEnter += (_, _) => resetBtn.Background = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+            resetBtn.MouseLeave += (_, _) => resetBtn.Background = new SolidColorBrush(Color.FromRgb(28, 28, 34));
+
+            resetBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AppPreferences.Instance.ResetNotchDefaults();
+                // Immediately refresh page to update all controls
+                _mainContentArea.Content = BuildNotchPage();
+                MessageBox.Show("Notch settings have been restored to factory defaults.", "Mayli Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            stack.Children.Add(resetBtn);
+
             return stack;
+        }
+
+        // =================================================================
+        // CARD ILLUSTRATIONS HELPERS
+        // =================================================================
+        private static FrameworkElement CreateNotchIllustration(string type)
+        {
+            var canvas = new Canvas { Width = 110, Height = 48, ClipToBounds = true };
+
+            // Horizontal top screen border
+            var topEdge = new Line
+            {
+                X1 = 0,
+                Y1 = 8,
+                X2 = 110,
+                Y2 = 8,
+                Stroke = new SolidColorBrush(Color.FromRgb(70, 70, 80)),
+                StrokeThickness = 1
+            };
+            canvas.Children.Add(topEdge);
+
+            if (type == "always" || type == "notch")
+            {
+                // Classic shouldered notch
+                var path = new WpfPath
+                {
+                    Data = Geometry.Parse("M 25 8 Q 33 8 36 14 Q 40 26 50 26 L 60 26 Q 70 26 74 14 Q 77 8 85 8 Z"),
+                    Fill = Brushes.Black,
+                    Stroke = new SolidColorBrush(Color.FromRgb(50, 50, 60)),
+                    StrokeThickness = 1
+                };
+                canvas.Children.Add(path);
+            }
+            else if (type == "smart")
+            {
+                var path = new WpfPath
+                {
+                    Data = Geometry.Parse("M 30 8 Q 36 8 38 12 Q 41 22 50 22 L 60 22 Q 69 22 72 12 Q 74 8 80 8 Z"),
+                    Fill = Brushes.Black,
+                    Stroke = new SolidColorBrush(Color.FromRgb(50, 50, 60)),
+                    StrokeThickness = 1
+                };
+                canvas.Children.Add(path);
+
+                // Small desktop window preview
+                var win = new Border
+                {
+                    Width = 34,
+                    Height = 22,
+                    CornerRadius = new CornerRadius(3),
+                    Background = new SolidColorBrush(Color.FromRgb(36, 32, 30)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(60, 50, 45)),
+                    BorderThickness = new Thickness(1)
+                };
+                var chevron = new TextBlock
+                {
+                    Text = "˅",
+                    FontSize = 8,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                win.Child = chevron;
+                Canvas.SetLeft(win, 62);
+                Canvas.SetTop(win, 14);
+                canvas.Children.Add(win);
+            }
+            else if (type == "minimal")
+            {
+                // Small tab with chevron
+                var tab = new Border
+                {
+                    Width = 20,
+                    Height = 12,
+                    CornerRadius = new CornerRadius(0, 0, 4, 4),
+                    Background = Brushes.Black,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(60, 60, 70)),
+                    BorderThickness = new Thickness(1, 0, 1, 1)
+                };
+                tab.Child = new TextBlock { Text = "˅", FontSize = 7, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center };
+                Canvas.SetLeft(tab, 45);
+                Canvas.SetTop(tab, 8);
+                canvas.Children.Add(tab);
+            }
+            else if (type == "hidden")
+            {
+                // Dashed outline
+                var path = new WpfPath
+                {
+                    Data = Geometry.Parse("M 25 8 Q 33 8 36 14 Q 40 26 50 26 L 60 26 Q 70 26 74 14 Q 77 8 85 8"),
+                    Stroke = new SolidColorBrush(Color.FromRgb(50, 50, 60)),
+                    StrokeThickness = 1,
+                    StrokeDashArray = new DoubleCollection { 2, 2 }
+                };
+                canvas.Children.Add(path);
+            }
+            else if (type == "line")
+            {
+                // Slim horizontal line bar
+                var lineBar = new Border
+                {
+                    Width = 60,
+                    Height = 8,
+                    CornerRadius = new CornerRadius(0, 0, 4, 4),
+                    Background = Brushes.Black,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(50, 50, 60)),
+                    BorderThickness = new Thickness(1, 0, 1, 1)
+                };
+                Canvas.SetLeft(lineBar, 25);
+                Canvas.SetTop(lineBar, 8);
+                canvas.Children.Add(lineBar);
+            }
+            else if (type == "island")
+            {
+                // Detached floating pill island
+                var pill = new Border
+                {
+                    Width = 54,
+                    Height = 14,
+                    CornerRadius = new CornerRadius(7),
+                    Background = Brushes.Black,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(60, 60, 70)),
+                    BorderThickness = new Thickness(1)
+                };
+                Canvas.SetLeft(pill, 28);
+                Canvas.SetTop(pill, 14);
+                canvas.Children.Add(pill);
+            }
+
+            return canvas;
+        }
+
+        private static FrameworkElement CreateEdgeIllustration(string pattern)
+        {
+            var canvas = new Canvas { Width = 110, Height = 48, ClipToBounds = true };
+
+            var topEdge = new Line
+            {
+                X1 = 0,
+                Y1 = 8,
+                X2 = 110,
+                Y2 = 8,
+                Stroke = new SolidColorBrush(Color.FromRgb(70, 70, 80)),
+                StrokeThickness = 1
+            };
+            canvas.Children.Add(topEdge);
+
+            // Base black notch
+            var basePath = new WpfPath
+            {
+                Data = Geometry.Parse("M 22 8 Q 30 8 34 14 Q 38 28 50 28 L 60 28 Q 72 28 76 14 Q 80 8 88 8 Z"),
+                Fill = Brushes.Black,
+                Stroke = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
+                StrokeThickness = 1
+            };
+            canvas.Children.Add(basePath);
+
+            if (pattern == "comet")
+            {
+                // Single comet beam on left outline
+                var comet = new WpfPath
+                {
+                    Data = Geometry.Parse("M 26 10 Q 32 10 35 15 Q 38 28 50 28"),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round
+                };
+                canvas.Children.Add(comet);
+            }
+            else if (pattern == "twin")
+            {
+                // Two symmetrical comets meeting at bottom
+                var leftComet = new WpfPath
+                {
+                    Data = Geometry.Parse("M 38 28 L 52 28"),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2.5,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round
+                };
+                var rightComet = new WpfPath
+                {
+                    Data = Geometry.Parse("M 58 28 L 72 28"),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2.5,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round
+                };
+                canvas.Children.Add(leftComet);
+                canvas.Children.Add(rightComet);
+            }
+            else if (pattern == "breathe")
+            {
+                // Soft uniform glowing outline
+                var glow = new WpfPath
+                {
+                    Data = Geometry.Parse("M 22 8 Q 30 8 34 14 Q 38 28 50 28 L 60 28 Q 72 28 76 14 Q 80 8 88 8"),
+                    Stroke = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                    StrokeThickness = 1.5
+                };
+                canvas.Children.Add(glow);
+            }
+
+            return canvas;
         }
 
         // =================================================================
