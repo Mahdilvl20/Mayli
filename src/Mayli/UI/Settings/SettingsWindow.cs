@@ -599,12 +599,23 @@ namespace WindowsBuddy.UI.Settings
             changeBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
-                // Cycle between standard shortcuts
+                // Cycle between standard shortcuts and apply immediately
                 string[] presets = { "Ctrl + Alt + N", "Win + Ctrl + N", "Alt + Space", "Ctrl + Shift + Space" };
                 int idx = Array.IndexOf(presets, AppPreferences.Instance.OpenNotchShortcut);
                 string next = presets[(idx + 1) % presets.Length];
                 AppPreferences.Instance.OpenNotchShortcut = next;
                 shortcutText.Text = next;
+
+                int mod = 3; // MOD_CONTROL | MOD_ALT
+                int vk = 0x4E; // 'N'
+                if (next == "Win + Ctrl + N") { mod = 10; vk = 0x4E; }
+                else if (next == "Alt + Space") { mod = 1; vk = 0x20; }
+                else if (next == "Ctrl + Shift + Space") { mod = 6; vk = 0x20; }
+
+                AppPreferences.Instance.Raw.HotkeyModifiers = mod;
+                AppPreferences.Instance.Raw.HotkeyKey = vk;
+                AppPreferences.Instance.Save();
+                HotkeyService.Instance.Apply(mod, vk);
             };
             shortcutRow.Children.Add(changeBtn);
 

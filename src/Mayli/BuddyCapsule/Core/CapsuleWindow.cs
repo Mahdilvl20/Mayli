@@ -684,7 +684,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
             };
 
-            _capsuleCard.MouseEnter += (_, _) => _machine.PointerMoved(true, "mouse-enter");
+            _capsuleCard.MouseEnter += (_, _) =>
+            {
+                if (AppPreferences.Instance.OpensOnClick) return;
+                _machine.PointerMoved(true, "mouse-enter");
+            };
             _capsuleCard.MouseLeave += (_, _) => _machine.PointerMoved(false, "mouse-leave");
             _capsuleCard.MouseLeftButtonUp += (_, _) =>
             {
@@ -697,11 +701,29 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) =>
             {
-                _collapsedClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.InvariantCulture);
+                string timeStr;
+                if (AppPreferences.Instance.TimeFormat == "24-hour")
+                    timeStr = DateTime.Now.ToString("HH:mm");
+                else if (AppPreferences.Instance.TimeFormat == "12-hour")
+                    timeStr = DateTime.Now.ToString("h:mm tt");
+                else
+                    timeStr = DateTime.Now.ToString("t");
+
+                if (AppPreferences.Instance.ShowClosedDate)
+                    _collapsedClockText.Text = $"{DateTime.Now:ddd d} · {timeStr}";
+                else
+                    _collapsedClockText.Text = timeStr;
+
+                _collapsedClockText.Visibility = AppPreferences.Instance.ShowClosedTime ? Visibility.Visible : Visibility.Collapsed;
+
                 var sys = SystemMonitorService.Current;
                 _collapsedBatteryGlyph.SetBattery(sys.BatteryPercent);
                 _collapsedBatteryText.Text = $"{sys.BatteryPercent}";
                 _headerBatteryText.Text = $"{sys.BatteryPercent}% ⚡";
+
+                Visibility batVis = AppPreferences.Instance.ShowClosedBattery ? Visibility.Visible : Visibility.Collapsed;
+                _collapsedBatteryGlyph.Visibility = batVis;
+                _collapsedBatteryText.Visibility = batVis;
 
                 if (_isMusicActive)
                 {
@@ -1300,6 +1322,31 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private void PositionAtTopCenter()
         {
+            try
+            {
+                var screens = System.Windows.Forms.Screen.AllScreens;
+                var targetScreen = System.Windows.Forms.Screen.PrimaryScreen;
+
+                string choice = AppPreferences.Instance.NotchDisplay;
+                if (string.Equals(choice, "Display 2", StringComparison.OrdinalIgnoreCase) && screens.Length > 1)
+                {
+                    targetScreen = screens[1];
+                }
+                else if (string.Equals(choice, "Display 1", StringComparison.OrdinalIgnoreCase) && screens.Length > 0)
+                {
+                    targetScreen = screens[0];
+                }
+
+                if (targetScreen != null)
+                {
+                    var bounds = targetScreen.Bounds;
+                    Left = bounds.Left + (bounds.Width - StableEnvelopeWidth) / 2.0;
+                    Top = bounds.Top;
+                    return;
+                }
+            }
+            catch { }
+
             double screenW = SystemParameters.PrimaryScreenWidth;
             Left = (screenW - StableEnvelopeWidth) / 2.0;
             Top = 0;
@@ -1641,8 +1688,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
             double t = Math.Clamp(progress, 0.0, 1.0);
             double ease = 1.0 - Math.Pow(1.0 - t, 3);
 
-            double baseW = _displayedCollapsedWidth;
-            double baseH = _displayedCollapsedHeight;
+            double scale = Math.Clamp(AppPreferences.Instance.NotchScalePercent / 100.0, 0.6, 1.4);
+            double baseW = _displayedCollapsedWidth * scale;
+            double baseH = _displayedCollapsedHeight * scale;
 
             double curW = baseW + (ExpandedWidth - baseW) * ease;
             double curH = baseH + (ExpandedHeight - baseH) * ease;
@@ -1676,6 +1724,52 @@ namespace WindowsBuddy.BuddyCapsule.Core
         {
             var p = CapsuleTheme.Current;
             _notchBackdropPath.Fill = CapsuleTheme.Brush(p.Bg);
+
+            // 1. Notch Visibility & Show Notch
+            if (!AppPreferences.Instance.ShowNotchBar || string.Equals(AppPreferences.Instance.NotchVisibility, "Hidden", StringComparison.OrdinalIgnoreCase))
+            {
+                Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                Visibility = Visibility.Visible;
+            }
+
+            // 2. Position on selected display
+            PositionAtTopCenter();
+
+            // 3. Edge light
+            if (AppPreferences.Instance.EnableEdgeLight)
+            {
+                _edgeLight.Visibility = Visibility.Visible;
+                try
+                {
+                    var c = (Color)ColorConverter.ConvertFromString(AppPreferences.Instance.EdgeLightColor);
+                    _edgeLight.SetLightColor(c);
+                }
+                catch { }
+                _edgeLight.Opacity = Math.Clamp(AppPreferences.Instance.EdgeLightIntensity / 100.0, 0.1, 1.0);
+            }
+            else
+            {
+                _edgeLight.Visibility = Visibility.Collapsed;
+            }
+
+            // 4. Soft Edge effect
+            if (!string.Equals(AppPreferences.Instance.NotchSoftEdge, "None", StringComparison.OrdinalIgnoreCase))
+            {
+                double blurRadius = AppPreferences.Instance.NotchSoftEdge switch
+                {
+                    "Low" => 2.0,
+                    "High" => 6.0,
+                    _ => 3.5 // Medium
+                };
+                _notchBackdropPath.Effect = new System.Windows.Media.Effects.BlurEffect { Radius = blurRadius };
+            }
+            else
+            {
+                _notchBackdropPath.Effect = null;
+            }
 
             bool outlineEnabled = AppPreferences.Instance.SurfaceOutline;
             _notchOutlinePath.Visibility = outlineEnabled ? Visibility.Visible : Visibility.Collapsed;

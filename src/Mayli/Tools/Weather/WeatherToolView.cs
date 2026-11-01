@@ -632,7 +632,14 @@ namespace WindowsBuddy.Tools.Weather
             DrawHourlyCurveChart(data.Hourly.Take(6).ToList());
 
             _humidityValText.Text = $"{data.Humidity}%";
-            _windValText.Text = $"{Math.Round(data.WindSpeed)} km/h";
+            if (string.Equals(WindowsBuddy.Services.AppPreferences.Instance.WindSpeedUnit, "mph", StringComparison.OrdinalIgnoreCase))
+            {
+                _windValText.Text = $"{Math.Round(data.WindSpeed * 0.621371)} mph";
+            }
+            else
+            {
+                _windValText.Text = $"{Math.Round(data.WindSpeed)} km/h";
+            }
             _uvValText.Text = data.UvText;
 
             // 3. 5-Day Card
