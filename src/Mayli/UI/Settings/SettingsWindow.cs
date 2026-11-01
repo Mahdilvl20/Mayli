@@ -356,16 +356,26 @@ namespace WindowsBuddy.UI.Settings
                 VerticalAlignment = VerticalAlignment.Top,
                 Background = Brushes.Transparent
             };
-            topHeader.MouseLeftButtonDown += (_, e) =>
-            {
-                if (e.LeftButton == MouseButtonState.Pressed) DragMove();
-            };
+            Panel.SetZIndex(topHeader, 999);
 
             var winButtons = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 4, 8, 0)
+            };
+
+            topHeader.MouseLeftButtonDown += (s, e) =>
+            {
+                if (e.OriginalSource is DependencyObject dep)
+                {
+                    if (winButtons.IsAncestorOf(dep) || dep == winButtons)
+                        return;
+                }
+                if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    try { DragMove(); } catch { }
+                }
             };
 
             Border CreateWinButton(string glyph, Action onClick, bool isClose = false)
@@ -376,7 +386,8 @@ namespace WindowsBuddy.UI.Settings
                     Height = 28,
                     CornerRadius = new CornerRadius(6),
                     Background = Brushes.Transparent,
-                    Cursor = Cursors.Hand
+                    Cursor = Cursors.Hand,
+                    Focusable = false
                 };
                 var tb = new TextBlock
                 {
@@ -384,7 +395,8 @@ namespace WindowsBuddy.UI.Settings
                     FontSize = 13,
                     Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 210)),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    IsHitTestVisible = false
                 };
                 btn.Child = tb;
 
@@ -398,7 +410,16 @@ namespace WindowsBuddy.UI.Settings
                     btn.Background = Brushes.Transparent;
                     tb.Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 210));
                 };
-                btn.MouseLeftButtonUp += (_, e) =>
+
+                btn.PreviewMouseLeftButtonDown += (_, e) =>
+                {
+                    e.Handled = true;
+                };
+                btn.MouseLeftButtonDown += (_, e) =>
+                {
+                    e.Handled = true;
+                };
+                btn.PreviewMouseLeftButtonUp += (_, e) =>
                 {
                     e.Handled = true;
                     onClick?.Invoke();
@@ -407,7 +428,7 @@ namespace WindowsBuddy.UI.Settings
             }
 
             winButtons.Children.Add(CreateWinButton("—", () => WindowState = WindowState.Minimized));
-            winButtons.Children.Add(CreateWinButton("✕", Close, isClose: true));
+            winButtons.Children.Add(CreateWinButton("✕", () => Close(), isClose: true));
             topHeader.Children.Add(winButtons);
 
             // Main scrollable content view
@@ -422,8 +443,8 @@ namespace WindowsBuddy.UI.Settings
             _mainContentArea = new ContentControl();
             contentScroll.Content = _mainContentArea;
 
-            mainGrid.Children.Add(topHeader);
             mainGrid.Children.Add(contentScroll);
+            mainGrid.Children.Add(topHeader);
 
             Grid.SetColumn(mainGrid, 1);
             rootGrid.Children.Add(mainGrid);
@@ -431,9 +452,15 @@ namespace WindowsBuddy.UI.Settings
             outerBorder.Child = rootGrid;
             Content = outerBorder;
 
-            // Global shortcut Ctrl+K to focus search box
+            // Global shortcut Ctrl+K to focus search box, Escape to close
             KeyDown += (_, e) =>
             {
+                if (e.Key == Key.Escape)
+                {
+                    Close();
+                    e.Handled = true;
+                    return;
+                }
                 if (e.Key == Key.K && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
                 {
                     _searchBox.Focus();
