@@ -25,6 +25,18 @@ namespace WindowsBuddy.Services
         public string HomeWidgetOrder { get; set; } = "media,pet,clock,timer,weather,system";
         public string DropSaveFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads";
         public bool DropRequirePin { get; set; } = false;
+
+        // General settings matching native UI
+        public string TimeFormat { get; set; } = "System"; // "System", "12-hour", "24-hour"
+        public string TemperatureUnit { get; set; } = "°C"; // "°C", "°F"
+        public string WindSpeedUnit { get; set; } = "km/h"; // "km/h", "mph"
+        public string OpenNotchShortcut { get; set; } = "Ctrl + Alt + N";
+        public bool StartWithWindows { get; set; } = false;
+        public bool HideOnFullscreen { get; set; } = true;
+        public bool ShowMediaActivity { get; set; } = true;
+        public bool ShowFileShelfActivity { get; set; } = true;
+        public bool ShowBatteryActivity { get; set; } = true;
+        public bool ShowTimerActivity { get; set; } = true;
     }
 
     public sealed class AppPreferences
@@ -45,6 +57,38 @@ namespace WindowsBuddy.Services
         {
             PersistenceHelper.SafeWriteJson(FileName, Raw);
             Changed?.Invoke();
+        }
+
+        public static bool IsWindowsStartupEnabled()
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false);
+                return key?.GetValue("Mayli") != null;
+            }
+            catch { return false; }
+        }
+
+        public static void SetWindowsStartup(bool enable)
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true);
+                if (key == null) return;
+                if (enable)
+                {
+                    string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                    if (!string.IsNullOrEmpty(exePath))
+                    {
+                        key.SetValue("Mayli", $"\"{exePath}\"");
+                    }
+                }
+                else
+                {
+                    key.DeleteValue("Mayli", false);
+                }
+            }
+            catch { }
         }
 
         public string Theme
@@ -87,6 +131,60 @@ namespace WindowsBuddy.Services
         {
             get => Raw.EnablePet;
             set { Raw.EnablePet = value; Save(); }
+        }
+
+        public string TimeFormat
+        {
+            get => Raw.TimeFormat;
+            set { Raw.TimeFormat = value; Save(); }
+        }
+
+        public string TemperatureUnit
+        {
+            get => Raw.TemperatureUnit;
+            set { Raw.TemperatureUnit = value; Save(); }
+        }
+
+        public string WindSpeedUnit
+        {
+            get => Raw.WindSpeedUnit;
+            set { Raw.WindSpeedUnit = value; Save(); }
+        }
+
+        public string OpenNotchShortcut
+        {
+            get => Raw.OpenNotchShortcut;
+            set { Raw.OpenNotchShortcut = value; Save(); }
+        }
+
+        public bool HideOnFullscreen
+        {
+            get => Raw.HideOnFullscreen;
+            set { Raw.HideOnFullscreen = value; Save(); }
+        }
+
+        public bool ShowMediaActivity
+        {
+            get => Raw.ShowMediaActivity;
+            set { Raw.ShowMediaActivity = value; Save(); }
+        }
+
+        public bool ShowFileShelfActivity
+        {
+            get => Raw.ShowFileShelfActivity;
+            set { Raw.ShowFileShelfActivity = value; Save(); }
+        }
+
+        public bool ShowBatteryActivity
+        {
+            get => Raw.ShowBatteryActivity;
+            set { Raw.ShowBatteryActivity = value; Save(); }
+        }
+
+        public bool ShowTimerActivity
+        {
+            get => Raw.ShowTimerActivity;
+            set { Raw.ShowTimerActivity = value; Save(); }
         }
     }
 
