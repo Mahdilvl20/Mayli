@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Theme;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.ScreenTime
 {
@@ -35,6 +36,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
         public ScreenTimeToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             var rootGrid = new Grid { Margin = new Thickness(4, 2, 4, 4) };
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.8, GridUnitType.Star) }); // Left column
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Right column
@@ -92,7 +94,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             // Header: 📊 Today
             var header = new TextBlock
             {
-                Text = "📊  Today",
+                Text = "📊  " + LocalizationService.T("screentime.today", "Today"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -120,7 +122,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
             var l1 = new TextBlock
             {
-                Text = "Screen time",
+                Text = LocalizationService.T("screentime.screen_time", "Screen time"),
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 Margin = new Thickness(0, 2, 0, 0)
@@ -232,7 +234,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
             var l3 = new TextBlock
             {
-                Text = "Apps used",
+                Text = LocalizationService.T("screentime.apps_used", "Apps used"),
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 Margin = new Thickness(0, 2, 0, 0),
@@ -268,7 +270,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
             var title = new TextBlock
             {
-                Text = "📅  Last 7 days",
+                Text = "📅  " + LocalizationService.T("screentime.last7days", "Last 7 days"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -279,7 +281,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
             _weeklyAvgText = new TextBlock
             {
-                Text = $"avg {ScreenTimeService.FormatDuration(_service.GetWeeklyAverageSeconds())}",
+                Text = string.Format(LocalizationService.T("screentime.avg_fmt", "avg {0}"), ScreenTimeService.FormatDuration(_service.GetWeeklyAverageSeconds())),
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -317,7 +319,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
             var title = new TextBlock
             {
-                Text = "📊  By app",
+                Text = "📊  " + LocalizationService.T("screentime.by_app", "By app"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -333,7 +335,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 CornerRadius = new CornerRadius(12),
                 Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
-                ToolTip = "Refresh App Usage",
+                ToolTip = LocalizationService.T("screentime.refresh_tooltip", "Refresh App Usage"),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -597,6 +599,20 @@ namespace WindowsBuddy.Tools.ScreenTime
             _appListStack.Children.Clear();
 
             var apps = _service.GetTopAppsToday();
+            if (apps.Count == 0)
+            {
+                var emptyNotice = new TextBlock
+                {
+                    Text = LocalizationService.T("screentime.no_activity", "No app activity recorded yet today."),
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 130)),
+                    Margin = new Thickness(0, 18, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                _appListStack.Children.Add(emptyNotice);
+                return;
+            }
+
             foreach (var app in apps)
             {
                 var row = new Grid

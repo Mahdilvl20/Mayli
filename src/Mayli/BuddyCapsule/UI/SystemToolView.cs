@@ -73,6 +73,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public SystemToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             Background = Brushes.Transparent;
             Margin = new Thickness(1, 0, 4, 0);
 
@@ -112,7 +113,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             });
             batLeftHead.Children.Add(new TextBlock
             {
-                Text = "Battery",
+                Text = LocalizationService.T("system.battery", "Battery"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -185,7 +186,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             });
             netHeader.Children.Add(new TextBlock
             {
-                Text = "Network",
+                Text = LocalizationService.T("system.network", "Network"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -277,7 +278,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             });
             perfHeader.Children.Add(new TextBlock
             {
-                Text = "Performance",
+                Text = LocalizationService.T("system.performance", "Performance"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -360,7 +361,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             });
             volLeftHead.Children.Add(new TextBlock
             {
-                Text = "Volume",
+                Text = LocalizationService.T("system.volume", "Volume"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -529,21 +530,21 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
                 if (sps.ACLineStatus == 1 && pct >= 99)
                 {
-                    _batSub.Text = "Fully charged";
+                    _batSub.Text = LocalizationService.T("system.fully_charged", "Fully charged");
                 }
                 else if (sps.ACLineStatus == 1)
                 {
-                    _batSub.Text = "Charging";
+                    _batSub.Text = LocalizationService.T("system.charging", "Charging");
                 }
                 else if (sps.BatteryLifeTime > 0 && sps.BatteryLifeTime < 86400)
                 {
                     int hours = sps.BatteryLifeTime / 3600;
                     int mins = (sps.BatteryLifeTime % 3600) / 60;
-                    _batSub.Text = $"{hours}h {mins:D2}m left";
+                    _batSub.Text = AppPreferences.Instance.IsPersian ? $"{hours} ساعت و {mins:D2} دقیقه باقی‌مانده" : $"{hours}h {mins:D2}m left";
                 }
                 else
                 {
-                    _batSub.Text = "On Battery";
+                    _batSub.Text = LocalizationService.T("system.on_battery", "On battery");
                 }
 
                 UpdateBatteryVisual();

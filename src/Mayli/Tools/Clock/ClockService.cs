@@ -107,6 +107,11 @@ namespace WindowsBuddy.Tools.Clock
             }
         }
 
+        public void NotifySettingsChanged()
+        {
+            SettingsChanged?.Invoke();
+        }
+
         public void ToggleFormat()
         {
             Settings.Format = Settings.Format == ClockFormat.TwelveHour ? ClockFormat.TwentyFourHour : ClockFormat.TwelveHour;
@@ -184,7 +189,13 @@ namespace WindowsBuddy.Tools.Clock
         public string FormatTime(DateTime dt, bool forceSeconds = false)
         {
             bool showSec = forceSeconds || Settings.ShowSeconds;
-            if (Settings.Format == ClockFormat.TwentyFourHour)
+            bool is24 = Settings.Format == ClockFormat.TwentyFourHour;
+            if (Settings.Format == ClockFormat.System)
+            {
+                is24 = CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
+            }
+
+            if (is24)
             {
                 return showSec ? dt.ToString("HH:mm:ss", CultureInfo.InvariantCulture) : dt.ToString("HH:mm", CultureInfo.InvariantCulture);
             }

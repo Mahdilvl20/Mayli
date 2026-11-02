@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using WindowsBuddy.Tools.Notes;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.BuddyCapsule.UI
 {
@@ -45,6 +46,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public NotesToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             Background = Brushes.Transparent;
 
             _rootGrid = new Grid();
@@ -132,7 +134,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             var allNotesText = new TextBlock
             {
-                Text = "All notes",
+                Text = LocalizationService.T("notes.all_notes", "All notes"),
                 FontSize = 13.0,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
@@ -185,7 +187,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             _emptyListPanel.Children.Add(new TextBlock
             {
-                Text = "No notes yet",
+                Text = LocalizationService.T("notes.no_notes", "No notes yet"),
                 FontSize = 12.0,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -203,7 +205,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             var newNoteText = new TextBlock
             {
-                Text = "New note",
+                Text = LocalizationService.T("notes.new_note", "New note"),
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
@@ -246,7 +248,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             // Empty Editor View (Matching Screenshot!)
             _emptyEditorText = new TextBlock
             {
-                Text = "Create a note to start writing",
+                Text = LocalizationService.T("notes.empty_prompt", "Create a note to start writing"),
                 FontSize = 13.0,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 HorizontalAlignment = HorizontalAlignment.Center,

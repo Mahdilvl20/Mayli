@@ -637,6 +637,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private readonly Grid _glowLayer;
         private readonly Grid _coreLayer;
         private readonly Path _baseBorderPath;
+        private readonly Path _breatheGlowPath;
         private readonly CometStrokeEntry[] _cometEntries;
         private readonly DispatcherTimer _animTimer;
 
@@ -646,6 +647,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private double _cyclePhase; // 0.0 .. 1.0
         private Color _lightColor = Colors.White;
         private bool _isMorphing;
+        private string _pattern = "Twin comets";
+        private string _speed = "Normal";
+        private string _triggerMode = "Always";
+        private string _notchStyle = "Notch";
+        private DateTime _burstUntilUtc = DateTime.MinValue;
+        private double _burstOpacity = 1.0;
 
         public EdgeLightWpf()
         {
@@ -664,6 +671,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Opacity = 0.96
             };
+
+            _breatheGlowPath = new Path { StrokeThickness = 3.2, Visibility = Visibility.Collapsed };
+            _glowLayer.Children.Add(_breatheGlowPath);
 
             _baseBorderPath = new Path { StrokeThickness = 1.0 };
             _coreLayer.Children.Add(_baseBorderPath);
@@ -745,7 +755,46 @@ namespace WindowsBuddy.BuddyCapsule.UI
         {
             if (_lightColor == c) return;
             _lightColor = c;
-            _lastW = -1;
+            if (_lastW > 0 && _lastH > 0 && !_isMorphing)
+            {
+                bool isExp = _lastH > 90.0;
+                RebuildCometPaths(_lastW, _lastH, isExp ? 22.0 : 14.0, isExp ? 1.5 : 1.3);
+            }
+            else
+            {
+                _lastW = -1;
+            }
+        }
+
+        public void Configure(string pattern, string speed, string triggerMode, string notchStyle = "Notch")
+        {
+            bool rebuild = !string.Equals(_pattern, pattern, StringComparison.OrdinalIgnoreCase) ||
+                           !string.Equals(_notchStyle, notchStyle, StringComparison.OrdinalIgnoreCase);
+
+            _pattern = string.IsNullOrWhiteSpace(pattern) ? "Twin comets" : pattern;
+            _speed = string.IsNullOrWhiteSpace(speed) ? "Normal" : speed;
+            _triggerMode = string.IsNullOrWhiteSpace(triggerMode) ? "Always" : triggerMode;
+            _notchStyle = string.IsNullOrWhiteSpace(notchStyle) ? "Notch" : notchStyle;
+
+            if (string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase))
+            {
+                _burstOpacity = 1.0;
+            }
+
+            if (rebuild)
+            {
+                _lastW = -1;
+            }
+        }
+
+        public void TriggerBurst(double durationSeconds = 4.2)
+        {
+            _burstUntilUtc = DateTime.UtcNow.AddSeconds(durationSeconds);
+            _burstOpacity = 1.0;
+            if (IsVisible && !_isMorphing && !_animTimer.IsEnabled)
+            {
+                _animTimer.Start();
+            }
         }
 
         public void UpdateGeometry(Geometry geometry, bool isExpanded, double width = 228.0, double height = 35.0)
@@ -762,31 +811,64 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private void RebuildCometPaths(double width, double height, double cornerRadius, double coreThickness)
         {
-            // Fade top 9px so shoulder tops blend seamlessly into the top screen bezel
-            double fadeStop = Math.Clamp(9.0 / Math.Max(1.0, height), 0.08, 0.45);
-            var mask = new LinearGradientBrush
-            {
-                StartPoint = new Point(0, 0),
-                EndPoint = new Point(0, 1)
-            };
-            mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.0));
-            mask.GradientStops.Add(new GradientStop(Color.FromArgb(140, 255, 255, 255), fadeStop * 0.55));
-            mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), fadeStop));
-            mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), 1.0));
-            mask.Freeze();
-            OpacityMask = mask;
+            bool isIsland = string.Equals(_notchStyle, "Island", StringComparison.OrdinalIgnoreCase);
+            bool isLine = string.Equals(_notchStyle, "Line", StringComparison.OrdinalIgnoreCase);
 
-            Point[] pts = BuildOpenNotchOutlinePoints(width, height, 12.0, 10.0, cornerRadius, out double totalLen);
+            if (isIsland)
+            {
+                OpacityMask = null;
+            }
+            else
+            {
+                // Fade top 9px so shoulder tops blend seamlessly into the top screen bezel
+                double fadeStop = Math.Clamp(9.0 / Math.Max(1.0, height), 0.08, 0.45);
+                var mask = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(0, 1)
+                };
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.0));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(140, 255, 255, 255), fadeStop * 0.55));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), fadeStop));
+                mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), 1.0));
+                mask.Freeze();
+                OpacityMask = mask;
+            }
+
+            double earW = (isLine || isIsland) ? 0.0 : 12.0;
+            double earH = (isLine || isIsland) ? 0.0 : 10.0;
+            double r = isLine ? Math.Min(8.0, cornerRadius) : cornerRadius;
+
+            Point[] pts = BuildOpenNotchOutlinePoints(width, height, earW, earH, r, out double totalLen);
             _totalLength = Math.Max(10.0, totalLen);
 
             Geometry geoForward = BuildPolylineGeometry(pts, reverse: false);
             Geometry geoReverse = BuildPolylineGeometry(pts, reverse: true);
 
-            // Subtle base border stroke along bottom & corners
-            var baseBrush = new SolidColorBrush(Color.FromArgb(32, _lightColor.R, _lightColor.G, _lightColor.B));
+            bool isBreathe = string.Equals(_pattern, "Breathe", StringComparison.OrdinalIgnoreCase);
+            bool isSingleComet = string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase);
+
+            // Base border & breathe glow
+            byte baseAlpha = isBreathe ? (byte)215 : (byte)32;
+            var baseBrush = new SolidColorBrush(Color.FromArgb(baseAlpha, _lightColor.R, _lightColor.G, _lightColor.B));
             baseBrush.Freeze();
             _baseBorderPath.Data = geoForward;
             _baseBorderPath.Stroke = baseBrush;
+            _baseBorderPath.StrokeThickness = isBreathe ? coreThickness * 1.35 : 1.0;
+
+            if (isBreathe)
+            {
+                var glowBrush = new SolidColorBrush(Color.FromArgb(190, _lightColor.R, _lightColor.G, _lightColor.B));
+                glowBrush.Freeze();
+                _breatheGlowPath.Data = geoForward;
+                _breatheGlowPath.Stroke = glowBrush;
+                _breatheGlowPath.StrokeThickness = coreThickness * 3.0;
+                _breatheGlowPath.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                _breatheGlowPath.Visibility = Visibility.Collapsed;
+            }
 
             double glowThickness = coreThickness * 2.4;
             for (int i = 0; i < _cometEntries.Length; i++)
@@ -799,7 +881,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 double dashLen = Math.Max(0.25, entry.SegFrac * totalInStrokeUnits);
                 double gapLen = Math.Max(2.0, 4.0 * totalInStrokeUnits);
 
-                Color c = entry.IsGlow ? _lightColor : Colors.White;
+                Color c = entry.IsGlow ? _lightColor : _lightColor;
+                if (!entry.IsGlow)
+                {
+                    // Mix white core with chosen light color so colored edge lights look vibrant
+                    c = Color.FromRgb(
+                        (byte)((_lightColor.R * 2 + 255) / 3),
+                        (byte)((_lightColor.G * 2 + 255) / 3),
+                        (byte)((_lightColor.B * 2 + 255) / 3));
+                }
                 byte a = (byte)Math.Clamp(Math.Round(entry.Alpha * 255.0), 0, 255);
                 var brush = new SolidColorBrush(Color.FromArgb(a, c.R, c.G, c.B));
                 brush.Freeze();
@@ -808,6 +898,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 p.Data = entry.IsReverse ? geoReverse : geoForward;
                 p.Stroke = brush;
                 p.StrokeThickness = th;
+                if (isBreathe)
+                {
+                    p.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    p.Visibility = Visibility.Visible;
+                }
+
                 if (p.StrokeDashArray != null && p.StrokeDashArray.Count == 2 && !p.StrokeDashArray.IsFrozen)
                 {
                     p.StrokeDashArray[0] = dashLen;
@@ -825,31 +924,94 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private void OnAnimTick(object sender, EventArgs e)
         {
             if (!IsVisible || _isMorphing) return;
-            // ~3.0 second back-and-forth ("رفت و آمدی") cycle matching Vayli video (00:00 - 00:19)
-            _cyclePhase = (_cyclePhase + 0.0068) % 1.0;
+
+            if (!string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase))
+            {
+                if (DateTime.UtcNow < _burstUntilUtc)
+                {
+                    _burstOpacity = Math.Min(1.0, _burstOpacity + 0.14);
+                }
+                else
+                {
+                    _burstOpacity = Math.Max(0.0, _burstOpacity - 0.04);
+                    if (_burstOpacity <= 0.005)
+                    {
+                        _pulseContainer.Opacity = 0.0;
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                _burstOpacity = 1.0;
+            }
+
+            double step = _speed switch
+            {
+                "Slow" => 0.0038,
+                "Fast" => 0.0125,
+                _ => 0.0068
+            };
+            if (string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase))
+            {
+                step *= 0.65;
+            }
+            _cyclePhase = (_cyclePhase + step) % 1.0;
             UpdateDashOffsets();
         }
 
         private void UpdateDashOffsets()
         {
-            // SineEase back-and-forth oscillation:
-            // wave = 0.0 (at side walls/corners) -> 1.0 (meeting at bottom center) -> 0.0 (back to side walls/corners)
             double wave = 0.5 * (1.0 - Math.Cos(2.0 * Math.PI * _cyclePhase));
 
-            // Head position p oscillates between 0.08 (side walls) and 0.50 (exact bottom center)
-            double p = 0.08 + wave * 0.42;
+            if (string.Equals(_pattern, "Breathe", StringComparison.OrdinalIgnoreCase))
+            {
+                _pulseContainer.Opacity = (0.28 + 0.72 * wave) * _burstOpacity;
+                return;
+            }
 
-            // Gentle breathing opacity on _pulseContainer matching EdgeLightWpf.RebuildCore
-            _pulseContainer.Opacity = 0.65 + 0.35 * wave;
+            bool isSingleComet = string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase);
+            if (isSingleComet)
+            {
+                // Two-way forward comet:
+                // Leg 1 (0.0 to 0.5): Sweeps Right -> Left and completes/exits at Left
+                // Leg 2 (0.5 to 1.0): Sweeps Left -> Right and completes/exits at Right
+                // Neither leg reverses backwards ("دنده عقب"); comet head always leads and tail trails!
+                bool isLegRightToLeft = _cyclePhase < 0.5;
+                double legProgress = isLegRightToLeft
+                    ? (_cyclePhase / 0.5)
+                    : ((_cyclePhase - 0.5) / 0.5);
+
+                double p = -0.08 + legProgress * 1.64;
+                _pulseContainer.Opacity = _burstOpacity;
+
+                for (int i = 0; i < _cometEntries.Length; i++)
+                {
+                    ref var entry = ref _cometEntries[i];
+                    if (entry.Thickness <= 0) continue;
+
+                    bool belongsToCurrentLeg = isLegRightToLeft ? entry.IsReverse : !entry.IsReverse;
+                    if (!belongsToCurrentLeg)
+                    {
+                        entry.PathElement.Visibility = Visibility.Collapsed;
+                        continue;
+                    }
+
+                    entry.PathElement.Visibility = Visibility.Visible;
+                    entry.PathElement.StrokeDashOffset = (entry.SegFrac - p) * (_totalLength / entry.Thickness);
+                }
+                return;
+            }
+
+            // Twin comets meeting symmetrically at bottom center (0.50) and returning
+            double pTwin = 0.08 + wave * 0.42;
+            _pulseContainer.Opacity = (0.65 + 0.35 * wave) * _burstOpacity;
 
             for (int i = 0; i < _cometEntries.Length; i++)
             {
                 var entry = _cometEntries[i];
-                if (entry.Thickness <= 0) continue;
-                // Exact formula from EdgeLightWpf.<AddComet>b__19:
-                // StrokeDashOffset = -(p - segFrac) * L / Th = (segFrac - p) * (L / Th)
-                // This aligns the bright front head of all 11 layers at arc position p * L!
-                entry.PathElement.StrokeDashOffset = (entry.SegFrac - p) * (_totalLength / entry.Thickness);
+                if (entry.Thickness <= 0 || entry.PathElement.Visibility != Visibility.Visible) continue;
+                entry.PathElement.StrokeDashOffset = (entry.SegFrac - pTwin) * (_totalLength / entry.Thickness);
             }
         }
 
@@ -944,6 +1106,82 @@ namespace WindowsBuddy.BuddyCapsule.UI
             }
             geom.Freeze();
             return geom;
+        }
+    }
+
+    /// <summary>
+    /// MiniAnalogClock: 16x16 crisp analog clock face for the resting notch when Clock style = Analog.
+    /// </summary>
+    public class MiniAnalogClock : Canvas
+    {
+        private readonly Line _hourHand;
+        private readonly Line _minuteHand;
+        private readonly double _radius;
+
+        public MiniAnalogClock(double size = 16.0)
+        {
+            Width = size;
+            Height = size;
+            _radius = size / 2.0;
+            VerticalAlignment = VerticalAlignment.Center;
+
+            var dial = new Ellipse
+            {
+                Width = size,
+                Height = size,
+                Stroke = new SolidColorBrush(Color.FromArgb(215, 255, 255, 255)),
+                StrokeThickness = 1.25
+            };
+            Children.Add(dial);
+
+            _hourHand = new Line
+            {
+                X1 = _radius,
+                Y1 = _radius,
+                Stroke = Brushes.White,
+                StrokeThickness = 1.4,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round
+            };
+            Children.Add(_hourHand);
+
+            _minuteHand = new Line
+            {
+                X1 = _radius,
+                Y1 = _radius,
+                Stroke = Brushes.White,
+                StrokeThickness = 1.15,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round
+            };
+            Children.Add(_minuteHand);
+
+            var centerDot = new Ellipse
+            {
+                Width = 2.2,
+                Height = 2.2,
+                Fill = new SolidColorBrush(Color.FromRgb(255, 85, 0))
+            };
+            SetLeft(centerDot, _radius - 1.1);
+            SetTop(centerDot, _radius - 1.1);
+            Children.Add(centerDot);
+
+            UpdateTime(DateTime.Now);
+        }
+
+        public void UpdateTime(DateTime now)
+        {
+            double minAngle = ((now.Minute + now.Second / 60.0) / 60.0) * 2.0 * Math.PI - Math.PI / 2.0;
+            double hourAngle = (((now.Hour % 12) + now.Minute / 60.0) / 12.0) * 2.0 * Math.PI - Math.PI / 2.0;
+
+            double rHour = _radius * 0.48;
+            double rMin = _radius * 0.68;
+
+            _hourHand.X2 = _radius + Math.Cos(hourAngle) * rHour;
+            _hourHand.Y2 = _radius + Math.Sin(hourAngle) * rHour;
+
+            _minuteHand.X2 = _radius + Math.Cos(minAngle) * rMin;
+            _minuteHand.Y2 = _radius + Math.Sin(minAngle) * rMin;
         }
     }
 
@@ -1184,17 +1422,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public bool IsPlaying
         {
             get => _isPlaying;
-            set
-            {
-                _isPlaying = value;
-                if (!value)
-                {
-                    _bars[0].Height = 4;
-                    _bars[1].Height = 3;
-                    _bars[2].Height = 4;
-                    _bars[3].Height = 3;
-                }
-            }
+            set => _isPlaying = value;
         }
 
         public MiniEqualizerControl()
@@ -1236,7 +1464,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _isPlaying = isPlaying;
             if (!isPlaying || mini4 == null || mini4.Length < 4)
             {
-                for (int i = 0; i < 4; i++) _bars[i].Height = 3.0;
+                DecayLevels(3.0);
                 return;
             }
 
@@ -1245,6 +1473,20 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 double target = 2.5 + Math.Clamp(mini4[i], 0f, 1f) * 10.5;
                 _bars[i].Height = _bars[i].Height * 0.45 + target * 0.55;
             }
+        }
+
+        public bool DecayLevels(double targetHeight = 3.0)
+        {
+            bool allSettled = true;
+            for (int i = 0; i < 4; i++)
+            {
+                double cur = _bars[i].Height;
+                double next = cur * 0.78 + targetHeight * 0.22;
+                if (Math.Abs(next - targetHeight) > 0.08) allSettled = false;
+                else next = targetHeight;
+                _bars[i].Height = next;
+            }
+            return allSettled;
         }
     }
 
@@ -1308,8 +1550,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _isPlaying = isPlaying;
             if (!isPlaying)
             {
-                for (int i = 0; i < _count; i++)
-                    _bars[i].Height = 2.2;
+                DecayLevels(2.2);
                 return;
             }
 
@@ -1355,6 +1596,20 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public void SetPlayback(double progress, bool isPlaying)
         {
             _isPlaying = isPlaying;
+        }
+
+        public bool DecayLevels(double targetHeight = 2.2)
+        {
+            bool allSettled = true;
+            for (int i = 0; i < _count; i++)
+            {
+                double cur = _bars[i].Height;
+                double next = cur * 0.78 + targetHeight * 0.22;
+                if (Math.Abs(next - targetHeight) > 0.08) allSettled = false;
+                else next = targetHeight;
+                _bars[i].Height = next;
+            }
+            return allSettled;
         }
     }
 

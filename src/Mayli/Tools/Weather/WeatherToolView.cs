@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Weather
 {
@@ -53,6 +54,7 @@ namespace WindowsBuddy.Tools.Weather
         public WeatherToolView()
         {
             Instance = this;
+            FlowDirection = LocalizationService.CurrentFlowDirection;
 
             BuildUI();
 
@@ -187,7 +189,7 @@ namespace WindowsBuddy.Tools.Weather
             // Header: Hourly
             var header = new TextBlock
             {
-                Text = "Hourly",
+                Text = LocalizationService.T("weather.hourly", "Hourly"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -210,15 +212,15 @@ namespace WindowsBuddy.Tools.Weather
             var metricsGrid = new UniformGrid { Columns = 3 };
 
             // Humidity
-            var humStack = CreateMetricBlock("💧", "Humidity", out _humidityValText);
+            var humStack = CreateMetricBlock("💧", LocalizationService.T("weather.humidity", "Humidity"), out _humidityValText);
             metricsGrid.Children.Add(humStack);
 
             // Wind
-            var windStack = CreateMetricBlock("≈", "Wind", out _windValText);
+            var windStack = CreateMetricBlock("≈", LocalizationService.T("weather.wind", "Wind"), out _windValText);
             metricsGrid.Children.Add(windStack);
 
             // UV index
-            var uvStack = CreateMetricBlock("☼", "UV index", out _uvValText);
+            var uvStack = CreateMetricBlock("☼", LocalizationService.T("weather.uv", "UV index"), out _uvValText);
             metricsGrid.Children.Add(uvStack);
 
             bottomArea.Children.Add(metricsGrid);
@@ -294,7 +296,7 @@ namespace WindowsBuddy.Tools.Weather
 
             var header = new TextBlock
             {
-                Text = "5-Day",
+                Text = LocalizationService.T("weather.5day", "5-Day"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -346,7 +348,7 @@ namespace WindowsBuddy.Tools.Weather
             };
             var backText = new TextBlock
             {
-                Text = "← Back",
+                Text = "← " + LocalizationService.T("weather.back", "Back"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White
@@ -361,7 +363,7 @@ namespace WindowsBuddy.Tools.Weather
             var titleStack = new StackPanel { Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             titleStack.Children.Add(new TextBlock
             {
-                Text = "Select City",
+                Text = LocalizationService.T("weather.select_city", "Select City"),
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
@@ -426,7 +428,7 @@ namespace WindowsBuddy.Tools.Weather
             var searchGrid = new Grid();
             _searchPlaceholder = new TextBlock
             {
-                Text = "Search city (e.g. Isfahan, Tehran, London, Tokyo, New York...)",
+                Text = LocalizationService.T("weather.search_city", "Search city (e.g. Isfahan, Tehran, London, Tokyo, New York...)"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 128)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -455,7 +457,7 @@ namespace WindowsBuddy.Tools.Weather
             // Suggestions List
             var listHeader = new TextBlock
             {
-                Text = "POPULAR & RECENT CITIES",
+                Text = LocalizationService.T("weather.popular", "POPULAR & RECENT CITIES"),
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -522,7 +524,7 @@ namespace WindowsBuddy.Tools.Weather
             {
                 _citiesWrapPanel.Children.Add(new TextBlock
                 {
-                    Text = "No cities found. Try another search term.",
+                    Text = LocalizationService.T("weather.no_cities", "No cities found. Try another search term."),
                     FontSize = 12,
                     Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                     Margin = new Thickness(6, 12, 0, 0)
@@ -593,9 +595,9 @@ namespace WindowsBuddy.Tools.Weather
 
             _currentTempText.Text = _service.FormatTemp(data.Temperature);
             _currentConditionText.Text = data.Condition;
-            _currentHighLowText.Text = $"H {_service.FormatTemp(data.HighTemp)}  L {_service.FormatTemp(data.LowTemp)} · Feels like {_service.FormatTemp(data.FeelsLike)}";
-            _currentSunText.Text = $"Sunrise {data.Sunrise} · Sunset {data.Sunset}";
-            _currentUpdatedText.Text = $"Updated {data.LastUpdated}";
+            _currentHighLowText.Text = $"H {_service.FormatTemp(data.HighTemp)}  L {_service.FormatTemp(data.LowTemp)} · {LocalizationService.T("weather.feels_like", "Feels like")} {_service.FormatTemp(data.FeelsLike)}";
+            _currentSunText.Text = $"{LocalizationService.T("weather.sunrise", "Sunrise")} {data.Sunrise} · {LocalizationService.T("weather.sunset", "Sunset")} {data.Sunset}";
+            _currentUpdatedText.Text = string.Format(LocalizationService.T("weather.updated_fmt", "Updated {0}"), data.LastUpdated);
 
             // 2. Hourly Card
             _hourlyColumnsGrid.Children.Clear();

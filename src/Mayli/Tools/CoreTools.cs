@@ -62,7 +62,7 @@ namespace WindowsBuddy.Tools
     public sealed class HomeTool : IBuddyTool
     {
         public string Id => "home";
-        public string Title => "Home";
+        public string Title => LocalizationService.T("tool.home", "Home");
         public string IconGlyph => "⌂";
 
         // Card 1: Screen Time
@@ -133,7 +133,7 @@ namespace WindowsBuddy.Tools
             });
             stHeader.Children.Add(new TextBlock
             {
-                Text = "SCREEN TIME",
+                Text = LocalizationService.T("home.screentime", "SCREEN TIME"),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
@@ -176,7 +176,7 @@ namespace WindowsBuddy.Tools
 
             _stAppText = new TextBlock
             {
-                Text = "No apps today",
+                Text = LocalizationService.T("home.no_apps", "No apps today"),
                 FontSize = 10.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -207,7 +207,7 @@ namespace WindowsBuddy.Tools
             });
             sysHeader.Children.Add(new TextBlock
             {
-                Text = "SYSTEM",
+                Text = LocalizationService.T("home.system", "SYSTEM"),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
@@ -249,7 +249,7 @@ namespace WindowsBuddy.Tools
             });
             wHeader.Children.Add(new TextBlock
             {
-                Text = "WEATHER",
+                Text = LocalizationService.T("home.weather", "WEATHER"),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
@@ -325,7 +325,7 @@ namespace WindowsBuddy.Tools
             });
             fHeader.Children.Add(new TextBlock
             {
-                Text = "FOCUS",
+                Text = LocalizationService.T("home.focus", "FOCUS"),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
@@ -407,7 +407,7 @@ namespace WindowsBuddy.Tools
             });
             cHeader.Children.Add(new TextBlock
             {
-                Text = "CLIPBOARD",
+                Text = LocalizationService.T("home.clipboard", "CLIPBOARD"),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
@@ -439,7 +439,7 @@ namespace WindowsBuddy.Tools
             });
             nHeader.Children.Add(new TextBlock
             {
-                Text = "NOTES",
+                Text = LocalizationService.T("home.notes", "NOTES"),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
@@ -1085,7 +1085,7 @@ namespace WindowsBuddy.Tools
     public sealed class FileShelfTool : IBuddyTool
     {
         public string Id => "fileshelf";
-        public string Title => "File Shelf";
+        public string Title => LocalizationService.T("tool.fileshelf", "File Shelf");
         public string IconGlyph => "📁";
 
         private WindowsBuddy.Tools.FileShelf.FileShelfToolView _view;
@@ -1132,7 +1132,7 @@ namespace WindowsBuddy.Tools
     public sealed class LinksTool : IBuddyTool
     {
         public string Id => "links";
-        public string Title => "Links";
+        public string Title => LocalizationService.T("tool.links", "Links");
         public string IconGlyph => "🔗";
 
         private WindowsBuddy.Tools.Links.LinksToolView _view;
@@ -1153,7 +1153,7 @@ namespace WindowsBuddy.Tools
     public sealed class ClipboardTool : IBuddyTool
     {
         public string Id => "clipboard";
-        public string Title => "Clipboard";
+        public string Title => LocalizationService.T("tool.clipboard", "Clipboard");
         public string IconGlyph => "📋";
 
         private WindowsBuddy.Tools.Clipboard.ClipboardToolView _view;
@@ -1184,7 +1184,7 @@ namespace WindowsBuddy.Tools
     public sealed class NotesTool : IBuddyTool
     {
         public string Id => "notes";
-        public string Title => "Notes";
+        public string Title => LocalizationService.T("tool.notes", "Notes");
         public string IconGlyph => "📝";
 
         private WindowsBuddy.BuddyCapsule.UI.NotesToolView _view;
@@ -1208,7 +1208,7 @@ namespace WindowsBuddy.Tools
     public sealed class TimerClockTool : IBuddyTool
     {
         public string Id => "focus";
-        public string Title => "Timers";
+        public string Title => LocalizationService.T("tool.focus", "Timers");
         public string IconGlyph => "⏱";
 
         public static int RemainingSeconds => WindowsBuddy.Tools.Timer.TimerService.Instance.PomoRemainingSeconds;
@@ -1239,7 +1239,7 @@ namespace WindowsBuddy.Tools
     public sealed class SystemTool : IBuddyTool
     {
         public string Id => "system";
-        public string Title => "System";
+        public string Title => LocalizationService.T("tool.system", "System");
         public string IconGlyph => "⚙";
 
         private WindowsBuddy.BuddyCapsule.UI.SystemToolView _view;
@@ -1260,7 +1260,7 @@ namespace WindowsBuddy.Tools
     public sealed class ClockTool : IBuddyTool
     {
         public string Id => "clock";
-        public string Title => "Clock";
+        public string Title => LocalizationService.T("tool.clock", "Clock");
         public string IconGlyph => "🕐";
         private WindowsBuddy.Tools.Clock.ClockToolView _view;
         public FrameworkElement BuildView()
@@ -1275,7 +1275,7 @@ namespace WindowsBuddy.Tools
     public sealed class CalendarTool : IBuddyTool
     {
         public string Id => "calendar";
-        public string Title => "Calendar";
+        public string Title => LocalizationService.T("tool.calendar", "Calendar");
         public string IconGlyph => "📅";
         public FrameworkElement BuildView()
         {
@@ -1293,7 +1293,7 @@ namespace WindowsBuddy.Tools
     public sealed class TransferTool : IBuddyTool
     {
         public string Id => "transfer";
-        public string Title => "Transfer";
+        public string Title => LocalizationService.T("tool.maylidrop", "Transfer");
         public string IconGlyph => "⇄";
         private WindowsBuddy.Tools.FileShelf.FileShelfToolView _view;
         public FrameworkElement BuildView()
@@ -1308,7 +1308,7 @@ namespace WindowsBuddy.Tools
     public sealed class QuickToolsTool : IBuddyTool
     {
         public string Id => "units";
-        public string Title => "Units";
+        public string Title => LocalizationService.T("tool.units", "Units");
         public string IconGlyph => "📐";
         private WindowsBuddy.Tools.Units.UnitsToolView _view;
         public FrameworkElement BuildView()
@@ -1326,8 +1326,8 @@ namespace WindowsBuddy.Tools
     public sealed class MessageBannerTool : IBuddyTool
     {
         public string Id => "message";
-        public string Title => "Message";
-        public string IconGlyph => "🪪";
+        public string Title => LocalizationService.T("tool.message", "Message");
+        public string IconGlyph => "💬";
         private WindowsBuddy.Tools.Message.MessageToolView _view;
         public FrameworkElement BuildView()
         {

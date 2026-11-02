@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Links
 {
@@ -28,6 +29,7 @@ namespace WindowsBuddy.Tools.Links
 
         public LinksToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             BuildUI();
 
             _service.StateChanged += OnStateChanged;
@@ -71,7 +73,7 @@ namespace WindowsBuddy.Tools.Links
             };
             var searchBtnText = new TextBlock
             {
-                Text = "Search ↗",
+                Text = LocalizationService.T("links.search", "Search") + " ↗",
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
@@ -101,7 +103,7 @@ namespace WindowsBuddy.Tools.Links
             var searchGrid = new Grid();
             _searchPlaceholder = new TextBlock
             {
-                Text = "Search",
+                Text = LocalizationService.T("links.search", "Search"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 128)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -243,7 +245,7 @@ namespace WindowsBuddy.Tools.Links
             };
             var addText = new TextBlock
             {
-                Text = "+ Add Link",
+                Text = LocalizationService.T("links.add_link", "+ Add Link"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
@@ -268,7 +270,7 @@ namespace WindowsBuddy.Tools.Links
             });
             titleSp.Children.Add(new TextBlock
             {
-                Text = "Saved links",
+                Text = LocalizationService.T("links.saved_links", "Saved links"),
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
@@ -308,7 +310,7 @@ namespace WindowsBuddy.Tools.Links
         {
             _bookmarksWrapPanel.Children.Clear();
             var bms = _service.Bookmarks;
-            _countText.Text = $"{bms.Count} links";
+            _countText.Text = string.Format(LocalizationService.T("links.links_count_fmt", "{0} links"), bms.Count);
 
             foreach (var bm in bms)
             {
@@ -505,7 +507,7 @@ namespace WindowsBuddy.Tools.Links
 
             top.Children.Add(new TextBlock
             {
-                Text = "Add Bookmark",
+                Text = LocalizationService.T("links.add_bookmark", "Add Bookmark"),
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White

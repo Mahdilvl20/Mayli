@@ -16,6 +16,7 @@ using WindowsBuddy.BuddyCapsule.UI;
 using WindowsBuddy.Core;
 using WindowsBuddy.Services;
 using WindowsBuddy.Tools;
+using WindowsBuddy.UI.AnimateIcons;
 using WindowsBuddy.UI.Settings;
 
 namespace WindowsBuddy.BuddyCapsule.Core
@@ -67,9 +68,20 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         // 1. Collapsed Resting Normal View (matching video 00:00-00:02: "8:51 PM" + [Green Battery] "100")
         private readonly Grid _collapsedNormalView;
+        private readonly StackPanel _restingLeftStack;
+        private readonly StackPanel _restingRightStack;
+        private readonly TextBlock _collapsedDateText;
+        private readonly MiniAnalogClock _collapsedAnalogClock;
         private readonly TextBlock _collapsedClockText;
+        private readonly CuteOrbPetView _collapsedOrb;
+        private readonly CuteOrbPetView _headerOrb;
+        private readonly AnimateIcon _collapsedBluetoothIcon;
         private readonly BatteryStatusGlyph _collapsedBatteryGlyph;
         private readonly TextBlock _collapsedBatteryText;
+        private readonly Grid _collapsedMinimalView;
+        private bool _isMinimalModeActive = false;
+        private bool _isMinimalPeekHovered = false;
+        private bool _isAutoHiddenByVisibility = false;
 
         // 2A. Collapsed Compact Live Media View (296 x 45 - Normal Music Playing)
         private readonly Grid _collapsedMediaView;
@@ -92,6 +104,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth)
         private readonly Grid _collapsedBannerView;
+        private readonly AnimateIcon _bannerAnimateIcon;
         private readonly TextBlock _bannerIcon;
         private readonly TextBlock _bannerTitle;
         private readonly TextBlock _bannerSubtitle;
@@ -121,7 +134,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private bool _isBannerActive = false;
         private bool _isMusicActive = false;
+        private bool _isMediaRetained = false;
         private bool _isMediaWideActive = false;
+        private Color _currentSongBeatColor = Color.FromRgb(48, 209, 88);
         private string _lastObservedTrack = "";
         private string _lastObservedArtist = "";
         private double _mediaPosSeconds = 0.0;
@@ -134,6 +149,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private bool _isTucked = false;
         private readonly TranslateTransform _capsuleCardTranslate = new(0, 0);
+        private readonly DispatcherTimer _mediaSettleExitTimer;
 
         public bool IsTucked => _isTucked;
 
@@ -226,7 +242,31 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            _restingLeftStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            _collapsedDateText = new TextBlock
+            {
+                Text = DateTime.Now.ToString("ddd d", CultureInfo.InvariantCulture),
+                FontSize = 12.0,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 5, 0),
+                Visibility = Visibility.Collapsed
+            };
+            _restingLeftStack.Children.Add(_collapsedDateText);
+
+            _collapsedAnalogClock = new MiniAnalogClock(15.5)
+            {
+                Margin = new Thickness(0, 0, 4, 0),
+                Visibility = Visibility.Collapsed
+            };
+            _restingLeftStack.Children.Add(_collapsedAnalogClock);
 
             _collapsedClockText = new TextBlock
             {
@@ -236,23 +276,38 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(_collapsedClockText, 0);
-            _collapsedNormalView.Children.Add(_collapsedClockText);
+            _restingLeftStack.Children.Add(_collapsedClockText);
 
-            var collapsedOrb = new CuteOrbPetView(initialMood: OrbMood.Idle, size: 21)
+            Grid.SetColumn(_restingLeftStack, 0);
+            _collapsedNormalView.Children.Add(_restingLeftStack);
+
+            _collapsedOrb = new CuteOrbPetView(initialMood: OrbMood.Idle, size: 21)
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Mayli Notch Buddy ✨ (Click to emote / کلیک کنید برای تغییر حالت)"
+                ToolTip = LocalizationService.T("header.orb", "Mayli Companion Orb ✨ (Click to emote)")
             };
-            collapsedOrb.Clicked += () => PetEngine.Instance.CycleNextMood();
-            Grid.SetColumn(collapsedOrb, 1);
-            _collapsedNormalView.Children.Add(collapsedOrb);
+            _collapsedOrb.Clicked += () => PetEngine.Instance.CycleNextMood();
+            Grid.SetColumn(_collapsedOrb, 1);
+            _collapsedNormalView.Children.Add(_collapsedOrb);
+
+            _restingRightStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            _collapsedBluetoothIcon = new AnimateIcon(AnimateIconType.Bluetooth, size: 13, brush: new SolidColorBrush(Color.FromRgb(10, 132, 255)))
+            {
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed
+            };
+            _restingRightStack.Children.Add(_collapsedBluetoothIcon);
 
             _collapsedBatteryGlyph = new BatteryStatusGlyph();
             _collapsedBatteryGlyph.SetBattery(SystemMonitorService.Current.BatteryPercent);
-            Grid.SetColumn(_collapsedBatteryGlyph, 2);
-            _collapsedNormalView.Children.Add(_collapsedBatteryGlyph);
+            _restingRightStack.Children.Add(_collapsedBatteryGlyph);
 
             _collapsedBatteryText = new TextBlock
             {
@@ -262,13 +317,15 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(_collapsedBatteryText, 3);
-            _collapsedNormalView.Children.Add(_collapsedBatteryText);
+            _restingRightStack.Children.Add(_collapsedBatteryText);
+
+            Grid.SetColumn(_restingRightStack, 2);
+            _collapsedNormalView.Children.Add(_restingRightStack);
 
             // Right-clicking resting notch while music plays summons the Wide Music Card on demand
             _collapsedNormalView.MouseRightButtonUp += (_, e) =>
             {
-                if (_isMusicActive)
+                if (_isMusicActive || _isMediaRetained)
                 {
                     e.Handled = true;
                     ActivateMediaWideCard();
@@ -276,6 +333,27 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
 
             _collapsedContent.Children.Add(_collapsedNormalView);
+
+            // View 1B: Minimal Peek Bar View ("Minimal" or "Smart" over maximized window: sleek top chevron pill)
+            _collapsedMinimalView = new Grid
+            {
+                Visibility = Visibility.Collapsed,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var minChevron = new Path
+            {
+                Data = Geometry.Parse("M 0,0 L 4.5,4 L 9,0"),
+                Stroke = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                StrokeThickness = 1.5,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                StrokeLineJoin = PenLineJoin.Round,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _collapsedMinimalView.Children.Add(minChevron);
+            _collapsedContent.Children.Add(_collapsedMinimalView);
 
             // View 2A: Compact Live Media Playback View (296 x 45, matching video 00:00-00:06 & 00:11-00:19)
             _collapsedMediaView = new Grid
@@ -484,6 +562,16 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedBannerView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
             var bannerDock = new DockPanel();
 
+            _bannerAnimateIcon = new AnimateIcon(AnimateIconType.CopyCheck, size: 16, brush: Brushes.White)
+            {
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                AutoAnimateOnHover = false
+            };
+            DockPanel.SetDock(_bannerAnimateIcon, Dock.Left);
+            bannerDock.Children.Add(_bannerAnimateIcon);
+
             _bannerIcon = new TextBlock
             {
                 Text = "📋",
@@ -568,14 +656,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             var leftBrand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-            var headerOrb = new CuteOrbPetView(initialMood: OrbMood.Idle, size: 22)
+            _headerOrb = new CuteOrbPetView(initialMood: OrbMood.Idle, size: 22)
             {
                 Margin = new Thickness(0, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Mayli Companion Orb ✨ (Click to emote / کلیک کنید برای تغییر حالت)"
+                ToolTip = LocalizationService.T("header.orb", "Mayli Companion Orb ✨ (Click to emote)")
             };
-            headerOrb.Clicked += () => PetEngine.Instance.CycleNextMood();
-            leftBrand.Children.Add(headerOrb);
+            _headerOrb.Clicked += () => PetEngine.Instance.CycleNextMood();
+            leftBrand.Children.Add(_headerOrb);
 
             _headerTitleText = new TextBlock
             {
@@ -619,19 +707,19 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
             rightActions.Children.Add(_headerBatteryText);
 
-            var themeBtn = CreateHeaderIconButton("🎨", $"Theme: {CapsuleTheme.Current.DisplayName} (Click to switch)");
+            var themeBtn = CreateHeaderIconButton(AnimateIconType.Palette, string.Format(LocalizationService.T("header.theme_format", "Theme: {0} (Click to switch)"), CapsuleTheme.Current.DisplayName));
             themeBtn.MouseLeftButtonUp += (_, _) =>
             {
                 CapsuleTheme.CycleTheme();
-                themeBtn.ToolTip = $"Theme: {CapsuleTheme.Current.DisplayName} (Click to switch)";
+                themeBtn.ToolTip = string.Format(LocalizationService.T("header.theme_format", "Theme: {0} (Click to switch)"), CapsuleTheme.Current.DisplayName);
             };
             rightActions.Children.Add(themeBtn);
 
-            var settingsBtn = CreateHeaderIconButton("⚙", "Settings");
+            var settingsBtn = CreateHeaderIconButton(AnimateIconType.Settings, LocalizationService.T("header.settings", "Settings"));
             settingsBtn.MouseLeftButtonUp += (_, _) => SettingsWindow.ShowSingleton();
             rightActions.Children.Add(settingsBtn);
 
-            var collapseBtn = CreateHeaderIconButton("✕", "Close Notch");
+            var collapseBtn = CreateHeaderIconButton(AnimateIconType.Close, LocalizationService.T("header.close", "Close (Esc)"));
             collapseBtn.MouseLeftButtonUp += (_, _) => _machine.RequestClose("close-button");
             rightActions.Children.Add(collapseBtn);
 
@@ -685,25 +773,44 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 {
                     _targetProgress = 1.0;
                     _expandedContent.Visibility = Visibility.Visible;
+                    _edgeLight.TriggerBurst(4.5);
+                    EvaluateDynamicVisibility();
                     _morphTimer.Start();
                 }
                 else if (next == NotchPhase.Closing || next == NotchPhase.Resting)
                 {
                     _targetProgress = 0.0;
+                    EvaluateDynamicVisibility();
                     _morphTimer.Start();
                 }
             };
 
             _capsuleCard.MouseEnter += (_, _) =>
             {
+                _edgeLight.TriggerBurst(4.2);
+                if (_isMinimalModeActive && AppPreferences.Instance.OpensOnClick)
+                {
+                    _isMinimalPeekHovered = true;
+                    EvaluateDynamicVisibility();
+                    return;
+                }
                 if (AppPreferences.Instance.OpensOnClick) return;
                 _machine.PointerMoved(true, "mouse-enter");
             };
-            _capsuleCard.MouseLeave += (_, _) => _machine.PointerMoved(false, "mouse-leave");
+            _capsuleCard.MouseLeave += (_, _) =>
+            {
+                if (_isMinimalPeekHovered)
+                {
+                    _isMinimalPeekHovered = false;
+                    EvaluateDynamicVisibility();
+                }
+                _machine.PointerMoved(false, "mouse-leave");
+            };
             _capsuleCard.MouseLeftButtonUp += (_, _) =>
             {
                 if (_morphProgress <= 0.1)
                 {
+                    _edgeLight.TriggerBurst(4.5);
                     _machine.Click("capsule-click");
                 }
             };
@@ -711,29 +818,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) =>
             {
-                string timeStr;
-                if (AppPreferences.Instance.TimeFormat == "24-hour")
-                    timeStr = DateTime.Now.ToString("HH:mm");
-                else if (AppPreferences.Instance.TimeFormat == "12-hour")
-                    timeStr = DateTime.Now.ToString("h:mm tt");
-                else
-                    timeStr = DateTime.Now.ToString("t");
-
-                if (AppPreferences.Instance.ShowClosedDate)
-                    _collapsedClockText.Text = $"{DateTime.Now:ddd d} · {timeStr}";
-                else
-                    _collapsedClockText.Text = timeStr;
-
-                _collapsedClockText.Visibility = AppPreferences.Instance.ShowClosedTime ? Visibility.Visible : Visibility.Collapsed;
-
-                var sys = SystemMonitorService.Current;
-                _collapsedBatteryGlyph.SetBattery(sys.BatteryPercent);
-                _collapsedBatteryText.Text = $"{sys.BatteryPercent}";
-                _headerBatteryText.Text = $"{sys.BatteryPercent}% ⚡";
-
-                Visibility batVis = AppPreferences.Instance.ShowClosedBattery ? Visibility.Visible : Visibility.Collapsed;
-                _collapsedBatteryGlyph.Visibility = batVis;
-                _collapsedBatteryText.Visibility = batVis;
+                UpdateRestingClockAndStatus();
+                EvaluateDynamicVisibility();
 
                 if (_isMusicActive)
                 {
@@ -742,20 +828,26 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 // Ensure notch stays on top layer above all windows when not tucked away (every 5s to avoid per-second P/Invoke overhead)
                 _topmostTickCounter++;
-                if (!_isTucked && (_topmostTickCounter % 5 == 0))
+                if (!_isTucked && !_isAutoHiddenByVisibility && (_topmostTickCounter % 5 == 0))
                 {
                     EnsureTopmost();
                 }
             };
             _clockTimer.Start();
 
-            // 30fps Real-time Spectrum & Equalizer Animation Timer (only active when music is playing)
+            // 30fps Real-time Spectrum & Equalizer Animation Timer (active during playback and smooth decay when stopped)
             _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
             _spectrumTimer.Tick += (_, _) =>
             {
                 if (!_isMusicActive)
                 {
-                    _spectrumTimer.Stop();
+                    bool miniSettled = _miniEqualizer.DecayLevels();
+                    bool waveSettled = _waveformProgress.DecayLevels();
+                    bool wideWaveSettled = _wideWaveformProgress.DecayLevels();
+                    if (miniSettled && waveSettled && wideWaveSettled)
+                    {
+                        _spectrumTimer.Stop();
+                    }
                     return;
                 }
                 if (_morphProgress > 0.4) return;
@@ -763,17 +855,30 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 AudioSpectrumService.Instance.Read(_fftBands28, out bool isAudioLive);
                 AudioSpectrumService.ComputeMiniBars(_fftBands28, _miniBars4, _spectrumPhase);
-                _miniEqualizer.SetLevels(_miniBars4, _isMusicActive);
+                _miniEqualizer.SetLevels(_miniBars4, true);
 
                 if (_isMediaWideActive)
                 {
                     AudioSpectrumService.MapBands(_fftBands28, _mappedBars56, WaveformProgressBar.WideBarCount);
-                    _wideWaveformProgress.SetSpectrumLevels(_mappedBars56, _isMusicActive, isAudioLive, _spectrumPhase);
+                    _wideWaveformProgress.SetSpectrumLevels(_mappedBars56, true, isAudioLive, _spectrumPhase);
                 }
                 else
                 {
                     AudioSpectrumService.MapBands(_fftBands28, _mappedBars40, WaveformProgressBar.CompactBarCount);
-                    _waveformProgress.SetSpectrumLevels(_mappedBars40, _isMusicActive, isAudioLive, _spectrumPhase);
+                    _waveformProgress.SetSpectrumLevels(_mappedBars40, true, isAudioLive, _spectrumPhase);
+                }
+            };
+
+            // Music Settle Exit Timer (Retains media card 2.8s after music ends/pauses, then smoothly morphs to resting notch)
+            _mediaSettleExitTimer = new DispatcherTimer();
+            _mediaSettleExitTimer.Tick += (_, _) =>
+            {
+                _mediaSettleExitTimer.Stop();
+                if (!_isMusicActive && _isMediaRetained)
+                {
+                    _isMediaRetained = false;
+                    UpdateEdgeLightEffectiveColor();
+                    UpdateCollapsedViewState();
                 }
             };
 
@@ -818,6 +923,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             CapsuleTheme.ThemeChanged += RequestApplyThemeAndGeometry;
             AppPreferences.Instance.Changed += RequestApplyThemeAndGeometry;
+            LocalizationService.LanguageChanged += () => Dispatcher.InvokeAsync(RequestApplyThemeAndGeometry);
 
             // Alt+1 .. Alt+0, Alt+M, Alt+S Navigation Shortcuts
             PreviewKeyDown += (_, e) =>
@@ -848,8 +954,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
             };
 
-            NavigateToTool("home");
-            UpdateMorphVisuals(0.0);
+            ApplyThemeAndGeometry();
         }
 
         #region Real-Time Action Handlers
@@ -875,11 +980,46 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     return;
 
                 _isBannerActive = true;
-                _bannerIcon.Text = payload.Icon;
                 _bannerTitle.Text = payload.Title;
                 _bannerSubtitle.Text = payload.Subtitle;
 
+                if (payload.Title == "Copied" || payload.Icon == "📋" || payload.Icon == "📎")
+                {
+                    _bannerAnimateIcon.IconType = AnimateIconType.CopyCheck;
+                    _bannerAnimateIcon.Visibility = Visibility.Visible;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
+                    _bannerAnimateIcon.Play();
+                }
+                else if (payload.Icon == "🎧" || (payload.Title != null && payload.Title.Contains("Connected", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _bannerAnimateIcon.IconType = AnimateIconType.Bluetooth;
+                    _bannerAnimateIcon.Visibility = Visibility.Visible;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
+                    _bannerAnimateIcon.Play();
+                }
+                else if (payload.Icon == "🔊" || payload.Icon == "🔈")
+                {
+                    _bannerAnimateIcon.IconType = AnimateIconType.Volume;
+                    _bannerAnimateIcon.Visibility = Visibility.Visible;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
+                    _bannerAnimateIcon.Play();
+                }
+                else if (payload.Icon == "⏱" || payload.Icon == "⏰")
+                {
+                    _bannerAnimateIcon.IconType = AnimateIconType.Timer;
+                    _bannerAnimateIcon.Visibility = Visibility.Visible;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
+                    _bannerAnimateIcon.Play();
+                }
+                else
+                {
+                    _bannerAnimateIcon.Visibility = Visibility.Collapsed;
+                    _bannerIcon.Visibility = Visibility.Visible;
+                    _bannerIcon.Text = payload.Icon;
+                }
+
                 // Display banner view
+                _collapsedMinimalView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
@@ -887,6 +1027,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 _currentBaseCollapsedWidth = BannerCollapsedWidth;
                 _currentBaseCollapsedHeight = BannerCollapsedHeight;
+
+                _edgeLight.TriggerBurst(4.2);
+                EvaluateDynamicVisibility();
 
                 if (_morphProgress <= 0.1)
                 {
@@ -914,24 +1057,42 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 if (!AppPreferences.Instance.ShowMediaActivity || (snapshot.IsPlaying && !string.IsNullOrWhiteSpace(snapshot.SourceApp) && AppPreferences.Instance.IsAudioAppExcluded(snapshot.SourceApp)))
                 {
                     _isMusicActive = false;
+                    _isMediaRetained = false;
+                    _mediaSettleExitTimer.Stop();
                     _spectrumTimer.Stop();
                     _miniEqualizer.IsPlaying = false;
                     _wideTransportControls.SetPlaying(false);
                     _isMediaWideActive = false;
                     _mediaWideDismissTimer.Stop();
+                    UpdateEdgeLightEffectiveColor();
                     UpdateCollapsedViewState();
                     return;
                 }
 
                 bool wasPlaying = _isMusicActive;
                 _isMusicActive = snapshot.IsPlaying;
+                if (snapshot.BeatColor.A > 0)
+                {
+                    _currentSongBeatColor = snapshot.BeatColor;
+                }
+                UpdateEdgeLightEffectiveColor();
+
                 if (_isMusicActive)
                 {
+                    _isMediaRetained = true;
+                    _mediaSettleExitTimer.Stop();
                     _spectrumTimer.Start();
                 }
                 else
                 {
-                    _spectrumTimer.Stop();
+                    if (wasPlaying && _isMediaRetained)
+                    {
+                        // Music paused/stopped: smoothly decay equalizer and keep media card alive for 2.8s before morphing
+                        _spectrumTimer.Start();
+                        _mediaSettleExitTimer.Stop();
+                        _mediaSettleExitTimer.Interval = TimeSpan.FromSeconds(2.8);
+                        _mediaSettleExitTimer.Start();
+                    }
                 }
                 string track = string.IsNullOrWhiteSpace(snapshot.Title) ? "Future Calling" : snapshot.Title;
                 string artist = string.IsNullOrWhiteSpace(snapshot.Artist) ? "ZOYA" : snapshot.Artist;
@@ -986,7 +1147,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 {
                     _isMediaWideActive = false;
                     _mediaWideDismissTimer.Stop();
-                    if (!_isBannerActive)
+                    if (!_isMediaRetained && !_isBannerActive)
                     {
                         UpdateCollapsedViewState();
                     }
@@ -1011,8 +1172,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private void ActivateMediaWideCard()
         {
-            if (!_isMusicActive) return;
+            if (!_isMusicActive && !_isMediaRetained) return;
             _isMediaWideActive = true;
+            _edgeLight.TriggerBurst(4.5);
             ResetMediaWideTimer();
             UpdateMediaTimelineVisuals();
 
@@ -1085,8 +1247,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private void UpdateCollapsedViewState(bool animateCompactEntrance = false)
         {
+            EvaluateDynamicVisibility();
+
+            bool showMedia = (_isMusicActive || _isMediaRetained) && AppPreferences.Instance.ShowClosedNowPlaying;
+
             if (_isBannerActive)
             {
+                _collapsedMinimalView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
@@ -1097,6 +1264,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
             else if (_isMessageActive)
             {
+                _collapsedMinimalView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
@@ -1104,8 +1272,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedMessageView.Visibility = Visibility.Visible;
                 _currentBaseCollapsedHeight = BannerCollapsedHeight;
             }
-            else if (_isMusicActive && _isMediaWideActive)
+            else if (showMedia && _isMediaWideActive)
             {
+                _collapsedMinimalView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
@@ -1114,8 +1283,20 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _currentBaseCollapsedWidth = MediaWideCollapsedWidth;
                 _currentBaseCollapsedHeight = MediaWideCollapsedHeight;
             }
-            else if (_isMusicActive)
+            else if (_isMinimalModeActive)
             {
+                _collapsedBannerView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
+                _collapsedMessageView.Visibility = Visibility.Collapsed;
+                _collapsedNormalView.Visibility = Visibility.Collapsed;
+                _collapsedMinimalView.Visibility = Visibility.Visible;
+                _currentBaseCollapsedWidth = 72.0;
+                _currentBaseCollapsedHeight = 14.0;
+            }
+            else if (showMedia)
+            {
+                _collapsedMinimalView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
@@ -1131,13 +1312,15 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
             else
             {
+                _collapsedMinimalView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedNormalView.Visibility = Visibility.Visible;
-                _currentBaseCollapsedWidth = CollapsedWidth;
-                _currentBaseCollapsedHeight = CollapsedHeight;
+                GetConfiguredRestingDimensions(out double rw, out double rh);
+                _currentBaseCollapsedWidth = rw;
+                _currentBaseCollapsedHeight = rh;
             }
 
             if (_morphProgress <= 0.1)
@@ -1147,12 +1330,278 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
         }
 
+        private static void GetConfiguredRestingDimensions(out double width, out double height)
+        {
+            NotchGeometryBuilder.GetRestingShapeProfile(
+                AppPreferences.Instance.NotchStyle,
+                AppPreferences.Instance.NotchShape,
+                AppPreferences.Instance.NotchScalePercent,
+                out width,
+                out height,
+                out _,
+                out _);
+        }
+
+        private void UpdateRestingClockAndStatus()
+        {
+            var prefs = AppPreferences.Instance;
+            var now = DateTime.Now;
+            var culture = prefs.IsPersian ? new CultureInfo("fa-IR") : CultureInfo.InvariantCulture;
+
+            string timeStr;
+            if (prefs.TimeFormat == "24-hour")
+                timeStr = now.ToString("HH:mm", CultureInfo.InvariantCulture);
+            else if (prefs.TimeFormat == "12-hour")
+                timeStr = now.ToString("h:mm tt", CultureInfo.InvariantCulture);
+            else
+                timeStr = now.ToString("t", culture);
+
+            bool showTime = prefs.ShowClosedTime;
+            bool showDate = prefs.ShowClosedDate;
+            bool isAnalog = string.Equals(prefs.ClosedClockStyle, "Analog", StringComparison.OrdinalIgnoreCase);
+
+            if (showDate)
+            {
+                string datePart = now.ToString("ddd d", culture);
+                _collapsedDateText.Text = (showTime && !isAnalog) ? $"{datePart} ·" : datePart;
+                _collapsedDateText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                _collapsedDateText.Visibility = Visibility.Collapsed;
+            }
+
+            if (showTime)
+            {
+                if (isAnalog)
+                {
+                    _collapsedAnalogClock.UpdateTime(now);
+                    _collapsedAnalogClock.Visibility = Visibility.Visible;
+                    _collapsedClockText.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    _collapsedClockText.Text = timeStr;
+                    _collapsedClockText.Visibility = Visibility.Visible;
+                    _collapsedAnalogClock.Visibility = Visibility.Collapsed;
+                }
+            }
+            else
+            {
+                _collapsedClockText.Visibility = Visibility.Collapsed;
+                _collapsedAnalogClock.Visibility = Visibility.Collapsed;
+            }
+
+            // Pet visibility
+            Visibility petVis = prefs.EnablePetBeta ? Visibility.Visible : Visibility.Collapsed;
+            _collapsedOrb.Visibility = petVis;
+            _headerOrb.Visibility = petVis;
+
+            // Bluetooth indicator when closed
+            bool btConnected = RealtimeNotchActionService.Instance.HasConnectedBluetoothDevice;
+            _collapsedBluetoothIcon.Visibility = (prefs.ShowClosedBluetooth && btConnected)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+            // Battery status
+            var sys = SystemMonitorService.Current;
+            _collapsedBatteryGlyph.SetBattery(sys.BatteryPercent);
+            _collapsedBatteryText.Text = $"{sys.BatteryPercent}";
+            _headerBatteryText.Text = $"{sys.BatteryPercent}% ⚡";
+
+            Visibility batVis = prefs.ShowClosedBattery ? Visibility.Visible : Visibility.Collapsed;
+            _collapsedBatteryGlyph.Visibility = batVis;
+            _collapsedBatteryText.Visibility = batVis;
+
+            // Resting layout: Corners vs Center
+            bool isCenterLayout = string.Equals(prefs.NotchRestingLayout, "Center", StringComparison.OrdinalIgnoreCase);
+            if (_collapsedNormalView.ColumnDefinitions.Count >= 3)
+            {
+                _collapsedNormalView.ColumnDefinitions[1].Width = isCenterLayout
+                    ? GridLength.Auto
+                    : new GridLength(1, GridUnitType.Star);
+            }
+            _collapsedNormalView.HorizontalAlignment = isCenterLayout
+                ? HorizontalAlignment.Center
+                : HorizontalAlignment.Stretch;
+            _collapsedOrb.Margin = isCenterLayout ? new Thickness(8, 0, 8, 0) : new Thickness(0);
+            _restingRightStack.Margin = (isCenterLayout && !prefs.EnablePetBeta) ? new Thickness(10, 0, 0, 0) : new Thickness(0);
+
+            // Scale resting content slightly with Size slider
+            double scale = Math.Clamp(prefs.NotchScalePercent / 100.0, 0.78, 1.24);
+            _collapsedNormalView.LayoutTransform = Math.Abs(scale - 1.0) < 0.02
+                ? Transform.Identity
+                : new ScaleTransform(scale, scale);
+        }
+
+        private void EvaluateDynamicVisibility()
+        {
+            var prefs = AppPreferences.Instance;
+
+            if (!prefs.ShowNotchBar)
+            {
+                if (IsLoaded) Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            if (IsLoaded && Visibility != Visibility.Visible)
+            {
+                Visibility = Visibility.Visible;
+            }
+
+            bool isOpenOrOpening = _targetProgress > 0.05 || _morphProgress > 0.1;
+            bool hasLiveEvent = _isBannerActive || _isMessageActive || (_isMusicActive && _isMediaWideActive);
+            bool eventOverridesTuck = prefs.ShowEventsOverApps && hasLiveEvent;
+
+            InspectForegroundWindowOnNotchDisplay(out bool isFgFullscreen, out bool isFgMaximized);
+
+            // 1. Hide in fullscreen (unless open or event overrides tuck)
+            if (prefs.HideOnFullscreen && isFgFullscreen && !isOpenOrOpening && !eventOverridesTuck)
+            {
+                SetAutoHidden(true);
+                return;
+            }
+
+            string visMode = prefs.NotchVisibility ?? "Always";
+
+            // 2. Hidden mode: invisible when resting, but opens via shortcut/tray or live event when ShowEventsOverApps is enabled
+            if (string.Equals(visMode, "Hidden", StringComparison.OrdinalIgnoreCase))
+            {
+                SetAutoHidden(!isOpenOrOpening && !eventOverridesTuck);
+                return;
+            }
+
+            SetAutoHidden(false);
+
+            // 3. Minimal or Smart mode
+            bool wantMinimal = false;
+            if (!isOpenOrOpening && !eventOverridesTuck && !_isMinimalPeekHovered)
+            {
+                if (string.Equals(visMode, "Minimal", StringComparison.OrdinalIgnoreCase))
+                {
+                    wantMinimal = true;
+                }
+                else if (string.Equals(visMode, "Smart", StringComparison.OrdinalIgnoreCase) && isFgMaximized)
+                {
+                    wantMinimal = true;
+                }
+            }
+
+            if (wantMinimal != _isMinimalModeActive)
+            {
+                _isMinimalModeActive = wantMinimal;
+                _collapsedContent.Margin = _isMinimalModeActive
+                    ? new Thickness(4, 0, 4, 0)
+                    : new Thickness(EarUnitW + 10, 2, EarUnitW + 10, 2);
+                UpdateCollapsedViewState();
+            }
+        }
+
+        private void SetAutoHidden(bool hidden)
+        {
+            if (_isAutoHiddenByVisibility == hidden) return;
+            _isAutoHiddenByVisibility = hidden;
+            if (_isTucked) return; // Manual tuck takes precedence
+
+            if (hidden)
+            {
+                _capsuleCard.IsHitTestVisible = false;
+                _capsuleCard.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                _capsuleCard.Visibility = Visibility.Visible;
+                _capsuleCard.IsHitTestVisible = true;
+                EnsureTopmost();
+            }
+        }
+
+        private void InspectForegroundWindowOnNotchDisplay(out bool isFullscreen, out bool isMaximized)
+        {
+            isFullscreen = false;
+            isMaximized = false;
+            try
+            {
+                IntPtr fg = NativeMethods.GetForegroundWindow();
+                if (fg == IntPtr.Zero || !NativeMethods.IsWindowVisible(fg) || NativeMethods.IsIconic(fg))
+                    return;
+
+                var myHwnd = new WindowInteropHelper(this).Handle;
+                if (fg == myHwnd) return;
+
+                NativeMethods.GetWindowThreadProcessId(fg, out uint fgPid);
+                if (fgPid == (uint)Environment.ProcessId) return;
+
+                var sbClass = new System.Text.StringBuilder(64);
+                NativeMethods.GetClassName(fg, sbClass, sbClass.Capacity);
+                string cls = sbClass.ToString();
+                if (string.Equals(cls, "Progman", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(cls, "WorkerW", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(cls, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(cls, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                if (!NativeMethods.GetWindowRect(fg, out var rect))
+                    return;
+
+                var targetScreen = GetTargetScreen();
+                if (targetScreen == null) return;
+                var b = targetScreen.Bounds;
+
+                // Check if window center is on the notch's display
+                int cx = (rect.Left + rect.Right) / 2;
+                int cy = (rect.Top + rect.Bottom) / 2;
+                if (!b.Contains(cx, cy))
+                    return;
+
+                int winW = rect.Right - rect.Left;
+                int winH = rect.Bottom - rect.Top;
+
+                // Fullscreen check: covers entire monitor bounds (including taskbar area)
+                if (rect.Left <= b.Left + 2 && rect.Top <= b.Top + 2 &&
+                    winW >= b.Width - 4 && winH >= b.Height - 4)
+                {
+                    isFullscreen = true;
+                    isMaximized = true;
+                    return;
+                }
+
+                if (NativeMethods.IsZoomed(fg))
+                {
+                    isMaximized = true;
+                }
+            }
+            catch { }
+        }
+
+        private System.Windows.Forms.Screen GetTargetScreen()
+        {
+            try
+            {
+                var screens = System.Windows.Forms.Screen.AllScreens;
+                var targetScreen = System.Windows.Forms.Screen.PrimaryScreen;
+                string choice = AppPreferences.Instance.NotchDisplay;
+                if (string.Equals(choice, "Display 2", StringComparison.OrdinalIgnoreCase) && screens.Length > 1)
+                    targetScreen = screens[1];
+                else if (string.Equals(choice, "Display 1", StringComparison.OrdinalIgnoreCase) && screens.Length > 0)
+                    targetScreen = screens[0];
+                return targetScreen;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private void OnMessageFlashRequested(WindowsBuddy.Tools.Message.MessageSettings settings)
         {
             Dispatcher.InvokeAsync(() =>
             {
                 _isMessageActive = true;
                 _isMessagePinned = settings.RepeatEnabled;
+                _edgeLight.TriggerBurst(4.5);
 
                 string text = string.IsNullOrWhiteSpace(settings.Text) ? "Hello from Mayli!" : settings.Text;
                 _messageNotchText.Text = text;
@@ -1210,6 +1659,42 @@ namespace WindowsBuddy.BuddyCapsule.Core
         }
 
         #endregion
+
+        private static Border CreateHeaderIconButton(AnimateIconType iconType, string tooltip)
+        {
+            var p = CapsuleTheme.Current;
+            var animIcon = new AnimateIcon(iconType, size: 14, brush: CapsuleTheme.Brush(p.Text2))
+            {
+                AutoAnimateOnHover = false,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var border = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(13),
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand,
+                ToolTip = tooltip,
+                Margin = new Thickness(3, 0, 3, 0),
+                Child = animIcon
+            };
+
+            border.MouseEnter += (_, _) =>
+            {
+                border.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
+                animIcon.StrokeBrush = Brushes.White;
+                animIcon.Play();
+            };
+            border.MouseLeave += (_, _) =>
+            {
+                border.Background = Brushes.Transparent;
+                animIcon.StrokeBrush = CapsuleTheme.Brush(CapsuleTheme.Current.Text2);
+            };
+            return border;
+        }
 
         private static Border CreateHeaderIconButton(string glyph, string tooltip)
         {
@@ -1427,22 +1912,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     Width = 32,
                     Height = 30,
                     Cursor = Cursors.Hand,
-                    ToolTip = tool.Id switch
-                    {
-                        "home" => "Home  Alt+1",
-                        "system" => "System  Alt+2",
-                        "clipboard" => "Clipboard  Alt+3",
-                        "notes" => "Notes  Alt+4",
-                        "focus" => "Timers  Alt+5",
-                        "fileshelf" => "File Shelf  Alt+6",
-                        "weather" => "Weather  Alt+7",
-                        "clock" => "Clock  Alt+8",
-                        "units" => "Units  Alt+9",
-                        "links" => "Links  Alt+0",
-                        "message" => "Message  Alt+M",
-                        "screentime" => "Screen Time  Alt+S",
-                        _ => tool.Title
-                    }
+                    ToolTip = LocalizationService.T("dock." + tool.Id.ToLowerInvariant(), tool.Title)
                 };
 
                 var circleHighlight = new Border
@@ -1456,32 +1926,67 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 };
                 itemContainer.Children.Add(circleHighlight);
 
-                var iconText = new TextBlock
+                AnimateIconType? animType = id.ToLowerInvariant() switch
                 {
-                    Text = tool.IconGlyph,
-                    FontSize = 13,
-                    FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
-                    Foreground = isActive ? Brushes.Black : CapsuleTheme.Brush(p.IconMuted),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    TextAlignment = TextAlignment.Center
+                    "home" => AnimateIconType.Home,
+                    "system" => AnimateIconType.Activity,
+                    "clipboard" => AnimateIconType.CopyCheck,
+                    "notes" => AnimateIconType.Notes,
+                    "focus" => AnimateIconType.Timer,
+                    "fileshelf" => AnimateIconType.FileShelf,
+                    "weather" => AnimateIconType.Weather,
+                    "clock" => AnimateIconType.Clock,
+                    "links" => AnimateIconType.Links,
+                    "message" => AnimateIconType.Message,
+                    "screentime" => AnimateIconType.Activity,
+                    _ => null
                 };
-                itemContainer.Children.Add(iconText);
+
+                AnimateIcon animIcon = null;
+                TextBlock iconText = null;
+
+                if (animType.HasValue)
+                {
+                    animIcon = new AnimateIcon(animType.Value, size: 14, brush: isActive ? Brushes.Black : CapsuleTheme.Brush(p.IconMuted))
+                    {
+                        AutoAnimateOnHover = false,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    itemContainer.Children.Add(animIcon);
+                }
+                else
+                {
+                    iconText = new TextBlock
+                    {
+                        Text = tool.IconGlyph,
+                        FontSize = 13,
+                        FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
+                        Foreground = isActive ? Brushes.Black : CapsuleTheme.Brush(p.IconMuted),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextAlignment = TextAlignment.Center
+                    };
+                    itemContainer.Children.Add(iconText);
+                }
 
                 itemContainer.MouseEnter += (_, _) =>
                 {
                     if (!string.Equals(id, _activeToolId, StringComparison.OrdinalIgnoreCase))
                     {
                         circleHighlight.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
-                        iconText.Foreground = Brushes.White;
+                        if (iconText != null) iconText.Foreground = Brushes.White;
+                        if (animIcon != null) animIcon.StrokeBrush = Brushes.White;
                     }
+                    animIcon?.Play();
                 };
                 itemContainer.MouseLeave += (_, _) =>
                 {
                     if (!string.Equals(id, _activeToolId, StringComparison.OrdinalIgnoreCase))
                     {
                         circleHighlight.Background = Brushes.Transparent;
-                        iconText.Foreground = CapsuleTheme.Brush(p.IconMuted);
+                        if (iconText != null) iconText.Foreground = CapsuleTheme.Brush(p.IconMuted);
+                        if (animIcon != null) animIcon.StrokeBrush = CapsuleTheme.Brush(p.IconMuted);
                     }
                 };
 
@@ -1512,7 +2017,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 CornerRadius = new CornerRadius(14),
                 Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
-                ToolTip = "Add / Customize Tools",
+                ToolTip = LocalizationService.T("dock.customize", "Add / Customize Tools"),
                 Child = new TextBlock
                 {
                     Text = "+",
@@ -1543,29 +2048,40 @@ namespace WindowsBuddy.BuddyCapsule.Core
             if (tool == null) return;
             _activeToolId = tool.Id;
 
+            var culture = AppPreferences.Instance.IsPersian ? new System.Globalization.CultureInfo("fa-IR") : System.Globalization.CultureInfo.InvariantCulture;
             _headerTitleText.Text = tool.Title;
             _headerSubtitleText.Text = tool.Id switch
             {
-                "home" => DateTime.Now.ToString("dddd, d MMM"),
-                "system" => "Power · Network · Audio",
+                "home" => DateTime.Now.ToString("dddd, d MMM", culture),
+                "system" => LocalizationService.T("sub.system", "Power · Network · Audio"),
                 "weather" => WindowsBuddy.Tools.Weather.WeatherService.Instance.Prefs.City,
-                "clock" => "Local Time & Date",
-                "units" => "Conversion",
-                "fileshelf" => "Parked files",
-                "links" => "Quick Bookmarks",
-                "message" => "Notch banner",
-                "focus" => "Focus & intervals",
-                "clipboard" => $"{WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Count} items",
-                "notes" => $"{WindowsBuddy.Tools.Notes.NotesService.Instance.Notes.Count} notes",
-                "screentime" => DateTime.Now.ToString("ddd, d MMM"),
-                _ => "WindowsBuddy Capsule"
+                "clock" => LocalizationService.T("sub.clock", "Local Time & Date"),
+                "units" => LocalizationService.T("sub.units", "Conversion"),
+                "fileshelf" => LocalizationService.T("sub.fileshelf", "Parked files"),
+                "links" => LocalizationService.T("sub.links", "Quick Bookmarks"),
+                "message" => LocalizationService.T("sub.message", "Notch banner"),
+                "focus" => LocalizationService.T("sub.focus", "Focus & intervals"),
+                "clipboard" => string.Format(LocalizationService.T("sub.clipboard_fmt", "{0} items"), WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.Items.Count),
+                "notes" => string.Format(LocalizationService.T("sub.notes_fmt", "{0} notes"), WindowsBuddy.Tools.Notes.NotesService.Instance.Notes.Count),
+                "screentime" => DateTime.Now.ToString("ddd, d MMM", culture),
+                _ => "Mayli Capsule"
             };
 
             UpdateToolHeaderActions(tool.Id);
             RebuildNavTabs();
 
-            _viewportHost.Child = tool.BuildView();
+            var newView = tool.BuildView();
+            _viewportHost.Child = newView;
             tool.OnActivated();
+
+            if (AppPreferences.Instance.TabAnimations && _expandedContent.Visibility == Visibility.Visible && newView != null)
+            {
+                var tt = new TranslateTransform(14, 0);
+                newView.RenderTransform = tt;
+                var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+                tt.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
+                newView.BeginAnimation(OpacityProperty, new DoubleAnimation(0.25, 1.0, TimeSpan.FromMilliseconds(160)) { EasingFunction = ease });
+            }
         }
 
         private void UpdateToolHeaderActions(string toolId)
@@ -1762,9 +2278,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _capsuleCard.Height = curH;
             _capsuleCard.Cursor = t > 0.5 ? Cursors.Arrow : Cursors.Hand;
 
-            string style = AppPreferences.Instance.NotchSilhouette;
+            string notchStyle = AppPreferences.Instance.NotchStyle ?? "Notch";
+            bool isIsland = string.Equals(notchStyle, "Island", StringComparison.OrdinalIgnoreCase);
+            bool isLine = string.Equals(notchStyle, "Line", StringComparison.OrdinalIgnoreCase);
+
+            string geoStyle = isIsland ? "Island" : (isLine ? "Line" : (AppPreferences.Instance.NotchShape ?? "Shouldered"));
             var geo = NotchGeometryBuilder.BuildMorphedGeometry(
-                style,
+                geoStyle,
                 baseW,
                 baseH,
                 ExpandedWidth,
@@ -1773,6 +2293,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _notchBackdropPath.Data = geo;
             _notchOutlinePath.Data = geo;
+            _notchTopBlackLine.Visibility = isIsland ? Visibility.Collapsed : Visibility.Visible;
             _notchTopBlackLine.X2 = curW;
             _edgeLight.UpdateGeometry(geo, t > 0.5, curW, curH);
 
@@ -1785,34 +2306,66 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _expandedContent.IsHitTestVisible = t > 0.6;
         }
 
+        private void UpdateEdgeLightEffectiveColor()
+        {
+            if (_edgeLight == null || !AppPreferences.Instance.EnableEdgeLight)
+                return;
+
+            bool syncWithMusic = AppPreferences.Instance.EdgeLightSyncWithMusic ||
+                                 string.Equals(AppPreferences.Instance.EdgeLightColor, "Artwork", StringComparison.OrdinalIgnoreCase);
+
+            if (syncWithMusic && (_isMusicActive || _isMediaRetained || RealtimeNotchActionService.Instance.IsMusicPlaying))
+            {
+                Color songColor = _currentSongBeatColor;
+                if (songColor.A == 0 || (songColor.R == 48 && songColor.G == 209 && songColor.B == 88 && RealtimeNotchActionService.Instance.CurrentBeatColor.A > 0))
+                {
+                    songColor = RealtimeNotchActionService.Instance.CurrentBeatColor;
+                }
+                _edgeLight.SetLightColor(songColor);
+                return;
+            }
+
+            try
+            {
+                var c = (Color)ColorConverter.ConvertFromString(AppPreferences.Instance.EdgeLightColor);
+                _edgeLight.SetLightColor(c);
+            }
+            catch
+            {
+                _edgeLight.SetLightColor(Colors.White);
+            }
+        }
+
         private void ApplyThemeAndGeometry()
         {
+            FontFamily = LocalizationService.CurrentFontFamily;
+            FlowDirection = LocalizationService.CurrentFlowDirection;
+            if (_expandedContent != null)
+            {
+                _expandedContent.FlowDirection = LocalizationService.CurrentFlowDirection;
+            }
             var p = CapsuleTheme.Current;
             _notchBackdropPath.Fill = CapsuleTheme.Brush(p.Bg);
 
-            // 1. Notch Visibility & Show Notch
-            if (!AppPreferences.Instance.ShowNotchBar || string.Equals(AppPreferences.Instance.NotchVisibility, "Hidden", StringComparison.OrdinalIgnoreCase))
-            {
-                Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                Visibility = Visibility.Visible;
-            }
+            // Sync OpensOnClick to state machine
+            _machine.OpensOnClick = AppPreferences.Instance.OpensOnClick;
 
-            // 2. Position on selected display
+            // 1. Position on selected display
             PositionAtTopCenter();
+
+            // 2. Resting clock, layout, Pet, Battery, Bluetooth
+            UpdateRestingClockAndStatus();
 
             // 3. Edge light
             if (AppPreferences.Instance.EnableEdgeLight)
             {
                 _edgeLight.Visibility = Visibility.Visible;
-                try
-                {
-                    var c = (Color)ColorConverter.ConvertFromString(AppPreferences.Instance.EdgeLightColor);
-                    _edgeLight.SetLightColor(c);
-                }
-                catch { }
+                _edgeLight.Configure(
+                    AppPreferences.Instance.EdgeLightPattern,
+                    AppPreferences.Instance.EdgeLightSpeed,
+                    AppPreferences.Instance.EdgeLightTrigger,
+                    AppPreferences.Instance.NotchStyle);
+                UpdateEdgeLightEffectiveColor();
                 _edgeLight.Opacity = Math.Clamp(AppPreferences.Instance.EdgeLightIntensity / 100.0, 0.1, 1.0);
             }
             else
@@ -1906,12 +2459,19 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _headerTitleText.Foreground = CapsuleTheme.Brush(p.Text);
             _headerSubtitleText.Foreground = CapsuleTheme.Brush(p.Text2);
             _collapsedClockText.Foreground = CapsuleTheme.Brush(p.Text);
+            _collapsedDateText.Foreground = CapsuleTheme.Brush(p.Text2);
 
+            UpdateCollapsedViewState();
             RebuildNavTabs();
             NavigateToTool(_activeToolId);
             UpdateMorphVisuals(_morphProgress);
         }
 
-        public void ToggleFromExternal() => _machine.Toggle("tray-or-cli");
+        public void ToggleFromExternal()
+        {
+            if (_isTucked) SetTucked(false);
+            if (_isAutoHiddenByVisibility) SetAutoHidden(false);
+            _machine.Toggle("tray-or-cli");
+        }
     }
 }

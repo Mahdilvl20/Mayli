@@ -9,6 +9,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Theme;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Message
 {
@@ -60,6 +61,7 @@ namespace WindowsBuddy.Tools.Message
 
         public MessageToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             _settings = _service.Settings.Clone();
 
             var mainDock = new DockPanel { Margin = new Thickness(4, 2, 4, 4) };
@@ -139,7 +141,7 @@ namespace WindowsBuddy.Tools.Message
 
             var previewLabel = new TextBlock
             {
-                Text = "Live preview",
+                Text = LocalizationService.T("message.live_preview", "Live preview"),
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -251,7 +253,7 @@ namespace WindowsBuddy.Tools.Message
             });
             _flashBtnText = new TextBlock
             {
-                Text = "Flash",
+                Text = LocalizationService.T("message.flash", "Flash"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
@@ -272,7 +274,7 @@ namespace WindowsBuddy.Tools.Message
             // Clear button
             _secondaryBtn = new TextBlock
             {
-                Text = "Clear",
+                Text = LocalizationService.T("message.clear", "Clear"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -313,7 +315,7 @@ namespace WindowsBuddy.Tools.Message
             var inputGrid = new Grid { VerticalAlignment = VerticalAlignment.Center };
             _placeholderText = new TextBlock
             {
-                Text = "Type a message",
+                Text = LocalizationService.T("message.placeholder", "Type a message"),
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(90, 90, 100)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -406,7 +408,7 @@ namespace WindowsBuddy.Tools.Message
 
             var speedTitle = new TextBlock
             {
-                Text = "Speed",
+                Text = LocalizationService.T("message.speed", "Speed"),
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -718,7 +720,7 @@ namespace WindowsBuddy.Tools.Message
 
             var repeatText = new TextBlock
             {
-                Text = "Repeat until taken down",
+                Text = LocalizationService.T("message.repeat", "Repeat until taken down"),
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -855,15 +857,14 @@ namespace WindowsBuddy.Tools.Message
                 ? new SolidColorBrush(Color.FromRgb(230, 74, 25))
                 : new SolidColorBrush(Color.FromRgb(90, 90, 100));
 
+            _flashBtnText.Text = LocalizationService.T("message.flash", "Flash");
             if (live)
             {
-                _flashBtnText.Text = "Flash";
-                _secondaryBtn.Text = "Take Down";
+                _secondaryBtn.Text = LocalizationService.T("message.take_down", "Take Down");
             }
             else
             {
-                _flashBtnText.Text = "Flash";
-                _secondaryBtn.Text = "Clear";
+                _secondaryBtn.Text = LocalizationService.T("message.clear", "Clear");
             }
         }
 

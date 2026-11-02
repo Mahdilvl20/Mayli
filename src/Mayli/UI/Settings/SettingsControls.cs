@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
+using WindowsBuddy.UI.AnimateIcons;
 
 namespace WindowsBuddy.UI.Settings
 {
@@ -247,9 +248,15 @@ namespace WindowsBuddy.UI.Settings
     public sealed class MayliSidebarItem : Border
     {
         public string Key { get; }
-        public string Label { get; }
+        public string Label { get; private set; }
         private readonly TextBlock _labelBlock;
         private bool _isSelected;
+
+        public void UpdateLabel(string newLabel)
+        {
+            Label = newLabel;
+            if (_labelBlock != null) _labelBlock.Text = newLabel;
+        }
 
         public event Action<string> Clicked;
 
@@ -289,15 +296,42 @@ namespace WindowsBuddy.UI.Settings
                 Margin = new Thickness(0, 0, 10, 0)
             };
 
-            var iconGlyph = new TextBlock
+            AnimateIconType? animType = key.ToLowerInvariant() switch
             {
-                Text = glyph,
-                FontSize = 13,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                "general" => AnimateIconType.Settings,
+                "notch" => AnimateIconType.Home,
+                "appearance" => AnimateIconType.Palette,
+                "modules" => AnimateIconType.Sparkles,
+                "live_activities" => AnimateIconType.Bell,
+                "updates" => AnimateIconType.Clock,
+                "about" => AnimateIconType.Sparkles,
+                _ => null
             };
-            iconBox.Child = iconGlyph;
+
+            AnimateIcon animIcon = null;
+            if (animType.HasValue)
+            {
+                animIcon = new AnimateIcon(animType.Value, size: 14, brush: Brushes.White)
+                {
+                    AutoAnimateOnHover = false,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                iconBox.Child = animIcon;
+            }
+            else
+            {
+                var iconGlyph = new TextBlock
+                {
+                    Text = glyph,
+                    FontSize = 13,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                iconBox.Child = iconGlyph;
+            }
+
             Grid.SetColumn(iconBox, 0);
             grid.Children.Add(iconBox);
 
@@ -322,6 +356,7 @@ namespace WindowsBuddy.UI.Settings
                     Background = new SolidColorBrush(Color.FromArgb(24, 255, 255, 255));
                     _labelBlock.Foreground = Brushes.White;
                 }
+                animIcon?.Play();
             };
 
             MouseLeave += (_, _) =>

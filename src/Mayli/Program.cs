@@ -15,6 +15,7 @@ namespace WindowsBuddy
     public static class Program
     {
         public const string SingleInstanceMutexName = "Local\\Mayli_SingleInstance_Mutex";
+        private const string PipeName = "Mayli_Ipc_Pipe";
         private static Mutex _mutex;
         private static Forms.NotifyIcon _trayIcon;
         private static CapsuleWindow _capsuleWindow;
@@ -22,9 +23,34 @@ namespace WindowsBuddy
         [STAThread]
         public static int Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            {
+                try
+                {
+                    string path = Path.Combine(AppPaths.DataDir, "logs", "crash_domain.log");
+                    File.AppendAllText(path, $"[{DateTime.Now}] Domain Unhandled: {e.ExceptionObject}\n");
+                }
+                catch { }
+            };
+
+            System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, e) =>
+            {
+                try
+                {
+                    string path = Path.Combine(AppPaths.DataDir, "logs", "crash_domain.log");
+                    File.AppendAllText(path, $"[{DateTime.Now}] Unobserved Task: {e.Exception}\n");
+                }
+                catch { }
+                e.SetObserved();
+            };
+
             _mutex = new Mutex(true, SingleInstanceMutexName, out bool createdNew);
             if (!createdNew)
             {
+                string cmd = (args != null && System.Linq.Enumerable.Any(args, a => a.Contains("setting", StringComparison.OrdinalIgnoreCase)))
+                    ? "settings"
+                    : "notch";
+                SendIpcCommand(cmd);
                 return 0;
             }
 
@@ -35,8 +61,16 @@ namespace WindowsBuddy
                     ShutdownMode = ShutdownMode.OnExplicitShutdown
                 };
 
-                WindowsBuddy.BuddyCapsule.Theme.ModernScrollbarStyles.ApplyToApplication(app);
+                app.DispatcherUnhandledException += (s, e) =>
+                {
+                    LogWriter.WriteNow("dispatcher_error", e.Exception.ToString());
+                    e.Handled = true;
+                };
 
+                WindowsBuddy.BuddyCapsule.Theme.ModernScrollbarStyles.ApplyToApplication(app);
+                LocalizationService.Initialize();
+
+                StartIpcServer(app);
                 InitializeTrayIcon(app);
 
                 _capsuleWindow = new CapsuleWindow();
@@ -44,11 +78,14 @@ namespace WindowsBuddy
 
                 UpdateService.CheckOnStartup();
 
-                LogWriter.WriteNow("boot", "Mayli CapsuleWindow started successfully.");
-                return app.Run();
+                LogWriter.WriteNow("boot", "Mayli CapsuleWindow started successfully. Entering app.Run()...");
+                int exitCode = app.Run();
+                LogWriter.WriteNow("boot", $"Exited app.Run() with code {exitCode}.");
+                return exitCode;
             }
             catch (Exception ex)
             {
+                LogWriter.WriteNow("boot_crash", ex.ToString());
                 string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mayli_crash.log");
                 System.IO.File.WriteAllText(logPath, ex.ToString());
                 Forms.MessageBox.Show(ex.ToString(), "Mayli Startup Error");
@@ -56,6 +93,7 @@ namespace WindowsBuddy
             }
             finally
             {
+                LogWriter.WriteNow("boot", "Main finally block entered.");
                 if (_trayIcon != null)
                 {
                     _trayIcon.Visible = false;
@@ -63,6 +101,55 @@ namespace WindowsBuddy
                 }
                 HotkeyService.Instance.Dispose();
             }
+        }
+
+        private static void SendIpcCommand(string cmd)
+        {
+            try
+            {
+                using var client = new System.IO.Pipes.NamedPipeClientStream(".", PipeName, System.IO.Pipes.PipeDirection.Out);
+                client.Connect(500);
+                using var writer = new StreamWriter(client) { AutoFlush = true };
+                writer.WriteLine(cmd);
+            }
+            catch { }
+        }
+
+        private static void StartIpcServer(Application app)
+        {
+            var thread = new Thread(() =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        using var server = new System.IO.Pipes.NamedPipeServerStream(PipeName, System.IO.Pipes.PipeDirection.In);
+                        server.WaitForConnection();
+                        using var reader = new StreamReader(server);
+                        string line = reader.ReadLine();
+                        if (!string.IsNullOrWhiteSpace(line))
+                        {
+                            string cmd = line.Trim().ToLowerInvariant();
+                            app.Dispatcher.InvokeAsync(() =>
+                            {
+                                if (cmd == "settings")
+                                {
+                                    SettingsWindow.ShowSingleton();
+                                }
+                                else if (cmd == "notch" || cmd == "toggle")
+                                {
+                                    _capsuleWindow?.ToggleFromExternal();
+                                }
+                            });
+                        }
+                    }
+                    catch { break; }
+                }
+            })
+            {
+                IsBackground = true
+            };
+            thread.Start();
         }
 
         private static void InitializeTrayIcon(Application app)
@@ -85,27 +172,36 @@ namespace WindowsBuddy
                 }
             }
 
+            RebuildTrayMenu(app);
+            _trayIcon.DoubleClick += (_, _) => SettingsWindow.ShowSingleton();
+
+            LocalizationService.LanguageChanged += () => app.Dispatcher.InvokeAsync(() => RebuildTrayMenu(app));
+        }
+
+        private static void RebuildTrayMenu(Application app)
+        {
+            if (_trayIcon == null) return;
             var menu = new Forms.ContextMenuStrip();
-            menu.Items.Add("Toggle Notch (Ctrl+Alt+N)", null, (_, _) => _capsuleWindow?.ToggleFromExternal());
-            menu.Items.Add("Settings...", null, (_, _) => SettingsWindow.ShowSingleton());
+            menu.Items.Add(LocalizationService.T("tray.toggle", "Toggle Notch (Ctrl+Alt+N)"), null, (_, _) => _capsuleWindow?.ToggleFromExternal());
+            menu.Items.Add(LocalizationService.T("tray.settings", "Settings..."), null, (_, _) => SettingsWindow.ShowSingleton());
             menu.Items.Add(new Forms.ToolStripSeparator());
 
-            var moodMenu = new Forms.ToolStripMenuItem("Mayli Mood / حالت گوگولی 🐾");
-            moodMenu.DropDownItems.Add("🌟 عادی (Idle)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Idle));
-            moodMenu.DropDownItems.Add("😊 شاد (Happy)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Happy));
-            moodMenu.DropDownItems.Add("😠 اخم (Angry / Grumpy)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Angry));
-            moodMenu.DropDownItems.Add("💖 دلبر (Love)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Love));
-            moodMenu.DropDownItems.Add("😉 چشمک (Wink)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Wink));
-            moodMenu.DropDownItems.Add("😲 تعجب (Surprised)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Surprised));
-            moodMenu.DropDownItems.Add("😴 خواب‌آلود (Sleepy)", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Sleepy));
+            var moodMenu = new Forms.ToolStripMenuItem(LocalizationService.T("tray.mood", "Mayli Mood / Companion 🐾"));
+            bool isFa = AppPreferences.Instance.IsPersian;
+            moodMenu.DropDownItems.Add(isFa ? "🌟 عادی" : "🌟 Idle", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Idle));
+            moodMenu.DropDownItems.Add(isFa ? "😊 شاد" : "😊 Happy", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Happy));
+            moodMenu.DropDownItems.Add(isFa ? "😠 اخم" : "😠 Grumpy", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Angry));
+            moodMenu.DropDownItems.Add(isFa ? "💖 دلبر" : "💖 Love", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Love));
+            moodMenu.DropDownItems.Add(isFa ? "😉 چشمک" : "😉 Wink", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Wink));
+            moodMenu.DropDownItems.Add(isFa ? "😲 تعجب" : "😲 Surprised", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Surprised));
+            moodMenu.DropDownItems.Add(isFa ? "😴 خواب‌آلود" : "😴 Sleepy", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Sleepy));
             menu.Items.Add(moodMenu);
 
-            menu.Items.Add("Cycle Mood (تغییر حالت)", null, (_, _) => PetEngine.Instance.CycleNextMood());
+            menu.Items.Add(LocalizationService.T("tray.cycle_mood", "Cycle Mood"), null, (_, _) => PetEngine.Instance.CycleNextMood());
             menu.Items.Add(new Forms.ToolStripSeparator());
-            menu.Items.Add("Exit Mayli", null, (_, _) => app.Shutdown());
+            menu.Items.Add(LocalizationService.T("tray.exit", "Exit Mayli"), null, (_, _) => app.Shutdown());
 
             _trayIcon.ContextMenuStrip = menu;
-            _trayIcon.DoubleClick += (_, _) => SettingsWindow.ShowSingleton();
         }
     }
 }

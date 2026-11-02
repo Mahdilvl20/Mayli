@@ -1,6 +1,6 @@
 {
-  "version": "1.1.58",
-  "name": "Mayli v1.1.58",
-  "notes": "Performance optimizations, memory and timer leak fixes, automatic startup update checks, and updated installer package.",
+  "version": "1.1.59",
+  "name": "Mayli v1.1.59",
+  "notes": "Full Persian localization with Vazirmatn font, animated SVG icons (@animateicons), live edge light music beat sync, two-way forward comet animations, and graceful 2.8s music stop settle.",
   "url": "https://github.com/Mahdilvl20/Mayli/releases"
 }

@@ -16,6 +16,7 @@ using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.BuddyCapsule.UI;
 using WindowsBuddy.Core;
 using WindowsBuddy.Services;
+using WindowsBuddy.Tools;
 using WindowsBuddy.Tools.Clock;
 using WindowsBuddy.Tools.Weather;
 
@@ -32,16 +33,23 @@ namespace WindowsBuddy.UI.Settings
 
         public static void ShowSingleton()
         {
-            if (_openInstance != null && _openInstance.IsLoaded)
+            try
             {
-                if (_openInstance.WindowState == WindowState.Minimized)
-                    _openInstance.WindowState = WindowState.Normal;
-                _openInstance.Activate();
-                return;
+                if (_openInstance != null && _openInstance.IsLoaded)
+                {
+                    if (_openInstance.WindowState == WindowState.Minimized)
+                        _openInstance.WindowState = WindowState.Normal;
+                    _openInstance.Activate();
+                    return;
+                }
+                _openInstance = new SettingsWindow();
+                _openInstance.Closed += (_, _) => _openInstance = null;
+                _openInstance.Show();
             }
-            _openInstance = new SettingsWindow();
-            _openInstance.Closed += (_, _) => _openInstance = null;
-            _openInstance.Show();
+            catch (Exception ex)
+            {
+                LogWriter.WriteNow("settings_error", ex.ToString());
+            }
         }
 
         private readonly Dictionary<string, MayliSidebarItem> _navItems = new();
@@ -49,10 +57,15 @@ namespace WindowsBuddy.UI.Settings
         private readonly ContentControl _mainContentArea;
         private readonly TextBox _searchBox;
         private readonly TextBlock _searchPlaceholder;
+        private TextBlock _headerSubtitleBlock;
+        private TextBlock _helpLink;
+        private TextBlock _feedbackLink;
+        private KeyEventHandler _activeShortcutRecorder;
         private string _activeCategory = "general";
 
         public SettingsWindow()
         {
+            LocalizationService.ApplyToWindow(this);
             Title = "Mayli Settings";
             Width = 940;
             Height = 660;
@@ -159,13 +172,14 @@ namespace WindowsBuddy.UI.Settings
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White
             });
-            titleStack.Children.Add(new TextBlock
+            _headerSubtitleBlock = new TextBlock
             {
-                Text = "The Notch for Windows",
+                Text = LocalizationService.T("nav.subtitle", "The Notch for Windows"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(122, 122, 130)),
                 Margin = new Thickness(0, 1, 0, 0)
-            });
+            };
+            titleStack.Children.Add(_headerSubtitleBlock);
             Grid.SetColumn(titleStack, 1);
             headerPanel.Children.Add(titleStack);
 
@@ -202,7 +216,7 @@ namespace WindowsBuddy.UI.Settings
             var inputOverlayGrid = new Grid { VerticalAlignment = VerticalAlignment.Center };
             _searchPlaceholder = new TextBlock
             {
-                Text = "Search",
+                Text = LocalizationService.T("nav.search", "Search"),
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 120)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -286,9 +300,11 @@ namespace WindowsBuddy.UI.Settings
                 return tb;
             }
 
-            footerLinks.Children.Add(CreateFooterLink("Help", () => Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli#readme") { UseShellExecute = true })));
+            _helpLink = CreateFooterLink(LocalizationService.T("nav.help", "Help"), () => Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli#readme") { UseShellExecute = true }));
+            footerLinks.Children.Add(_helpLink);
             footerLinks.Children.Add(new TextBlock { Text = "·", FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromRgb(70, 70, 78)), Margin = new Thickness(2, 0, 2, 0) });
-            footerLinks.Children.Add(CreateFooterLink("Feedback", () => Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli/issues") { UseShellExecute = true })));
+            _feedbackLink = CreateFooterLink(LocalizationService.T("nav.feedback", "Feedback"), () => Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli/issues") { UseShellExecute = true }));
+            footerLinks.Children.Add(_feedbackLink);
             footerLinks.Children.Add(new TextBlock { Text = "·", FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromRgb(70, 70, 78)), Margin = new Thickness(2, 0, 2, 0) });
             footerLinks.Children.Add(new TextBlock { Text = "v" + UpdateService.CurrentVersion, FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromRgb(104, 104, 114)), Margin = new Thickness(4, 0, 4, 0) });
 
@@ -323,17 +339,17 @@ namespace WindowsBuddy.UI.Settings
                 });
             }
 
-            // Exactly the 8 categories from reference design:
-            AddNavItem("general", "General", "⚙", Color.FromRgb(62, 56, 50));
-            AddNavItem("notch", "Notch", "🖥", Color.FromRgb(44, 48, 56));
-            AddNavItem("appearance", "Appearance", "◐", Color.FromRgb(80, 60, 138));
-            AddNavItem("modules", "Modules", "⊞", Color.FromRgb(33, 96, 196));
+            // Exactly the 8 categories from reference design (localized):
+            AddNavItem("general", LocalizationService.T("nav.general", "General"), "⚙", Color.FromRgb(62, 56, 50));
+            AddNavItem("notch", LocalizationService.T("nav.notch", "Notch"), "🖥", Color.FromRgb(44, 48, 56));
+            AddNavItem("appearance", LocalizationService.T("nav.appearance", "Appearance"), "◐", Color.FromRgb(80, 60, 138));
+            AddNavItem("modules", LocalizationService.T("nav.modules", "Modules"), "⊞", Color.FromRgb(33, 96, 196));
             AddSeparator();
-            AddNavItem("live_activities", "Live Activities", "🔔", Color.FromRgb(200, 61, 45));
-            AddNavItem("privacy", "Privacy", "✋", Color.FromRgb(28, 134, 136));
+            AddNavItem("live_activities", LocalizationService.T("nav.live_activities", "Live Activities"), "🔔", Color.FromRgb(200, 61, 45));
+            AddNavItem("privacy", LocalizationService.T("nav.privacy", "Privacy"), "✋", Color.FromRgb(28, 134, 136));
             AddSeparator();
-            AddNavItem("updates", "Updates", "🔄", Color.FromRgb(34, 138, 66));
-            AddNavItem("about", "About", "ℹ", Color.FromRgb(30, 124, 200));
+            AddNavItem("updates", LocalizationService.T("nav.updates", "Updates"), "🔄", Color.FromRgb(34, 138, 66));
+            AddNavItem("about", LocalizationService.T("nav.about", "About"), "ℹ", Color.FromRgb(30, 124, 200));
 
             navScroll.Content = _navStack;
             sidebarDock.Children.Add(navScroll);
@@ -521,24 +537,52 @@ namespace WindowsBuddy.UI.Settings
             }
         }
 
+        private void UpdateSidebarLocalization()
+        {
+            if (_navItems.TryGetValue("general", out var gi)) gi.UpdateLabel(LocalizationService.T("nav.general"));
+            if (_navItems.TryGetValue("notch", out var ni)) ni.UpdateLabel(LocalizationService.T("nav.notch"));
+            if (_navItems.TryGetValue("appearance", out var ai)) ai.UpdateLabel(LocalizationService.T("nav.appearance"));
+            if (_navItems.TryGetValue("modules", out var mi)) mi.UpdateLabel(LocalizationService.T("nav.modules"));
+            if (_navItems.TryGetValue("live_activities", out var li)) li.UpdateLabel(LocalizationService.T("nav.live_activities"));
+            if (_navItems.TryGetValue("privacy", out var pi)) pi.UpdateLabel(LocalizationService.T("nav.privacy"));
+            if (_navItems.TryGetValue("updates", out var ui)) ui.UpdateLabel(LocalizationService.T("nav.updates"));
+            if (_navItems.TryGetValue("about", out var abi)) abi.UpdateLabel(LocalizationService.T("nav.about"));
+
+            if (_searchPlaceholder != null)
+                _searchPlaceholder.Text = LocalizationService.T("nav.search");
+            if (_headerSubtitleBlock != null)
+                _headerSubtitleBlock.Text = LocalizationService.T("nav.subtitle");
+            if (_helpLink != null)
+                _helpLink.Text = LocalizationService.T("nav.help");
+            if (_feedbackLink != null)
+                _feedbackLink.Text = LocalizationService.T("nav.feedback");
+        }
+
         // =================================================================
-        // PAGE 1: GENERAL (1:1 with user's uploaded reference screenshot)
+        // PAGE 1: GENERAL (Real settings & English/Persian Vazirmatn)
         // =================================================================
         private FrameworkElement BuildGeneralPage()
         {
+            // Clean up any pending shortcut key listener
+            if (_activeShortcutRecorder != null)
+            {
+                PreviewKeyDown -= _activeShortcutRecorder;
+                _activeShortcutRecorder = null;
+            }
+
             var stack = new StackPanel();
 
             // Page Header
             stack.Children.Add(new TextBlock
             {
-                Text = "General",
+                Text = LocalizationService.T("general.title", "General"),
                 FontSize = 26,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Startup, shortcut, time and units",
+                Text = LocalizationService.T("general.subtitle", "Startup, shortcut, time and units"),
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
                 Margin = new Thickness(0, 4, 0, 26)
@@ -553,13 +597,13 @@ namespace WindowsBuddy.UI.Settings
                 AppPreferences.Instance.Save();
             };
             stack.Children.Add(new MayliSettingRow(
-                "Start Mayli when Windows starts",
-                "Starts silently each time you sign in. Quit applies only to this session. To have it back seconds after a restart, turn on \"Restart apps\" in Windows Settings > Accounts > Sign-in options.",
+                LocalizationService.T("general.startup_title", "Start Mayli when Windows starts"),
+                LocalizationService.T("general.startup_desc", "Starts silently each time you sign in. Quit applies only to this session. To have it back seconds after a restart, turn on \"Restart apps\" in Windows Settings > Accounts > Sign-in options."),
                 startupToggle
             ));
 
-            // Row 2: Open the notch
-            var shortcutRow = new StackPanel { Orientation = Orientation.Horizontal };
+            // Row 2: Open the notch (Real interactive recorder + preset cycling)
+            var shortcutRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             var shortcutBadge = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(26, 26, 30)),
@@ -567,7 +611,8 @@ namespace WindowsBuddy.UI.Settings
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(14, 6, 14, 6),
-                Margin = new Thickness(0, 0, 8, 0)
+                Margin = new Thickness(0, 0, 8, 0),
+                Cursor = Cursors.Hand
             };
             var shortcutText = new TextBlock
             {
@@ -589,7 +634,7 @@ namespace WindowsBuddy.UI.Settings
             };
             var changeTxt = new TextBlock
             {
-                Text = "Change",
+                Text = LocalizationService.T("general.change", "Change"),
                 FontSize = 12.5,
                 Foreground = Brushes.White
             };
@@ -597,50 +642,155 @@ namespace WindowsBuddy.UI.Settings
             changeBtn.MouseEnter += (_, _) => changeBtn.Background = new SolidColorBrush(Color.FromRgb(44, 44, 52));
             changeBtn.MouseLeave += (_, _) => changeBtn.Background = new SolidColorBrush(Color.FromRgb(32, 32, 38));
 
-            changeBtn.MouseLeftButtonUp += (_, e) =>
+            string[] presets = { "Ctrl + Alt + N", "Win + Ctrl + N", "Alt + Space", "Ctrl + Shift + Space" };
+
+            void ApplyShortcut(string sc, int mod, int vk)
             {
-                e.Handled = true;
-                // Cycle between standard shortcuts and apply immediately
-                string[] presets = { "Ctrl + Alt + N", "Win + Ctrl + N", "Alt + Space", "Ctrl + Shift + Space" };
-                int idx = Array.IndexOf(presets, AppPreferences.Instance.OpenNotchShortcut);
-                string next = presets[(idx + 1) % presets.Length];
-                AppPreferences.Instance.OpenNotchShortcut = next;
-                shortcutText.Text = next;
-
-                int mod = 3; // MOD_CONTROL | MOD_ALT
-                int vk = 0x4E; // 'N'
-                if (next == "Win + Ctrl + N") { mod = 10; vk = 0x4E; }
-                else if (next == "Alt + Space") { mod = 1; vk = 0x20; }
-                else if (next == "Ctrl + Shift + Space") { mod = 6; vk = 0x20; }
-
+                AppPreferences.Instance.OpenNotchShortcut = sc;
+                shortcutText.Text = sc;
                 AppPreferences.Instance.Raw.HotkeyModifiers = mod;
                 AppPreferences.Instance.Raw.HotkeyKey = vk;
                 AppPreferences.Instance.Save();
                 HotkeyService.Instance.Apply(mod, vk);
+            }
+
+            // Clicking badge cycles presets
+            shortcutBadge.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                int idx = Array.IndexOf(presets, AppPreferences.Instance.OpenNotchShortcut);
+                string next = presets[(idx + 1) % presets.Length];
+                int mod = 3; int vk = 0x4E;
+                if (next == "Win + Ctrl + N") { mod = 10; vk = 0x4E; }
+                else if (next == "Alt + Space") { mod = 1; vk = 0x20; }
+                else if (next == "Ctrl + Shift + Space") { mod = 6; vk = 0x20; }
+                ApplyShortcut(next, mod, vk);
             };
+
+            // Clicking "Change" activates keyboard shortcut recorder
+            bool isRecording = false;
+            changeBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                if (isRecording)
+                {
+                    isRecording = false;
+                    shortcutText.Text = AppPreferences.Instance.OpenNotchShortcut;
+                    shortcutBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+                    changeTxt.Text = LocalizationService.T("general.change", "Change");
+                    if (_activeShortcutRecorder != null)
+                    {
+                        PreviewKeyDown -= _activeShortcutRecorder;
+                        _activeShortcutRecorder = null;
+                    }
+                    return;
+                }
+
+                isRecording = true;
+                shortcutText.Text = LocalizationService.T("general.press_keys", "Press keys...");
+                shortcutBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(255, 85, 0));
+                changeTxt.Text = "✕";
+
+                KeyEventHandler handler = null;
+                handler = (s, ke) =>
+                {
+                    if (ke.Key == Key.Escape)
+                    {
+                        ke.Handled = true;
+                        isRecording = false;
+                        shortcutText.Text = AppPreferences.Instance.OpenNotchShortcut;
+                        shortcutBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+                        changeTxt.Text = LocalizationService.T("general.change", "Change");
+                        PreviewKeyDown -= handler;
+                        _activeShortcutRecorder = null;
+                        return;
+                    }
+
+                    var key = ke.Key == Key.System ? ke.SystemKey : ke.Key;
+                    if (key == Key.LeftCtrl || key == Key.RightCtrl ||
+                        key == Key.LeftAlt || key == Key.RightAlt ||
+                        key == Key.LeftShift || key == Key.RightShift ||
+                        key == Key.LWin || key == Key.RWin)
+                    {
+                        return;
+                    }
+
+                    ke.Handled = true;
+                    var mods = Keyboard.Modifiers;
+                    int modFlags = 0;
+                    var parts = new List<string>();
+                    if ((mods & ModifierKeys.Control) != 0) { modFlags |= 2; parts.Add("Ctrl"); }
+                    if ((mods & ModifierKeys.Alt) != 0) { modFlags |= 1; parts.Add("Alt"); }
+                    if ((mods & ModifierKeys.Shift) != 0) { modFlags |= 4; parts.Add("Shift"); }
+                    if ((mods & ModifierKeys.Windows) != 0) { modFlags |= 8; parts.Add("Win"); }
+
+                    if (modFlags == 0)
+                    {
+                        modFlags = 3;
+                        parts.Add("Ctrl");
+                        parts.Add("Alt");
+                    }
+
+                    string keyStr = key.ToString();
+                    parts.Add(keyStr);
+                    string fullSc = string.Join(" + ", parts);
+                    int vk = KeyInterop.VirtualKeyFromKey(key);
+
+                    ApplyShortcut(fullSc, modFlags, vk);
+
+                    isRecording = false;
+                    shortcutBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+                    changeTxt.Text = LocalizationService.T("general.change", "Change");
+                    PreviewKeyDown -= handler;
+                    _activeShortcutRecorder = null;
+                };
+
+                _activeShortcutRecorder = handler;
+                PreviewKeyDown += handler;
+            };
+
             shortcutRow.Children.Add(changeBtn);
 
             stack.Children.Add(new MayliSettingRow(
-                "Open the notch",
-                "Opens or closes the notch from anywhere",
+                LocalizationService.T("general.shortcut_title", "Open the notch"),
+                LocalizationService.T("general.shortcut_desc", "Opens or closes the notch from anywhere"),
                 shortcutRow
             ));
 
             // Row 3: Time format
-            var timeFormatPicker = new MayliSegmentedControl(new[] { "System", "12-hour", "24-hour" }, AppPreferences.Instance.TimeFormat);
+            var timeOptions = AppPreferences.Instance.IsPersian
+                ? new[] { LocalizationService.T("general.time.system"), LocalizationService.T("general.time.12h"), LocalizationService.T("general.time.24h") }
+                : new[] { "System", "12-hour", "24-hour" };
+
+            string currentTimeVal = AppPreferences.Instance.TimeFormat switch
+            {
+                "24-hour" => AppPreferences.Instance.IsPersian ? LocalizationService.T("general.time.24h") : "24-hour",
+                "12-hour" => AppPreferences.Instance.IsPersian ? LocalizationService.T("general.time.12h") : "12-hour",
+                _ => AppPreferences.Instance.IsPersian ? LocalizationService.T("general.time.system") : "System"
+            };
+
+            var timeFormatPicker = new MayliSegmentedControl(timeOptions, currentTimeVal);
             timeFormatPicker.SelectionChanged += val =>
             {
-                AppPreferences.Instance.TimeFormat = val;
-                ClockService.Instance.Settings.Format = val switch
+                string normalized = "System";
+                if (val == "24-hour" || val == LocalizationService.T("general.time.24h"))
+                    normalized = "24-hour";
+                else if (val == "12-hour" || val == LocalizationService.T("general.time.12h"))
+                    normalized = "12-hour";
+
+                AppPreferences.Instance.TimeFormat = normalized;
+                ClockService.Instance.Settings.Format = normalized switch
                 {
                     "24-hour" => ClockFormat.TwentyFourHour,
-                    _ => ClockFormat.TwelveHour
+                    "12-hour" => ClockFormat.TwelveHour,
+                    _ => ClockFormat.System
                 };
                 ClockService.Instance.Save();
+                ClockService.Instance.NotifySettingsChanged();
             };
             stack.Children.Add(new MayliSettingRow(
-                "Time format",
-                "Used by the notch, Home and Clock",
+                LocalizationService.T("general.time_title", "Time format"),
+                LocalizationService.T("general.time_desc", "Used by the notch, Home and Clock"),
                 timeFormatPicker
             ));
 
@@ -651,10 +801,12 @@ namespace WindowsBuddy.UI.Settings
             {
                 WeatherService.Instance.UseFahrenheit = (val == "°F");
                 AppPreferences.Instance.TemperatureUnit = val;
+                AppPreferences.Instance.Save();
+                WeatherService.Instance.NotifySettingsChanged();
             };
             stack.Children.Add(new MayliSettingRow(
-                "Temperature",
-                "Weather, Home and the notch",
+                LocalizationService.T("general.temp_title", "Temperature"),
+                LocalizationService.T("general.temp_desc", "Weather, Home and the notch"),
                 tempPicker
             ));
 
@@ -663,25 +815,33 @@ namespace WindowsBuddy.UI.Settings
             windPicker.SelectionChanged += val =>
             {
                 AppPreferences.Instance.WindSpeedUnit = val;
+                AppPreferences.Instance.Save();
+                WeatherService.Instance.NotifySettingsChanged();
             };
             stack.Children.Add(new MayliSettingRow(
-                "Wind speed",
-                "Used by Weather and Home",
+                LocalizationService.T("general.wind_title", "Wind speed"),
+                LocalizationService.T("general.wind_desc", "Used by Weather and Home"),
                 windPicker
             ));
 
-            // Row 6: Language
-            var langText = new TextBlock
+            // Row 6: Language (Strictly English and فارسی with Vazirmatn font)
+            string currentLang = AppPreferences.Instance.IsPersian ? "فارسی" : "English";
+            var langPicker = new MayliSegmentedControl(new[] { "English", "فارسی" }, currentLang);
+            langPicker.SelectionChanged += val =>
             {
-                Text = "English",
-                FontSize = 13,
-                Foreground = new SolidColorBrush(Color.FromRgb(140, 140, 150)),
-                VerticalAlignment = VerticalAlignment.Center
+                string targetLang = (val == "فارسی") ? "fa" : "en";
+                if (AppPreferences.Instance.Language != targetLang)
+                {
+                    LocalizationService.SetLanguage(targetLang);
+                    LocalizationService.ApplyToWindow(this);
+                    UpdateSidebarLocalization();
+                    _mainContentArea.Content = BuildGeneralPage();
+                }
             };
             stack.Children.Add(new MayliSettingRow(
-                "Language",
-                "More languages are on the way",
-                langText
+                LocalizationService.T("general.lang_title", "Language"),
+                LocalizationService.T("general.lang_desc", "Choose display language (English or Persian)"),
+                langPicker
             ));
 
             return stack;
@@ -697,14 +857,14 @@ namespace WindowsBuddy.UI.Settings
             // 1. Page Header
             stack.Children.Add(new TextBlock
             {
-                Text = "Notch",
+                Text = LocalizationService.T("notch.title", "Notch"),
                 FontSize = 26,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Shape, behavior and live preview",
+                Text = LocalizationService.T("notch.subtitle", "Shape, behavior and live preview"),
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
                 Margin = new Thickness(0, 4, 0, 20)
@@ -713,7 +873,7 @@ namespace WindowsBuddy.UI.Settings
             // 2. Interactive Live Preview Card (Resting / Hover switch)
             var previewBox = new Border
             {
-                Height = 145,
+                Height = 148,
                 CornerRadius = new CornerRadius(10),
                 Background = new SolidColorBrush(Color.FromRgb(20, 20, 22)),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(38, 38, 44)),
@@ -722,7 +882,10 @@ namespace WindowsBuddy.UI.Settings
                 ClipToBounds = true
             };
 
-            var previewGrid = new Grid();
+            var previewGrid = new Grid
+            {
+                FlowDirection = FlowDirection.LeftToRight
+            };
 
             // Simulated monitor top bezel line
             var monitorTopLine = new Border
@@ -734,81 +897,271 @@ namespace WindowsBuddy.UI.Settings
             previewGrid.Children.Add(monitorTopLine);
 
             // Notch preview element container
-            var notchContainer = new Border
+            var notchContainer = new Grid
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Top
             };
 
+            bool currentPreviewHover = false;
+
             void UpdateLivePreview(bool isHover)
             {
+                currentPreviewHover = isHover;
+                notchContainer.Children.Clear();
+                var prefs = AppPreferences.Instance;
+
+                string style = prefs.NotchStyle ?? "Notch";
+                bool isIsland = string.Equals(style, "Island", StringComparison.OrdinalIgnoreCase);
+                bool isLine = string.Equals(style, "Line", StringComparison.OrdinalIgnoreCase);
+
                 if (isHover)
                 {
-                    // Expanded hover notch preview
-                    var expBorder = new Border
+                    double expW = 290;
+                    double expH = 74;
+                    string geoStyle = isIsland ? "Island" : (isLine ? "Line" : (prefs.NotchShape ?? "Shouldered"));
+                    var geo = WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder.BuildSilhouetteCore(geoStyle, expW, expH, 18, false);
+
+                    var host = new Grid
                     {
-                        Width = 260,
-                        Height = 56,
-                        CornerRadius = new CornerRadius(0, 0, 16, 16),
-                        Background = Brushes.Black,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48)),
-                        BorderThickness = new Thickness(1, 0, 1, 1),
-                        Padding = new Thickness(14, 8, 14, 8)
+                        Width = expW,
+                        Height = expH + (isIsland ? 6 : 0)
                     };
-                    var expStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                    string[] miniIcons = { "⌂", "⚙", "📋", "⏱", "⛅", "📊" };
-                    foreach (var ic in miniIcons)
+
+                    host.Children.Add(new WpfPath
                     {
-                        expStack.Children.Add(new TextBlock
+                        Data = geo,
+                        Fill = Brushes.Black,
+                        Stroke = new SolidColorBrush(Color.FromRgb(42, 42, 50)),
+                        StrokeThickness = 1
+                    });
+
+                    if (prefs.EnableEdgeLight)
+                    {
+                        var previewEdge = new WindowsBuddy.BuddyCapsule.UI.EdgeLightWpf();
+                        previewEdge.Configure(prefs.EdgeLightPattern, prefs.EdgeLightSpeed, "Always", style);
+                        try
                         {
-                            Text = ic,
-                            FontSize = 14,
-                            Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
-                            Margin = new Thickness(6, 0, 6, 0)
+                            Color edgeCol = (prefs.EdgeLightSyncWithMusic && RealtimeNotchActionService.Instance.IsMusicPlaying)
+                                ? RealtimeNotchActionService.Instance.CurrentBeatColor
+                                : (Color)ColorConverter.ConvertFromString(prefs.EdgeLightColor);
+                            previewEdge.SetLightColor(edgeCol);
+                        }
+                        catch { }
+                        previewEdge.Opacity = Math.Clamp(prefs.EdgeLightIntensity / 100.0, 0.15, 1.0);
+                        previewEdge.UpdateGeometry(geo, true, expW, expH);
+                        host.Children.Add(previewEdge);
+                    }
+
+                    var expStack = new StackPanel
+                    {
+                        Orientation = Orientation.Vertical,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, isIsland ? 6 : 2, 0, 0)
+                    };
+
+                    var topHeaderMini = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, 0, 0, 8)
+                    };
+                    if (prefs.EnablePetBeta)
+                    {
+                        topHeaderMini.Children.Add(new CuteOrbPetView(OrbMood.Happy, 16)
+                        {
+                            Margin = new Thickness(0, 0, 6, 0)
                         });
                     }
-                    expBorder.Child = expStack;
-                    notchContainer.Child = expBorder;
+                    topHeaderMini.Children.Add(new TextBlock
+                    {
+                        Text = "Mayli · Home",
+                        FontSize = 10.5,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(210, 210, 220)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    expStack.Children.Add(topHeaderMini);
+
+                    var dockMini = new Border
+                    {
+                        CornerRadius = new CornerRadius(11),
+                        Background = new SolidColorBrush(Color.FromRgb(22, 22, 26)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(42, 42, 50)),
+                        BorderThickness = new Thickness(1),
+                        Padding = new Thickness(8, 3, 8, 3)
+                    };
+                    var iconsRow = new StackPanel { Orientation = Orientation.Horizontal };
+                    string[] miniIcons = { "⌂", "⚙", "📋", "⏱", "⛅", "📊" };
+                    for (int i = 0; i < miniIcons.Length; i++)
+                    {
+                        iconsRow.Children.Add(new TextBlock
+                        {
+                            Text = miniIcons[i],
+                            FontSize = 12,
+                            Foreground = i == 0 ? Brushes.White : new SolidColorBrush(Color.FromRgb(150, 150, 162)),
+                            Margin = new Thickness(5, 0, 5, 0)
+                        });
+                    }
+                    dockMini.Child = iconsRow;
+                    expStack.Children.Add(dockMini);
+
+                    host.Children.Add(expStack);
+                    notchContainer.Children.Add(host);
                 }
                 else
                 {
-                    // Resting notch preview
-                    bool isIsland = string.Equals(AppPreferences.Instance.NotchStyle, "Island", StringComparison.OrdinalIgnoreCase);
-                    var restBorder = new Border
+                    if (string.Equals(prefs.NotchVisibility, "Minimal", StringComparison.OrdinalIgnoreCase))
                     {
-                        Width = 175,
-                        Height = 28,
-                        CornerRadius = isIsland ? new CornerRadius(14) : new CornerRadius(0, 0, 14, 14),
-                        Background = Brushes.Black,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(35, 35, 42)),
-                        BorderThickness = isIsland ? new Thickness(1) : new Thickness(1, 0, 1, 1),
-                        Margin = isIsland ? new Thickness(0, 4, 0, 0) : new Thickness(0),
-                        Padding = new Thickness(12, 0, 12, 0)
+                        var minBorder = new Border
+                        {
+                            Width = 64,
+                            Height = 14,
+                            CornerRadius = new CornerRadius(0, 0, 6, 6),
+                            Background = Brushes.Black,
+                            BorderBrush = new SolidColorBrush(Color.FromRgb(50, 50, 60)),
+                            BorderThickness = new Thickness(1, 0, 1, 1),
+                            Child = new TextBlock
+                            {
+                                Text = "⌄",
+                                FontSize = 10,
+                                Foreground = Brushes.White,
+                                HorizontalAlignment = HorizontalAlignment.Center,
+                                VerticalAlignment = VerticalAlignment.Center
+                            }
+                        };
+                        notchContainer.Children.Add(minBorder);
+                        return;
+                    }
+
+                    WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder.GetRestingShapeProfile(
+                        style,
+                        prefs.NotchShape,
+                        prefs.NotchScalePercent,
+                        out double restW,
+                        out double restH,
+                        out double restR,
+                        out double earW);
+
+                    // Fit comfortably inside the preview stage
+                    double previewScale = 0.85;
+                    double w = Math.Round(restW * previewScale);
+                    double h = Math.Round(restH * previewScale);
+                    string geoStyle = isIsland ? "Island" : (isLine ? "Line" : (prefs.NotchShape ?? "Shouldered"));
+                    var geo = WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder.BuildSilhouetteCore(geoStyle, w, h, restR * previewScale, false);
+
+                    var host = new Grid
+                    {
+                        Width = w,
+                        Height = h + (isIsland ? 6 : 0)
                     };
 
-                    var restGrid = new Grid();
-                    restGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    host.Children.Add(new WpfPath
+                    {
+                        Data = geo,
+                        Fill = Brushes.Black,
+                        Stroke = new SolidColorBrush(Color.FromRgb(42, 42, 50)),
+                        StrokeThickness = 1
+                    });
+
+                    if (prefs.EnableEdgeLight)
+                    {
+                        var previewEdge = new WindowsBuddy.BuddyCapsule.UI.EdgeLightWpf();
+                        previewEdge.Configure(prefs.EdgeLightPattern, prefs.EdgeLightSpeed, "Always", style);
+                        try
+                        {
+                            Color edgeCol = (prefs.EdgeLightSyncWithMusic && RealtimeNotchActionService.Instance.IsMusicPlaying)
+                                ? RealtimeNotchActionService.Instance.CurrentBeatColor
+                                : (Color)ColorConverter.ConvertFromString(prefs.EdgeLightColor);
+                            previewEdge.SetLightColor(edgeCol);
+                        }
+                        catch { }
+                        previewEdge.Opacity = Math.Clamp(prefs.EdgeLightIntensity / 100.0, 0.15, 1.0);
+                        previewEdge.UpdateGeometry(geo, false, w, h);
+                        host.Children.Add(previewEdge);
+                    }
+
+                    bool isCenter = string.Equals(prefs.NotchRestingLayout, "Center", StringComparison.OrdinalIgnoreCase);
+                    var restGrid = new Grid
+                    {
+                        Margin = new Thickness(earW * previewScale + 10, isIsland ? 5 : 0, earW * previewScale + 10, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = isCenter ? HorizontalAlignment.Center : HorizontalAlignment.Stretch
+                    };
+                    restGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    restGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = isCenter ? GridLength.Auto : new GridLength(1, GridUnitType.Star) });
                     restGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-                    var clockText = new TextBlock
+                    var leftSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    if (prefs.ShowClosedDate)
                     {
-                        Text = "11:43 AM",
-                        FontSize = 11,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = Brushes.White,
-                        VerticalAlignment = VerticalAlignment.Center
+                        leftSp.Children.Add(new TextBlock
+                        {
+                            Text = prefs.ShowClosedTime ? $"{DateTime.Now.ToString("ddd d", System.Globalization.CultureInfo.InvariantCulture)} · " : DateTime.Now.ToString("ddd d", System.Globalization.CultureInfo.InvariantCulture),
+                            FontSize = 10.0,
+                            FontWeight = FontWeights.SemiBold,
+                            Foreground = new SolidColorBrush(Color.FromRgb(170, 170, 180)),
+                            VerticalAlignment = VerticalAlignment.Center
+                        });
+                    }
+                    if (prefs.ShowClosedTime)
+                    {
+                        if (string.Equals(prefs.ClosedClockStyle, "Analog", StringComparison.OrdinalIgnoreCase))
+                        {
+                            leftSp.Children.Add(new WindowsBuddy.BuddyCapsule.UI.MiniAnalogClock(13.5));
+                        }
+                        else
+                        {
+                            leftSp.Children.Add(new TextBlock
+                            {
+                                Text = DateTime.Now.ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture),
+                                FontSize = 10.5,
+                                FontWeight = FontWeights.SemiBold,
+                                Foreground = Brushes.White,
+                                VerticalAlignment = VerticalAlignment.Center
+                            });
+                        }
+                    }
+                    Grid.SetColumn(leftSp, 0);
+                    restGrid.Children.Add(leftSp);
+
+                    if (prefs.EnablePetBeta)
+                    {
+                        var miniPet = new CuteOrbPetView(OrbMood.Idle, 16)
+                        {
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Margin = isCenter ? new Thickness(6, 0, 6, 0) : new Thickness(0)
+                        };
+                        Grid.SetColumn(miniPet, 1);
+                        restGrid.Children.Add(miniPet);
+                    }
+
+                    var rightSp = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = (isCenter && !prefs.EnablePetBeta) ? new Thickness(8, 0, 0, 0) : new Thickness(0)
                     };
-                    Grid.SetColumn(clockText, 0);
-                    restGrid.Children.Add(clockText);
+                    if (prefs.ShowClosedBluetooth)
+                    {
+                        rightSp.Children.Add(new WindowsBuddy.UI.AnimateIcons.AnimateIcon(WindowsBuddy.UI.AnimateIcons.AnimateIconType.Bluetooth, 11, new SolidColorBrush(Color.FromRgb(10, 132, 255)))
+                        {
+                            Margin = new Thickness(0, 0, 4, 0),
+                            VerticalAlignment = VerticalAlignment.Center
+                        });
+                    }
+                    if (prefs.ShowClosedBattery)
+                    {
+                        rightSp.Children.Add(new TextBlock { Text = "⚡", FontSize = 9.5, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)), Margin = new Thickness(0, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center });
+                        rightSp.Children.Add(new TextBlock { Text = $"{SystemMonitorService.Current.BatteryPercent}", FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)), VerticalAlignment = VerticalAlignment.Center });
+                    }
+                    Grid.SetColumn(rightSp, 2);
+                    restGrid.Children.Add(rightSp);
 
-                    var battStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                    battStack.Children.Add(new TextBlock { Text = "⚡", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)), Margin = new Thickness(0, 0, 3, 0) });
-                    battStack.Children.Add(new TextBlock { Text = "85", FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)) });
-                    Grid.SetColumn(battStack, 1);
-                    restGrid.Children.Add(battStack);
-
-                    restBorder.Child = restGrid;
-                    notchContainer.Child = restBorder;
+                    host.Children.Add(restGrid);
+                    notchContainer.Children.Add(host);
                 }
             }
 
@@ -816,13 +1169,15 @@ namespace WindowsBuddy.UI.Settings
             previewGrid.Children.Add(notchContainer);
 
             // Preview switcher on top right
-            var previewModeSwitch = new MayliSegmentedControl(new[] { "Resting", "Hover" }, "Resting")
+            string restLabel = LocalizationService.T("notch.preview.resting", "Resting");
+            string hoverLabel = LocalizationService.T("notch.preview.hover", "Hover");
+            var previewModeSwitch = new MayliSegmentedControl(new[] { restLabel, hoverLabel }, restLabel)
             {
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 12, 12, 0)
             };
-            previewModeSwitch.SelectionChanged += mode => UpdateLivePreview(mode == "Hover");
+            previewModeSwitch.SelectionChanged += mode => UpdateLivePreview(mode == hoverLabel || mode == "Hover");
             previewGrid.Children.Add(previewModeSwitch);
 
             previewBox.Child = previewGrid;
@@ -831,7 +1186,7 @@ namespace WindowsBuddy.UI.Settings
             // -------------------------------------------------------------
             // SECTION: VISIBILITY (4 Visual Cards)
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("VISIBILITY"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("notch.sec.visibility", "VISIBILITY")));
 
             var visGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
             visGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -849,6 +1204,7 @@ namespace WindowsBuddy.UI.Settings
                 {
                     AppPreferences.Instance.NotchVisibility = selectedKey;
                     foreach (var c in visCards) c.IsSelected = (c.Key == selectedKey);
+                    UpdateLivePreview(currentPreviewHover);
                 };
                 visCards.Add(card);
                 Grid.SetColumn(card, col);
@@ -856,17 +1212,17 @@ namespace WindowsBuddy.UI.Settings
                 visGrid.Children.Add(card);
             }
 
-            AddVisCard("Always", "Always", "Always on screen. Fullscreen rules below still apply.", CreateNotchIllustration("always"), 0, 0);
-            AddVisCard("Smart", "Smart", "Full on the desktop; tucked away over maximized apps.", CreateNotchIllustration("smart"), 1, 0);
-            AddVisCard("Minimal", "Minimal", "Just a small arrow at the top. Hover to peek, open on hover or click.", CreateNotchIllustration("minimal"), 0, 1);
-            AddVisCard("Hidden", "Hidden", "Nothing on screen. Open it from the tray icon (or set a shortcut in General).", CreateNotchIllustration("hidden"), 1, 1);
+            AddVisCard("Always", LocalizationService.T("notch.vis.always.title", "Always"), LocalizationService.T("notch.vis.always.desc", "Always on screen. Fullscreen rules below still apply."), CreateNotchIllustration("always"), 0, 0);
+            AddVisCard("Smart", LocalizationService.T("notch.vis.smart.title", "Smart"), LocalizationService.T("notch.vis.smart.desc", "Full on the desktop; tucked away over maximized apps."), CreateNotchIllustration("smart"), 1, 0);
+            AddVisCard("Minimal", LocalizationService.T("notch.vis.minimal.title", "Minimal"), LocalizationService.T("notch.vis.minimal.desc", "Just a small arrow at the top. Hover to peek, open on hover or click."), CreateNotchIllustration("minimal"), 0, 1);
+            AddVisCard("Hidden", LocalizationService.T("notch.vis.hidden.title", "Hidden"), LocalizationService.T("notch.vis.hidden.desc", "Nothing on screen. Open it from the tray icon (or set a shortcut in General)."), CreateNotchIllustration("hidden"), 1, 1);
 
             stack.Children.Add(visGrid);
 
             // -------------------------------------------------------------
             // SECTION: STYLE (3 Visual Cards & Geometry Options)
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("STYLE"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("notch.sec.style", "STYLE")));
 
             var styleGrid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
             styleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -882,54 +1238,75 @@ namespace WindowsBuddy.UI.Settings
                 card.Selected += selectedKey =>
                 {
                     AppPreferences.Instance.NotchStyle = selectedKey;
-                    AppPreferences.Instance.NotchSilhouette = selectedKey == "Island" ? "Island" : (selectedKey == "Line" ? "Compact" : "Shouldered");
+                    AppPreferences.Instance.NotchSilhouette = selectedKey == "Island" ? "Island" : (selectedKey == "Line" ? "Line" : "Shouldered");
                     foreach (var c in styleCards) c.IsSelected = (c.Key == selectedKey);
-                    UpdateLivePreview(false);
+                    UpdateLivePreview(currentPreviewHover);
                 };
                 styleCards.Add(card);
                 Grid.SetColumn(card, col);
                 styleGrid.Children.Add(card);
             }
 
-            AddStyleCard("Line", "Line", "A slim bar along the top edge", CreateNotchIllustration("line"), 0);
-            AddStyleCard("Notch", "Notch", "Grows out of the screen edge", CreateNotchIllustration("notch"), 1);
-            AddStyleCard("Island", "Island", "A pill floating just below the edge", CreateNotchIllustration("island"), 2);
+            AddStyleCard("Line", LocalizationService.T("notch.style.line.title", "Line"), LocalizationService.T("notch.style.line.desc", "A slim bar along the top edge"), CreateNotchIllustration("line"), 0);
+            AddStyleCard("Notch", LocalizationService.T("notch.style.notch.title", "Notch"), LocalizationService.T("notch.style.notch.desc", "Grows out of the screen edge"), CreateNotchIllustration("notch"), 1);
+            AddStyleCard("Island", LocalizationService.T("notch.style.island.title", "Island"), LocalizationService.T("notch.style.island.desc", "A pill floating just below the edge"), CreateNotchIllustration("island"), 2);
 
             stack.Children.Add(styleGrid);
 
             // Notch shape
             var shapeDropdown = new MayliDropdown(new[] { "Compact", "Wide", "Classic", "Ultra-Compact" }, AppPreferences.Instance.NotchShape);
-            shapeDropdown.SelectionChanged += s => AppPreferences.Instance.NotchShape = s;
+            shapeDropdown.SelectionChanged += s =>
+            {
+                AppPreferences.Instance.NotchShape = s;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Notch shape",
-                "Fine-tune the Notch style's silhouette",
+                LocalizationService.T("notch.shape.title", "Notch shape"),
+                LocalizationService.T("notch.shape.desc", "Fine-tune the Notch style's silhouette"),
                 shapeDropdown
             ));
 
             // Size
             var sizeSlider = new MayliSliderRow(60, 140, AppPreferences.Instance.NotchScalePercent, "%");
-            sizeSlider.ValueChanged += v => AppPreferences.Instance.NotchScalePercent = (int)v;
+            sizeSlider.ValueChanged += v =>
+            {
+                AppPreferences.Instance.NotchScalePercent = (int)v;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Size",
-                "Scales the resting notch",
+                LocalizationService.T("notch.size.title", "Size"),
+                LocalizationService.T("notch.size.desc", "Scales the resting notch"),
                 sizeSlider
             ));
 
             // Resting layout
-            var layoutPicker = new MayliSegmentedControl(new[] { "Corners", "Center" }, AppPreferences.Instance.NotchRestingLayout);
-            layoutPicker.SelectionChanged += l => AppPreferences.Instance.NotchRestingLayout = l;
+            string cornersLbl = LocalizationService.T("notch.layout.corners", "Corners");
+            string centerLbl = LocalizationService.T("notch.layout.center", "Center");
+            string curLayoutLbl = string.Equals(AppPreferences.Instance.NotchRestingLayout, "Center", StringComparison.OrdinalIgnoreCase) ? centerLbl : cornersLbl;
+            var layoutPicker = new MayliSegmentedControl(new[] { cornersLbl, centerLbl }, curLayoutLbl);
+            layoutPicker.SelectionChanged += l =>
+            {
+                AppPreferences.Instance.NotchRestingLayout = (l == centerLbl || l == "Center") ? "Center" : "Corners";
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Resting layout",
-                "Time and battery in corners or center",
+                LocalizationService.T("notch.layout.title", "Resting layout"),
+                LocalizationService.T("notch.layout.desc", "Time and battery in corners or center"),
                 layoutPicker
             ));
 
             // Opens on
-            var openOnPicker = new MayliSegmentedControl(new[] { "Hover", "Click" }, AppPreferences.Instance.NotchOpenTrigger);
-            openOnPicker.SelectionChanged += o => AppPreferences.Instance.NotchOpenTrigger = o;
+            string hoverOpenLbl = LocalizationService.T("notch.opens.hover", "Hover");
+            string clickOpenLbl = LocalizationService.T("notch.opens.click", "Click");
+            string curOpenLbl = string.Equals(AppPreferences.Instance.NotchOpenTrigger, "Click", StringComparison.OrdinalIgnoreCase) ? clickOpenLbl : hoverOpenLbl;
+            var openOnPicker = new MayliSegmentedControl(new[] { hoverOpenLbl, clickOpenLbl }, curOpenLbl);
+            openOnPicker.SelectionChanged += o =>
+            {
+                AppPreferences.Instance.NotchOpenTrigger = (o == clickOpenLbl || o == "Click") ? "Click" : "Hover";
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Opens on",
-                "Hover to open at once, or click to open on purpose",
+                LocalizationService.T("notch.opens.title", "Opens on"),
+                LocalizationService.T("notch.opens.desc", "Hover to open at once, or click to open on purpose"),
                 openOnPicker
             ));
 
@@ -937,8 +1314,8 @@ namespace WindowsBuddy.UI.Settings
             var dispDropdown = new MayliDropdown(new[] { "Primary display", "Display 1", "Display 2", "All displays" }, AppPreferences.Instance.NotchDisplay);
             dispDropdown.SelectionChanged += d => AppPreferences.Instance.NotchDisplay = d;
             stack.Children.Add(new MayliSettingRow(
-                "Display",
-                "Which monitor the notch lives on",
+                LocalizationService.T("notch.display.title", "Display"),
+                LocalizationService.T("notch.display.desc", "Which monitor the notch lives on"),
                 dispDropdown
             ));
 
@@ -946,22 +1323,22 @@ namespace WindowsBuddy.UI.Settings
             var showNotchToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowNotchBar);
             showNotchToggle.CheckedChanged += s => AppPreferences.Instance.ShowNotchBar = s;
             stack.Children.Add(new MayliSettingRow(
-                "Show notch",
-                "Hide it without quitting; the tray icon brings it back",
+                LocalizationService.T("notch.shownotch.title", "Show notch"),
+                LocalizationService.T("notch.shownotch.desc", "Hide it without quitting; the tray icon brings it back"),
                 showNotchToggle
             ));
 
             // -------------------------------------------------------------
             // SECTION: BEHAVIOR
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("BEHAVIOR"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("notch.sec.behavior", "BEHAVIOR")));
 
             // Hide in fullscreen
             var fullToggle = new MayliToggleSwitch(AppPreferences.Instance.HideOnFullscreen);
             fullToggle.CheckedChanged += chk => AppPreferences.Instance.HideOnFullscreen = chk;
             stack.Children.Add(new MayliSettingRow(
-                "Hide in fullscreen",
-                "Apps, videos and games on the notch's display",
+                LocalizationService.T("notch.fullscreen.title", "Hide in fullscreen"),
+                LocalizationService.T("notch.fullscreen.desc", "Apps, videos and games on the notch's display"),
                 fullToggle
             ));
 
@@ -969,8 +1346,8 @@ namespace WindowsBuddy.UI.Settings
             var eventsToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowEventsOverApps);
             eventsToggle.CheckedChanged += e => AppPreferences.Instance.ShowEventsOverApps = e;
             stack.Children.Add(new MayliSettingRow(
-                "Show events over apps",
-                "When the notch is tucked away, grow it briefly for events like volume, timers and a new song",
+                LocalizationService.T("notch.events.title", "Show events over apps"),
+                LocalizationService.T("notch.events.desc", "When the notch is tucked away, grow it briefly for events like volume, timers and a new song"),
                 eventsToggle
             ));
 
@@ -978,34 +1355,42 @@ namespace WindowsBuddy.UI.Settings
             var animToggle = new MayliToggleSwitch(AppPreferences.Instance.TabAnimations);
             animToggle.CheckedChanged += a => AppPreferences.Instance.TabAnimations = a;
             stack.Children.Add(new MayliSettingRow(
-                "Tab animations",
-                "Slide between tabs inside the open notch",
+                LocalizationService.T("notch.tabanim.title", "Tab animations"),
+                LocalizationService.T("notch.tabanim.desc", "Slide between tabs inside the open notch"),
                 animToggle
             ));
 
             // -------------------------------------------------------------
             // SECTION: MAYLI PET (BETA)
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("MAYLI PET (BETA)"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("notch.sec.pet", "MAYLI PET (BETA)")));
 
             var petToggle = new MayliToggleSwitch(AppPreferences.Instance.EnablePetBeta);
-            petToggle.CheckedChanged += p => AppPreferences.Instance.EnablePetBeta = p;
+            petToggle.CheckedChanged += p =>
+            {
+                AppPreferences.Instance.EnablePetBeta = p;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Mayli Pet (Beta)",
-                "A small companion in your notch",
+                LocalizationService.T("notch.pet.title", "Mayli Pet (Beta)"),
+                LocalizationService.T("notch.pet.desc", "A small companion in your notch"),
                 petToggle
             ));
 
             // -------------------------------------------------------------
             // SECTION: EDGE LIGHT
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("EDGE LIGHT"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("notch.sec.edgelight", "EDGE LIGHT")));
 
             var edgeToggle = new MayliToggleSwitch(AppPreferences.Instance.EnableEdgeLight);
-            edgeToggle.CheckedChanged += el => AppPreferences.Instance.EnableEdgeLight = el;
+            edgeToggle.CheckedChanged += el =>
+            {
+                AppPreferences.Instance.EnableEdgeLight = el;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Edge light",
-                "Light that runs along the notch outline",
+                LocalizationService.T("notch.edgelight.title", "Edge light"),
+                LocalizationService.T("notch.edgelight.desc", "Light that runs along the notch outline"),
                 edgeToggle
             ));
 
@@ -1025,15 +1410,16 @@ namespace WindowsBuddy.UI.Settings
                 {
                     AppPreferences.Instance.EdgeLightPattern = selectedKey;
                     foreach (var c in edgeCards) c.IsSelected = (c.Key == selectedKey);
+                    UpdateLivePreview(currentPreviewHover);
                 };
                 edgeCards.Add(card);
                 Grid.SetColumn(card, col);
                 edgeCardsGrid.Children.Add(card);
             }
 
-            AddEdgeCard("Comet", "Comet", "One light travels along the outline", CreateEdgeIllustration("comet"), 0);
-            AddEdgeCard("Twin comets", "Twin comets", "Two lights meet at the bottom, then return", CreateEdgeIllustration("twin"), 1);
-            AddEdgeCard("Breathe", "Breathe", "The whole outline glows softly", CreateEdgeIllustration("breathe"), 2);
+            AddEdgeCard("Comet", LocalizationService.T("notch.edge.comet.title", "Comet"), LocalizationService.T("notch.edge.comet.desc", "One light travels along the outline"), CreateEdgeIllustration("comet"), 0);
+            AddEdgeCard("Twin comets", LocalizationService.T("notch.edge.twin.title", "Twin comets"), LocalizationService.T("notch.edge.twin.desc", "Two lights meet at the bottom, then return"), CreateEdgeIllustration("twin"), 1);
+            AddEdgeCard("Breathe", LocalizationService.T("notch.edge.breathe.title", "Breathe"), LocalizationService.T("notch.edge.breathe.desc", "The whole outline glows softly"), CreateEdgeIllustration("breathe"), 2);
 
             stack.Children.Add(edgeCardsGrid);
 
@@ -1048,9 +1434,15 @@ namespace WindowsBuddy.UI.Settings
                 "#FF4F79", "#FF7A59", "#C49A6C", "#7CE8FF"
             };
 
+            bool matchedPreset = false;
+            var swatchBorders = new List<(string Hex, Border Circle)>();
+
             for (int i = 0; i < lightColors.Length; i++)
             {
                 string hex = lightColors[i];
+                bool isSel = string.Equals(AppPreferences.Instance.EdgeLightColor, hex, StringComparison.OrdinalIgnoreCase);
+                if (isSel) matchedPreset = true;
+
                 var circle = new Border
                 {
                     Width = 22,
@@ -1059,15 +1451,17 @@ namespace WindowsBuddy.UI.Settings
                     Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)),
                     Margin = new Thickness(4),
                     Cursor = Cursors.Hand,
-                    BorderThickness = new Thickness(string.Equals(AppPreferences.Instance.EdgeLightColor, hex, StringComparison.OrdinalIgnoreCase) ? 2.5 : 0),
+                    BorderThickness = new Thickness(isSel ? 2.5 : 0),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(255, 85, 0))
                 };
+                swatchBorders.Add((hex, circle));
                 circle.MouseLeftButtonUp += (_, e) =>
                 {
                     e.Handled = true;
                     AppPreferences.Instance.EdgeLightColor = hex;
-                    // refresh border
-                    _mainContentArea.Content = BuildNotchPage();
+                    foreach (var sb in swatchBorders)
+                        sb.Circle.BorderThickness = new Thickness(string.Equals(sb.Hex, hex, StringComparison.OrdinalIgnoreCase) ? 2.5 : 0);
+                    UpdateLivePreview(currentPreviewHover);
                 };
                 if (i < 8) swatchesRow1.Children.Add(circle);
                 else swatchesRow2.Children.Add(circle);
@@ -1077,90 +1471,239 @@ namespace WindowsBuddy.UI.Settings
             {
                 CornerRadius = new CornerRadius(6),
                 Background = new SolidColorBrush(Color.FromRgb(30, 30, 36)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 54)),
-                BorderThickness = new Thickness(1),
+                BorderBrush = !matchedPreset ? new SolidColorBrush(Color.FromRgb(255, 85, 0)) : new SolidColorBrush(Color.FromRgb(46, 46, 54)),
+                BorderThickness = new Thickness(!matchedPreset ? 1.5 : 1),
                 Padding = new Thickness(12, 4, 12, 4),
                 Margin = new Thickness(6, 0, 0, 0),
                 Cursor = Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            customBtn.Child = new TextBlock { Text = "● Custom...", FontSize = 11.5, Foreground = Brushes.White };
+            customBtn.Child = new TextBlock
+            {
+                Text = LocalizationService.T("notch.edge.custom", "● Custom..."),
+                FontSize = 11.5,
+                Foreground = Brushes.White
+            };
+            customBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                using var dlg = new System.Windows.Forms.ColorDialog
+                {
+                    FullOpen = true,
+                    AnyColor = true
+                };
+                try
+                {
+                    var cur = (Color)ColorConverter.ConvertFromString(AppPreferences.Instance.EdgeLightColor);
+                    dlg.Color = System.Drawing.Color.FromArgb(cur.R, cur.G, cur.B);
+                }
+                catch { }
+
+                if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    string chosenHex = $"#{dlg.Color.R:X2}{dlg.Color.G:X2}{dlg.Color.B:X2}";
+                    AppPreferences.Instance.EdgeLightColor = chosenHex;
+                    foreach (var sb in swatchBorders)
+                        sb.Circle.BorderThickness = new Thickness(0);
+                    customBtn.BorderBrush = new SolidColorBrush(Color.FromRgb(255, 85, 0));
+                    customBtn.BorderThickness = new Thickness(1.5);
+                    UpdateLivePreview(currentPreviewHover);
+                }
+            };
             swatchesRow2.Children.Add(customBtn);
+
+            // "Match song when playing" toggle pill button in Edge Light -> Color
+            var artGrad = new LinearGradientBrush
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(1, 1)
+            };
+            artGrad.GradientStops.Add(new GradientStop(Color.FromRgb(255, 79, 121), 0.0));
+            artGrad.GradientStops.Add(new GradientStop(Color.FromRgb(191, 90, 242), 0.35));
+            artGrad.GradientStops.Add(new GradientStop(Color.FromRgb(10, 132, 255), 0.7));
+            artGrad.GradientStops.Add(new GradientStop(Color.FromRgb(48, 209, 88), 1.0));
+
+            var syncMusicBtn = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(6, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var syncMusicSp = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            syncMusicSp.Children.Add(new Border
+            {
+                Width = 11,
+                Height = 11,
+                CornerRadius = new CornerRadius(5.5),
+                Background = artGrad,
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            var syncMusicLabel = new TextBlock
+            {
+                FontSize = 11.5,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            syncMusicSp.Children.Add(syncMusicLabel);
+            syncMusicBtn.Child = syncMusicSp;
+
+            void RefreshSyncMusicBtnVisual()
+            {
+                bool active = AppPreferences.Instance.EdgeLightSyncWithMusic;
+                syncMusicBtn.Background = active
+                    ? new SolidColorBrush(Color.FromArgb(38, 255, 85, 0))
+                    : new SolidColorBrush(Color.FromRgb(30, 30, 36));
+                syncMusicBtn.BorderBrush = active
+                    ? new SolidColorBrush(Color.FromRgb(255, 85, 0))
+                    : new SolidColorBrush(Color.FromRgb(46, 46, 54));
+                syncMusicBtn.BorderThickness = new Thickness(active ? 1.5 : 1);
+                string baseText = LocalizationService.T("notch.edge.sync_music", "🎵 Match song when playing");
+                syncMusicLabel.Text = active ? $"{baseText} ✓" : baseText;
+                syncMusicLabel.Foreground = active ? Brushes.White : new SolidColorBrush(Color.FromRgb(210, 210, 220));
+                syncMusicLabel.FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
+            }
+
+            RefreshSyncMusicBtnVisual();
+            syncMusicBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AppPreferences.Instance.EdgeLightSyncWithMusic = !AppPreferences.Instance.EdgeLightSyncWithMusic;
+                RefreshSyncMusicBtnVisual();
+                UpdateLivePreview(currentPreviewHover);
+            };
+            swatchesRow2.Children.Add(syncMusicBtn);
 
             colorStack.Children.Add(swatchesRow1);
             colorStack.Children.Add(swatchesRow2);
 
             stack.Children.Add(new MayliSettingRow(
-                "Color",
+                LocalizationService.T("notch.edge.color", "Color"),
                 "",
                 colorStack
             ));
 
             // Intensity
             var intensitySlider = new MayliSliderRow(10, 100, AppPreferences.Instance.EdgeLightIntensity, "%");
-            intensitySlider.ValueChanged += v => AppPreferences.Instance.EdgeLightIntensity = (int)v;
+            intensitySlider.ValueChanged += v =>
+            {
+                AppPreferences.Instance.EdgeLightIntensity = (int)v;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Intensity",
+                LocalizationService.T("notch.edge.intensity", "Intensity"),
                 "",
                 intensitySlider
             ));
 
             // Speed
-            var speedPicker = new MayliSegmentedControl(new[] { "Slow", "Normal", "Fast" }, AppPreferences.Instance.EdgeLightSpeed);
-            speedPicker.SelectionChanged += s => AppPreferences.Instance.EdgeLightSpeed = s;
+            string slowLbl = LocalizationService.T("notch.edge.speed.slow", "Slow");
+            string normLbl = LocalizationService.T("notch.edge.speed.normal", "Normal");
+            string fastLbl = LocalizationService.T("notch.edge.speed.fast", "Fast");
+            string curSpeedLbl = AppPreferences.Instance.EdgeLightSpeed switch
+            {
+                "Slow" => slowLbl,
+                "Fast" => fastLbl,
+                _ => normLbl
+            };
+            var speedPicker = new MayliSegmentedControl(new[] { slowLbl, normLbl, fastLbl }, curSpeedLbl);
+            speedPicker.SelectionChanged += s =>
+            {
+                string canonical = "Normal";
+                if (s == slowLbl || s == "Slow") canonical = "Slow";
+                else if (s == fastLbl || s == "Fast") canonical = "Fast";
+                AppPreferences.Instance.EdgeLightSpeed = canonical;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Speed",
+                LocalizationService.T("notch.edge.speed", "Speed"),
                 "",
                 speedPicker
             ));
 
             // When
-            var whenPicker = new MayliSegmentedControl(new[] { "Always", "On events & hover" }, AppPreferences.Instance.EdgeLightTrigger);
-            whenPicker.SelectionChanged += w => AppPreferences.Instance.EdgeLightTrigger = w;
+            string alwaysWhenLbl = LocalizationService.T("notch.edge.when.always", "Always");
+            string eventsWhenLbl = LocalizationService.T("notch.edge.when.events", "On events & hover");
+            string curWhenLbl = string.Equals(AppPreferences.Instance.EdgeLightTrigger, "Always", StringComparison.OrdinalIgnoreCase)
+                ? alwaysWhenLbl
+                : eventsWhenLbl;
+            var whenPicker = new MayliSegmentedControl(new[] { alwaysWhenLbl, eventsWhenLbl }, curWhenLbl);
+            whenPicker.SelectionChanged += w =>
+            {
+                AppPreferences.Instance.EdgeLightTrigger = (w == alwaysWhenLbl || w == "Always")
+                    ? "Always"
+                    : "On events & hover";
+            };
             stack.Children.Add(new MayliSettingRow(
-                "When",
-                "On events & hover plays the light for a few seconds, then it fades out",
+                LocalizationService.T("notch.edge.when.title", "When"),
+                LocalizationService.T("notch.edge.when.desc", "On events & hover plays the light for a few seconds, then it fades out"),
                 whenPicker
             ));
 
             // -------------------------------------------------------------
             // SECTION: WHEN CLOSED, SHOW
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("WHEN CLOSED, SHOW"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("notch.sec.closed", "WHEN CLOSED, SHOW")));
 
             // Time
             var closedTimeToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedTime);
-            closedTimeToggle.CheckedChanged += t => AppPreferences.Instance.ShowClosedTime = t;
+            closedTimeToggle.CheckedChanged += t =>
+            {
+                AppPreferences.Instance.ShowClosedTime = t;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Time",
-                "The resting clock that events return to",
+                LocalizationService.T("notch.closed.time.title", "Time"),
+                LocalizationService.T("notch.closed.time.desc", "The resting clock that events return to"),
                 closedTimeToggle
             ));
 
             // Clock style
-            var clockStylePicker = new MayliSegmentedControl(new[] { "Digital", "Analog" }, AppPreferences.Instance.ClosedClockStyle);
-            clockStylePicker.SelectionChanged += cs => AppPreferences.Instance.ClosedClockStyle = cs;
+            string digLbl = LocalizationService.T("notch.closed.digital", "Digital");
+            string anaLbl = LocalizationService.T("notch.closed.analog", "Analog");
+            string curClockStyleLbl = string.Equals(AppPreferences.Instance.ClosedClockStyle, "Analog", StringComparison.OrdinalIgnoreCase)
+                ? anaLbl
+                : digLbl;
+            var clockStylePicker = new MayliSegmentedControl(new[] { digLbl, anaLbl }, curClockStyleLbl);
+            clockStylePicker.SelectionChanged += cs =>
+            {
+                AppPreferences.Instance.ClosedClockStyle = (cs == anaLbl || cs == "Analog") ? "Analog" : "Digital";
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Clock style",
+                LocalizationService.T("notch.closed.clockstyle", "Clock style"),
                 "",
                 clockStylePicker
             ));
 
             // Date
             var closedDateToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedDate);
-            closedDateToggle.CheckedChanged += d => AppPreferences.Instance.ShowClosedDate = d;
+            closedDateToggle.CheckedChanged += d =>
+            {
+                AppPreferences.Instance.ShowClosedDate = d;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Date",
-                "Day and date next to the time, e.g. Sat 3 · 9:41",
+                LocalizationService.T("notch.closed.date.title", "Date"),
+                LocalizationService.T("notch.closed.date.desc", "Day and date next to the time, e.g. Sat 3 · 9:41"),
                 closedDateToggle
             ));
 
             // Battery
             var closedBatteryToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedBattery);
-            closedBatteryToggle.CheckedChanged += b => AppPreferences.Instance.ShowClosedBattery = b;
+            closedBatteryToggle.CheckedChanged += b =>
+            {
+                AppPreferences.Instance.ShowClosedBattery = b;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Battery",
-                "Level and charging",
+                LocalizationService.T("notch.closed.battery.title", "Battery"),
+                LocalizationService.T("notch.closed.battery.desc", "Level and charging"),
                 closedBatteryToggle
             ));
 
@@ -1168,24 +1711,28 @@ namespace WindowsBuddy.UI.Settings
             var closedMediaToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedNowPlaying);
             closedMediaToggle.CheckedChanged += np => AppPreferences.Instance.ShowClosedNowPlaying = np;
             stack.Children.Add(new MayliSettingRow(
-                "Now playing",
-                "Compact media controls while music or video plays",
+                LocalizationService.T("notch.closed.nowplaying.title", "Now playing"),
+                LocalizationService.T("notch.closed.nowplaying.desc", "Compact media controls while music or video plays"),
                 closedMediaToggle
             ));
 
             // Bluetooth
             var closedBtToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedBluetooth);
-            closedBtToggle.CheckedChanged += bt => AppPreferences.Instance.ShowClosedBluetooth = bt;
+            closedBtToggle.CheckedChanged += bt =>
+            {
+                AppPreferences.Instance.ShowClosedBluetooth = bt;
+                UpdateLivePreview(currentPreviewHover);
+            };
             stack.Children.Add(new MayliSettingRow(
-                "Bluetooth",
-                "While a device is connected",
+                LocalizationService.T("notch.closed.bt.title", "Bluetooth"),
+                LocalizationService.T("notch.closed.bt.desc", "While a device is connected"),
                 closedBtToggle
             ));
 
             // -------------------------------------------------------------
             // SECTION: EXCLUDED AUDIO APPS (Ignore sound per .exe)
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("EXCLUDED AUDIO APPS"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("notch.sec.excluded", "EXCLUDED AUDIO APPS")));
 
             var excludedPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 16) };
 
@@ -1193,14 +1740,14 @@ namespace WindowsBuddy.UI.Settings
             var textStack = new StackPanel();
             textStack.Children.Add(new TextBlock
             {
-                Text = "Ignore audio from specific apps",
+                Text = LocalizationService.T("notch.excluded.title", "Ignore audio from specific apps"),
                 FontSize = 13.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White
             });
             textStack.Children.Add(new TextBlock
             {
-                Text = "When audio plays from selected apps, the notch will not show now playing or media activities.",
+                Text = LocalizationService.T("notch.excluded.desc", "When audio plays from selected apps, the notch will not show now playing or media activities."),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(138, 140, 153)),
                 Margin = new Thickness(0, 2, 0, 0),
@@ -1222,7 +1769,7 @@ namespace WindowsBuddy.UI.Settings
             };
             var addExeTxt = new TextBlock
             {
-                Text = "➕ Select .exe...",
+                Text = LocalizationService.T("notch.excluded.select", "➕ Select .exe..."),
                 FontSize = 12,
                 FontWeight = FontWeights.Medium,
                 Foreground = Brushes.White
@@ -1253,7 +1800,7 @@ namespace WindowsBuddy.UI.Settings
             var quickRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
             quickRow.Children.Add(new TextBlock
             {
-                Text = "Quick add: ",
+                Text = LocalizationService.T("notch.excluded.quick", "Quick add: "),
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 125)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -1313,7 +1860,7 @@ namespace WindowsBuddy.UI.Settings
             {
                 chipsBox.Child = new TextBlock
                 {
-                    Text = "No apps excluded. Audio and media from all players and browsers will show on the notch.",
+                    Text = LocalizationService.T("notch.excluded.empty", "No apps excluded. Audio and media from all players and browsers will show on the notch."),
                     FontSize = 11.5,
                     Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 125)),
                     FontStyle = FontStyles.Italic,
@@ -1398,7 +1945,7 @@ namespace WindowsBuddy.UI.Settings
             };
             var resetTxt = new TextBlock
             {
-                Text = "Restore defaults",
+                Text = LocalizationService.T("notch.restore", "Restore defaults"),
                 FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White
@@ -1414,7 +1961,7 @@ namespace WindowsBuddy.UI.Settings
                 AppPreferences.Instance.ResetNotchDefaults();
                 // Immediately refresh page to update all controls
                 _mainContentArea.Content = BuildNotchPage();
-                MessageBox.Show("Notch settings have been restored to factory defaults.", "Mayli Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(LocalizationService.T("notch.restore_msg", "Notch settings have been restored to factory defaults."), "Mayli Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             };
 
             stack.Children.Add(resetBtn);
@@ -1578,10 +2125,10 @@ namespace WindowsBuddy.UI.Settings
 
             if (pattern == "comet")
             {
-                // Single comet beam on left outline
+                // Single comet beam on right/bottom outline heading left
                 var comet = new WpfPath
                 {
-                    Data = Geometry.Parse("M 26 10 Q 32 10 35 15 Q 38 28 50 28"),
+                    Data = Geometry.Parse("M 84 10 Q 78 10 75 15 Q 72 28 60 28"),
                     Stroke = Brushes.White,
                     StrokeThickness = 2,
                     StrokeStartLineCap = PenLineCap.Round,

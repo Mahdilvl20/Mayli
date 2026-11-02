@@ -75,6 +75,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             }
 
             Load();
+            CleanLegacyMockData();
             EnsureTodayRecord();
 
             _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -164,13 +165,6 @@ namespace WindowsBuddy.Tools.ScreenTime
                             TotalSeconds = 0
                         };
 
-                        // If brand new or fresh install, populate with baseline matching the user's screenshot
-                        // (1h 57m total, Telegram 39m, Antigravity IDE 30m, Chrome 20m, Vayli 7m, File Explorer 6m)
-                        if (_history.Days.Count == 0)
-                        {
-                            PopulateInitialBaseline(_todayRecord);
-                        }
-
                         _history.Days.Add(_todayRecord);
                         Save();
                     }
@@ -178,20 +172,83 @@ namespace WindowsBuddy.Tools.ScreenTime
             }
         }
 
-        private void PopulateInitialBaseline(DayScreenTimeRecord record)
+        private void CleanLegacyMockData()
         {
-            record.TotalSeconds = 7020; // 1h 57m
-            record.AppSeconds["Telegram"] = 2340;       // 39m (34%)
-            record.AppSeconds["Antigravity IDE"] = 1800; // 30m (26%)
-            record.AppSeconds["Google Chrome"] = 1200;   // 20m (18%)
-            record.AppSeconds["Mayli"] = 420;            // 7m (6%)
-            record.AppSeconds["File Explorer"] = 360;    // 6m
-            record.AppSeconds["Visual Studio Code"] = 300;
-            record.AppSeconds["Windows Terminal"] = 240;
-            record.AppSeconds["Task Manager"] = 180;
-            record.AppSeconds["Settings"] = 180;
+            lock (_lock)
+            {
+                bool modified = false;
+                string todayStr = DateTime.Today.ToString("yyyy-MM-dd");
 
-            _history.DailyLimitSeconds = 7 * 3600;
+                for (int i = _history.Days.Count - 1; i >= 0; i--)
+                {
+                    var day = _history.Days[i];
+                    if (day.AppSeconds != null &&
+                        day.AppSeconds.TryGetValue("Antigravity IDE", out int ant) && ant >= 1800 &&
+                        day.AppSeconds.TryGetValue("Telegram", out int tg) && tg >= 2340 &&
+                        day.AppSeconds.TryGetValue("Google Chrome", out int cr) && cr >= 1200)
+                    {
+                        day.AppSeconds["Antigravity IDE"] -= 1800;
+                        if (day.AppSeconds["Antigravity IDE"] <= 0) day.AppSeconds.Remove("Antigravity IDE");
+
+                        day.AppSeconds["Telegram"] -= 2340;
+                        if (day.AppSeconds["Telegram"] <= 0) day.AppSeconds.Remove("Telegram");
+
+                        day.AppSeconds["Google Chrome"] -= 1200;
+                        if (day.AppSeconds["Google Chrome"] <= 0) day.AppSeconds.Remove("Google Chrome");
+
+                        if (day.AppSeconds.TryGetValue("Mayli", out int my))
+                        {
+                            day.AppSeconds["Mayli"] = Math.Max(0, my - 420);
+                            if (day.AppSeconds["Mayli"] == 0) day.AppSeconds.Remove("Mayli");
+                        }
+
+                        if (day.AppSeconds.TryGetValue("File Explorer", out int fe))
+                        {
+                            day.AppSeconds["File Explorer"] = Math.Max(0, fe - 360);
+                            if (day.AppSeconds["File Explorer"] == 0) day.AppSeconds.Remove("File Explorer");
+                        }
+
+                        if (day.AppSeconds.TryGetValue("Visual Studio Code", out int vs))
+                        {
+                            day.AppSeconds["Visual Studio Code"] = Math.Max(0, vs - 300);
+                            if (day.AppSeconds["Visual Studio Code"] == 0) day.AppSeconds.Remove("Visual Studio Code");
+                        }
+
+                        if (day.AppSeconds.TryGetValue("Windows Terminal", out int wt))
+                        {
+                            day.AppSeconds["Windows Terminal"] = Math.Max(0, wt - 240);
+                            if (day.AppSeconds["Windows Terminal"] == 0) day.AppSeconds.Remove("Windows Terminal");
+                        }
+
+                        if (day.AppSeconds.TryGetValue("Task Manager", out int tm))
+                        {
+                            day.AppSeconds["Task Manager"] = Math.Max(0, tm - 180);
+                            if (day.AppSeconds["Task Manager"] == 0) day.AppSeconds.Remove("Task Manager");
+                        }
+
+                        if (day.AppSeconds.TryGetValue("Settings", out int st))
+                        {
+                            day.AppSeconds["Settings"] = Math.Max(0, st - 180);
+                            if (day.AppSeconds["Settings"] == 0) day.AppSeconds.Remove("Settings");
+                        }
+
+                        day.TotalSeconds = day.AppSeconds.Values.Sum();
+
+                        if (day.TotalSeconds <= 0 && day.DateString != todayStr)
+                        {
+                            _history.Days.RemoveAt(i);
+                        }
+
+                        modified = true;
+                    }
+                }
+
+                if (modified)
+                {
+                    _todayRecord = null;
+                    Save();
+                }
+            }
         }
 
         public IReadOnlyList<AppUsageItem> GetTopAppsToday()
@@ -275,12 +332,13 @@ namespace WindowsBuddy.Tools.ScreenTime
 
         public static string FormatDuration(int totalSeconds)
         {
+            if (totalSeconds <= 0) return "0m";
             if (totalSeconds < 60) return $"{totalSeconds}s";
             int hours = totalSeconds / 3600;
             int minutes = (totalSeconds % 3600) / 60;
             if (hours > 0)
             {
-                return $"{hours}h {minutes}m";
+                return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
             }
             return $"{minutes}m";
         }

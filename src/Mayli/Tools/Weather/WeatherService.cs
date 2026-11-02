@@ -38,6 +38,12 @@ namespace WindowsBuddy.Tools.Weather
             }
         }
 
+        public void NotifySettingsChanged()
+        {
+            Save();
+            System.Windows.Application.Current?.Dispatcher?.Invoke(() => WeatherUpdated?.Invoke());
+        }
+
         private WeatherService()
         {
             Load();

@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Clock
 {
@@ -35,6 +36,7 @@ namespace WindowsBuddy.Tools.Clock
 
         public ClockToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             BuildUI();
 
             _service.SecondTick += OnSecondTick;
@@ -88,7 +90,7 @@ namespace WindowsBuddy.Tools.Clock
             });
             titleSp.Children.Add(new TextBlock
             {
-                Text = "Clock",
+                Text = LocalizationService.T("clock.clock", "Clock"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -143,7 +145,7 @@ namespace WindowsBuddy.Tools.Clock
             var rowFormat = new DockPanel { Margin = new Thickness(0, 0, 0, 7) };
             rowFormat.Children.Add(new TextBlock
             {
-                Text = "Time format",
+                Text = LocalizationService.T("clock.time_format", "Time format"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -161,7 +163,7 @@ namespace WindowsBuddy.Tools.Clock
 
             var changeLink = new TextBlock
             {
-                Text = "  Change",
+                Text = "  " + LocalizationService.T("clock.change", "Change"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(90, 160, 255)),
                 Cursor = Cursors.Hand,
@@ -183,7 +185,7 @@ namespace WindowsBuddy.Tools.Clock
             var leftSecSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             leftSecSp.Children.Add(new TextBlock
             {
-                Text = "Show seconds",
+                Text = LocalizationService.T("clock.show_seconds", "Show seconds"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -198,7 +200,7 @@ namespace WindowsBuddy.Tools.Clock
             var rightDateSp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
             rightDateSp.Children.Add(new TextBlock
             {
-                Text = "Show date",
+                Text = LocalizationService.T("clock.show_date", "Show date"),
                 FontSize = 12,
                 Foreground = Brushes.White,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -215,7 +217,7 @@ namespace WindowsBuddy.Tools.Clock
             var rowDateStyle = new DockPanel { Margin = new Thickness(0, 0, 0, 0) };
             rowDateStyle.Children.Add(new TextBlock
             {
-                Text = "Date style",
+                Text = LocalizationService.T("clock.date_style", "Date style"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -374,7 +376,7 @@ namespace WindowsBuddy.Tools.Clock
             });
             titleSp.Children.Add(new TextBlock
             {
-                Text = "World clocks",
+                Text = LocalizationService.T("clock.world_clocks", "World clocks"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -385,7 +387,7 @@ namespace WindowsBuddy.Tools.Clock
 
             var addCityBtn = new TextBlock
             {
-                Text = "+ Add city",
+                Text = LocalizationService.T("clock.add_city", "+ Add city"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 Cursor = Cursors.Hand,
@@ -551,7 +553,7 @@ namespace WindowsBuddy.Tools.Clock
 
             top.Children.Add(new TextBlock
             {
-                Text = "Add World Clock",
+                Text = LocalizationService.T("clock.add_world_clock", "Add World Clock"),
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White

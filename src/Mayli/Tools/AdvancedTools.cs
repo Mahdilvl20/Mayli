@@ -23,7 +23,7 @@ namespace WindowsBuddy.Tools
     public sealed class WeatherTool : IBuddyTool
     {
         public string Id => "weather";
-        public string Title => "Weather";
+        public string Title => LocalizationService.T("tool.weather", "Weather");
         public string IconGlyph => "⛅";
 
         public FrameworkElement BuildView() => new WindowsBuddy.Tools.Weather.WeatherToolView();
@@ -40,7 +40,7 @@ namespace WindowsBuddy.Tools
     public sealed class ScreenTimeTool : IBuddyTool
     {
         public string Id => "screentime";
-        public string Title => "Screen Time";
+        public string Title => LocalizationService.T("tool.screentime", "Screen Time");
         public string IconGlyph => "📊";
 
         public FrameworkElement BuildView() => new WindowsBuddy.Tools.ScreenTime.ScreenTimeToolView();

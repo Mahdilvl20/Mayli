@@ -59,8 +59,9 @@ namespace WindowsBuddy.Services
         private DateTime _lastClipboardTrigger = DateTime.MinValue;
         private string _lastCopiedText = null;
 
-        // Current media state
+        // Current media & bluetooth state
         public bool IsMusicPlaying { get; private set; }
+        public bool HasConnectedBluetoothDevice { get; private set; }
         public string CurrentTrack { get; private set; } = "";
         public string CurrentArtist { get; private set; } = "";
         public BitmapSource CurrentArtwork { get; private set; }
@@ -265,6 +266,7 @@ namespace WindowsBuddy.Services
                     {
                         _knownBluetoothDevices.Add(d);
                     }
+                    HasConnectedBluetoothDevice = _knownBluetoothDevices.Count > 0;
                 }
             }
             catch { }
@@ -316,45 +318,92 @@ namespace WindowsBuddy.Services
                             });
                         }
                     }
+
+                    HasConnectedBluetoothDevice = _knownBluetoothDevices.Count > 0;
                 }
             }
             catch { }
         }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct BLUETOOTH_DEVICE_SEARCH_PARAMS
+        {
+            public int dwSize;
+            public int fReturnAuthenticated;
+            public int fReturnRemembered;
+            public int fReturnUnknown;
+            public int fReturnConnected;
+            public int fIssueInquiry;
+            public byte cTimeoutMultiplier;
+            public IntPtr hRadio;
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private struct BLUETOOTH_DEVICE_INFO
+        {
+            public int dwSize;
+            public ulong Address;
+            public uint ulClassofDevice;
+            public int fConnected;
+            public int fRemembered;
+            public int fAuthenticated;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValArray, SizeConst = 16)]
+            public byte[] stLastSeen;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValArray, SizeConst = 16)]
+            public byte[] stLastUsed;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 248)]
+            public string szName;
+        }
+
+        [System.Runtime.InteropServices.DllImport("bthprops.cpl", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern IntPtr BluetoothFindFirstDevice(ref BLUETOOTH_DEVICE_SEARCH_PARAMS pbtsp, ref BLUETOOTH_DEVICE_INFO pbtdi);
+
+        [System.Runtime.InteropServices.DllImport("bthprops.cpl", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern bool BluetoothFindNextDevice(IntPtr hFind, ref BLUETOOTH_DEVICE_INFO pbtdi);
+
+        [System.Runtime.InteropServices.DllImport("bthprops.cpl", SetLastError = true)]
+        private static extern bool BluetoothFindDeviceClose(IntPtr hFind);
 
         private static HashSet<string> QueryActiveBluetoothDevices()
         {
             var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                using var bthKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Enum\BTHENUM");
-                if (bthKey != null)
+                var search = new BLUETOOTH_DEVICE_SEARCH_PARAMS
                 {
-                    foreach (var subName in bthKey.GetSubKeyNames())
+                    dwSize = System.Runtime.InteropServices.Marshal.SizeOf<BLUETOOTH_DEVICE_SEARCH_PARAMS>(),
+                    fReturnAuthenticated = 1,
+                    fReturnRemembered = 1,
+                    fReturnUnknown = 0,
+                    fReturnConnected = 1,
+                    fIssueInquiry = 0,
+                    cTimeoutMultiplier = 1,
+                    hRadio = IntPtr.Zero
+                };
+                var info = new BLUETOOTH_DEVICE_INFO
+                {
+                    dwSize = System.Runtime.InteropServices.Marshal.SizeOf<BLUETOOTH_DEVICE_INFO>()
+                };
+
+                IntPtr hFind = BluetoothFindFirstDevice(ref search, ref info);
+                if (hFind != IntPtr.Zero)
+                {
+                    try
                     {
-                        using var devSub = bthKey.OpenSubKey(subName);
-                        if (devSub == null) continue;
-
-                        foreach (var instName in devSub.GetSubKeyNames())
+                        do
                         {
-                            using var inst = devSub.OpenSubKey(instName);
-                            if (inst == null) continue;
-
-                            string fn = inst.GetValue("FriendlyName")?.ToString();
-                            if (string.IsNullOrWhiteSpace(fn))
-                                fn = inst.GetValue("DeviceDesc")?.ToString();
-
-                            if (!string.IsNullOrWhiteSpace(fn))
+                            if (info.fConnected != 0 && !string.IsNullOrWhiteSpace(info.szName))
                             {
-                                if (!fn.Contains("Standard Serial", StringComparison.OrdinalIgnoreCase) &&
-                                    !fn.Contains("Enumerator", StringComparison.OrdinalIgnoreCase) &&
-                                    !fn.Contains("Protocol", StringComparison.OrdinalIgnoreCase) &&
-                                    !fn.Contains("@", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    result.Add(fn.Trim());
-                                }
+                                result.Add(info.szName.Trim());
                             }
                         }
+                        while (BluetoothFindNextDevice(hFind, ref info));
                     }
+                    finally
+                    {
+                        BluetoothFindDeviceClose(hFind);
+                    }
+                    return result;
                 }
             }
             catch { }

@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using WindowsBuddy.Tools.Timer;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.BuddyCapsule.UI
 {
@@ -55,6 +56,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public TimerToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             Background = Brushes.Transparent;
 
             _rootGrid = new Grid();
@@ -303,7 +305,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             toggleRow.Children.Add(new TextBlock
             {
-                Text = "Auto-start next",
+                Text = LocalizationService.T("focus.auto_start", "Auto-start next"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -518,7 +520,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             // Update Left Subtitles
             int pMins = s.PomoRemainingSeconds / 60;
             int pSecs = s.PomoRemainingSeconds % 60;
-            string pPhase = s.PomoIsWork ? "Focus" : "Break";
+            string pPhase = s.PomoIsWork ? LocalizationService.T("focus.focus", "Focus") : LocalizationService.T("focus.break", "Break");
             _subPomo.Text = $"{pMins:D2}:{pSecs:D2} · {pPhase} · {s.PomoCurrentCycle} of {s.PomoTargetCycles}";
 
             int cMins = s.CountRemainingSeconds / 60;
@@ -540,10 +542,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
             DrawCircularProgressArc(Math.Clamp(fraction, 0.0, 1.0));
 
             // Right Header & Dots
-            _cycleHeaderText.Text = $"{pPhase} {s.PomoCurrentCycle} of {s.PomoTargetCycles}";
+            _cycleHeaderText.Text = string.Format(LocalizationService.T("focus.cycle_header_fmt", "{0} {1} of {2}"), pPhase, s.PomoCurrentCycle, s.PomoTargetCycles);
             int nextBreakMins = s.PomoBreakSeconds / 60;
             int nextBreakSecs = s.PomoBreakSeconds % 60;
-            _cycleSubText.Text = $"Break {nextBreakMins:D2}:{nextBreakSecs:D2} next";
+            _cycleSubText.Text = string.Format(LocalizationService.T("focus.next_break_fmt", "Break {0} next"), $"{nextBreakMins:D2}:{nextBreakSecs:D2}");
 
             UpdateCycleDots(s.PomoCurrentCycle, s.PomoTargetCycles);
 
@@ -551,14 +553,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _playIcon.Text = s.PomoIsRunning ? "⏸" : "▶";
 
             // Stepper Texts
-            _focusMinsText.Text = $"Focus {s.PomoWorkSeconds / 60}m";
-            _breakMinsText.Text = $"Break {s.PomoBreakSeconds / 60}m";
-            _longMinsText.Text = $"Long {s.PomoLongBreakSeconds / 60}m";
-            _cyclesText.Text = $"Cycles {s.PomoTargetCycles}";
+            _focusMinsText.Text = string.Format(LocalizationService.T("focus.focus_min_fmt", "Focus {0}m"), s.PomoWorkSeconds / 60);
+            _breakMinsText.Text = string.Format(LocalizationService.T("focus.break_min_fmt", "Break {0}m"), s.PomoBreakSeconds / 60);
+            _longMinsText.Text = string.Format(LocalizationService.T("focus.long_min_fmt", "Long {0}m"), s.PomoLongBreakSeconds / 60);
+            _cyclesText.Text = string.Format(LocalizationService.T("focus.cycles_fmt", "Cycles {0}"), s.PomoTargetCycles);
 
             // Auto-start toggle & Completed
             UpdateToggleVisual();
-            _completedText.Text = $"{s.PomoSessionsToday} completed today";
+            _completedText.Text = string.Format(LocalizationService.T("focus.completed_today_fmt", "{0} completed today"), s.PomoSessionsToday);
         }
 
         private void UpdateCycleDots(int current, int total)

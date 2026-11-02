@@ -13,7 +13,7 @@ namespace WindowsBuddy.Services
         public string Accent { get; set; } = "#30D158";
         public string NotchSilhouette { get; set; } = "Shouldered";
         public string EdgeLightMode { get; set; } = "Aura";
-        public string Language { get; set; } = "en-US";
+        public string Language { get; set; } = "en";
         public int HotkeyModifiers { get; set; } = 3; // Ctrl + Alt
         public int HotkeyKey { get; set; } = 0x4E;    // N
         public int TuckHotkeyModifiers { get; set; } = 6; // Ctrl + Shift
@@ -72,6 +72,7 @@ namespace WindowsBuddy.Services
         public bool EnableEdgeLight { get; set; } = true;
         public string EdgeLightPattern { get; set; } = "Twin comets"; // "Comet", "Twin comets", "Breathe"
         public string EdgeLightColor { get; set; } = "#FFFFFF";
+        public bool EdgeLightSyncWithMusic { get; set; } = false;
         public int EdgeLightIntensity { get; set; } = 80; // 0 - 100
         public string EdgeLightSpeed { get; set; } = "Normal"; // "Slow", "Normal", "Fast"
         public string EdgeLightTrigger { get; set; } = "Always"; // "Always", "On events & hover"
@@ -174,7 +175,7 @@ namespace WindowsBuddy.Services
                 if (key == null) return;
                 if (enable)
                 {
-                    string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                    string exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
                     if (!string.IsNullOrEmpty(exePath))
                     {
                         key.SetValue("Mayli", $"\"{exePath}\"");
@@ -187,6 +188,29 @@ namespace WindowsBuddy.Services
             }
             catch { }
         }
+
+        public string Language
+        {
+            get => IsPersian ? "fa" : "en";
+            set
+            {
+                string norm = string.Equals(value, "fa", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(value, "fa-IR", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(value, "فارسی", StringComparison.OrdinalIgnoreCase)
+                              ? "fa"
+                              : "en";
+                if (Raw.Language != norm)
+                {
+                    Raw.Language = norm;
+                    Save();
+                }
+            }
+        }
+
+        public bool IsPersian =>
+            string.Equals(Raw.Language, "fa", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Raw.Language, "fa-IR", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Raw.Language, "فارسی", StringComparison.OrdinalIgnoreCase);
 
         public string Theme
         {
@@ -482,6 +506,12 @@ namespace WindowsBuddy.Services
             set { Raw.EdgeLightColor = value; Save(); }
         }
 
+        public bool EdgeLightSyncWithMusic
+        {
+            get => Raw.EdgeLightSyncWithMusic;
+            set { Raw.EdgeLightSyncWithMusic = value; Save(); }
+        }
+
         public int EdgeLightIntensity
         {
             get => Raw.EdgeLightIntensity;
@@ -586,6 +616,7 @@ namespace WindowsBuddy.Services
             Raw.EnableEdgeLight = true;
             Raw.EdgeLightPattern = "Twin comets";
             Raw.EdgeLightColor = "#FFFFFF";
+            Raw.EdgeLightSyncWithMusic = false;
             Raw.EdgeLightIntensity = 80;
             Raw.EdgeLightSpeed = "Normal";
             Raw.EdgeLightTrigger = "Always";

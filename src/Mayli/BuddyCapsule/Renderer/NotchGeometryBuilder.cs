@@ -55,12 +55,92 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
             return BuildShoulderedGeometry(width, height, Math.Max(cornerRadius, 18.0), isOutline);
         }
 
+        public static void GetRestingShapeProfile(string style, string shape, int scalePercent, out double width, out double height, out double cornerRadius, out double earWidth)
+        {
+            double baseW = 228.0;
+            double baseH = 35.0;
+            double baseR = 14.0;
+            double baseEar = 12.0;
+
+            switch ((shape ?? "Compact").ToLowerInvariant())
+            {
+                case "ultra-compact":
+                    baseW = 194.0;
+                    baseH = 31.0;
+                    baseR = 12.0;
+                    baseEar = 9.0;
+                    break;
+                case "compact":
+                    baseW = 224.0;
+                    baseH = 34.0;
+                    baseR = 14.0;
+                    baseEar = 11.0;
+                    break;
+                case "classic":
+                    baseW = 242.0;
+                    baseH = 36.0;
+                    baseR = 16.0;
+                    baseEar = 13.0;
+                    break;
+                case "wide":
+                    baseW = 274.0;
+                    baseH = 36.0;
+                    baseR = 18.0;
+                    baseEar = 14.0;
+                    break;
+            }
+
+            if (string.Equals(style, "Line", StringComparison.OrdinalIgnoreCase))
+            {
+                baseH = Math.Max(26.0, baseH - 4.0);
+                baseR = 8.0;
+                baseEar = 0.0;
+            }
+            else if (string.Equals(style, "Island", StringComparison.OrdinalIgnoreCase))
+            {
+                baseEar = 0.0;
+            }
+
+            double scale = Math.Clamp(scalePercent, 60, 140) / 100.0;
+            width = Math.Round(baseW * scale);
+            height = Math.Round(baseH * scale);
+            cornerRadius = Math.Round(baseR * scale, 1);
+            earWidth = Math.Round(baseEar * scale, 1);
+        }
+
         public static Geometry BuildLineGeometry(double width, double height, double cornerRadius, bool isOutline)
         {
-            double h = Math.Min(height, 6.0);
-            var geo = new RectangleGeometry(new Rect(0, 0, width, h), 3, 3);
-            geo.Freeze();
-            return geo;
+            double w = Math.Max(24.0, width);
+            double h = Math.Max(8.0, height);
+            double r = Math.Clamp(cornerRadius * 0.55, 5.0, Math.Max(5.0, h * 0.45));
+
+            var streamGeo = new StreamGeometry();
+            using (StreamGeometryContext ctx = streamGeo.Open())
+            {
+                ctx.BeginFigure(new Point(0, 0), isFilled: true, isClosed: true);
+                ctx.LineTo(new Point(0, h - r), isStroked: true, isSmoothJoin: true);
+                ctx.ArcTo(
+                    new Point(r, h),
+                    new Size(r, r),
+                    0,
+                    isLargeArc: false,
+                    SweepDirection.Counterclockwise,
+                    isStroked: true,
+                    isSmoothJoin: true);
+                ctx.LineTo(new Point(w - r, h), isStroked: true, isSmoothJoin: true);
+                ctx.ArcTo(
+                    new Point(w, h - r),
+                    new Size(r, r),
+                    0,
+                    isLargeArc: false,
+                    SweepDirection.Counterclockwise,
+                    isStroked: true,
+                    isSmoothJoin: true);
+                ctx.LineTo(new Point(w, 0), isStroked: true, isSmoothJoin: true);
+                ctx.LineTo(new Point(0, 0), isStroked: false, isSmoothJoin: false);
+            }
+            streamGeo.Freeze();
+            return streamGeo;
         }
 
         /// <summary>

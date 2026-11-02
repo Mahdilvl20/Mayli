@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Units
 {
@@ -36,6 +37,7 @@ namespace WindowsBuddy.Tools.Units
 
         public UnitsToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             BuildUI();
 
             _service.StateChanged += OnStateChanged;
@@ -79,7 +81,7 @@ namespace WindowsBuddy.Tools.Units
             var fromBlock = new StackPanel();
             var fromLabel = new TextBlock
             {
-                Text = "From",
+                Text = LocalizationService.T("units.from", "From"),
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 Margin = new Thickness(0, 0, 0, 2)
@@ -153,7 +155,7 @@ namespace WindowsBuddy.Tools.Units
             var toBlock = new StackPanel();
             var toLabel = new TextBlock
             {
-                Text = "To",
+                Text = LocalizationService.T("units.to", "To"),
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 Margin = new Thickness(0, 0, 0, 2)
@@ -399,7 +401,7 @@ namespace WindowsBuddy.Tools.Units
             // 5. Update Recent
             if (_service.Recents.Count > 0)
             {
-                _recentText.Text = $"Recent  {_service.Recents[0].DisplayText}";
+                _recentText.Text = $"{LocalizationService.T("units.recent", "Recent")}  {_service.Recents[0].DisplayText}";
             }
         }
 

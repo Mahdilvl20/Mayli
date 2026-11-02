@@ -10,6 +10,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Theme;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Clipboard
 {
@@ -48,6 +49,7 @@ namespace WindowsBuddy.Tools.Clipboard
 
         public ClipboardToolView()
         {
+            FlowDirection = LocalizationService.CurrentFlowDirection;
             Background = Brushes.Transparent;
 
             _rootGrid = new Grid();
@@ -156,7 +158,7 @@ namespace WindowsBuddy.Tools.Clipboard
             // Row 2: Section header ("Today")
             var sectionHeader = new TextBlock
             {
-                Text = "Today",
+                Text = LocalizationService.T("clipboard.today", "Today"),
                 FontSize = 11.0,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -326,7 +328,7 @@ namespace WindowsBuddy.Tools.Clipboard
             };
             _copyButtonText = new TextBlock
             {
-                Text = "📋 Copy",
+                Text = "📋 " + LocalizationService.T("clipboard.copy", "Copy"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
@@ -499,7 +501,7 @@ namespace WindowsBuddy.Tools.Clipboard
             {
                 _listItemsPanel.Children.Add(new TextBlock
                 {
-                    Text = "No items found",
+                    Text = LocalizationService.T("clipboard.no_items", "No items found"),
                     FontSize = 11.5,
                     Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 128)),
                     Margin = new Thickness(10, 20, 10, 10),

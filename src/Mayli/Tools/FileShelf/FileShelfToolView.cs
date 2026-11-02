@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.FileShelf
 {
@@ -29,6 +30,7 @@ namespace WindowsBuddy.Tools.FileShelf
         public FileShelfToolView()
         {
             Focusable = true;
+            FlowDirection = LocalizationService.CurrentFlowDirection;
 
             BuildUI();
 
@@ -57,7 +59,7 @@ namespace WindowsBuddy.Tools.FileShelf
 
             var header = new TextBlock
             {
-                Text = "SHELVES",
+                Text = LocalizationService.T("shelf.shelves", "SHELVES"),
                 FontSize = 10.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
@@ -86,7 +88,7 @@ namespace WindowsBuddy.Tools.FileShelf
             };
             var newShelfText = new TextBlock
             {
-                Text = "+ New shelf",
+                Text = LocalizationService.T("shelf.new_shelf", "+ New shelf"),
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147))
             };
@@ -229,7 +231,7 @@ namespace WindowsBuddy.Tools.FileShelf
 
             var emptyMsg = new TextBlock
             {
-                Text = "Nothing on Desk yet · drop files or paste with Ctrl+V",
+                Text = LocalizationService.T("shelf.empty_desc", "Nothing on Desk yet · drop files or paste with Ctrl+V"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -248,7 +250,7 @@ namespace WindowsBuddy.Tools.FileShelf
 
             var chooseFilesBtn = new TextBlock
             {
-                Text = "Choose files",
+                Text = LocalizationService.T("shelf.choose_files", "Choose files"),
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
@@ -484,12 +486,12 @@ namespace WindowsBuddy.Tools.FileShelf
                 _shelfTitleText.Text = active.Name;
                 if (active.Files.Count == 0)
                 {
-                    _shelfStatusText.Text = "Empty";
+                    _shelfStatusText.Text = LocalizationService.T("shelf.empty", "Empty");
                 }
                 else
                 {
                     long totalBytes = active.Files.Sum(f => f.FileSize);
-                    _shelfStatusText.Text = $"{active.Files.Count} items · {ParkedFile.FormatBytes(totalBytes)}";
+                    _shelfStatusText.Text = string.Format(LocalizationService.T("shelf.items_fmt", "{0} items · {1}"), active.Files.Count, ParkedFile.FormatBytes(totalBytes));
                 }
 
                 _sortBtnText.Text = active.SortMode switch
@@ -814,11 +816,11 @@ namespace WindowsBuddy.Tools.FileShelf
                 var active = _service.ActiveShelf;
                 if (active != null)
                 {
-                    if (active.Files.Count == 0) _shelfStatusText.Text = "Empty";
+                    if (active.Files.Count == 0) _shelfStatusText.Text = LocalizationService.T("shelf.empty", "Empty");
                     else
                     {
                         long totalBytes = active.Files.Sum(f => f.FileSize);
-                        _shelfStatusText.Text = $"{active.Files.Count} items · {ParkedFile.FormatBytes(totalBytes)}";
+                        _shelfStatusText.Text = string.Format(LocalizationService.T("shelf.items_fmt", "{0} items · {1}"), active.Files.Count, ParkedFile.FormatBytes(totalBytes));
                     }
                     _shelfStatusText.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
                 }
