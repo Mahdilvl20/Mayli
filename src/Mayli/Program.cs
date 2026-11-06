@@ -69,14 +69,22 @@ namespace WindowsBuddy
 
                 WindowsBuddy.BuddyCapsule.Theme.ModernScrollbarStyles.ApplyToApplication(app);
                 LocalizationService.Initialize();
+                LogWriter.WriteNow("boot", "Step 0: Pre-CoreAudio");
+                _ = CoreAudioService.Instance;
+                LogWriter.WriteNow("boot", "Step 1: CoreAudio done");
 
                 StartIpcServer(app);
+                LogWriter.WriteNow("boot", "Step 2: StartIpcServer done");
                 InitializeTrayIcon(app);
+                LogWriter.WriteNow("boot", "Step 3: InitializeTrayIcon done");
 
                 _capsuleWindow = new CapsuleWindow();
+                LogWriter.WriteNow("boot", "Step 4: CapsuleWindow constructor done");
                 _capsuleWindow.Show();
+                LogWriter.WriteNow("boot", "Step 5: CapsuleWindow Show done");
 
                 UpdateService.CheckOnStartup();
+                LogWriter.WriteNow("boot", "Step 6: UpdateService done");
 
                 LogWriter.WriteNow("boot", "Mayli CapsuleWindow started successfully. Entering app.Run()...");
                 int exitCode = app.Run();
@@ -139,6 +147,17 @@ namespace WindowsBuddy
                                 else if (cmd == "notch" || cmd == "toggle")
                                 {
                                     _capsuleWindow?.ToggleFromExternal();
+                                }
+                                else if (cmd.StartsWith("tool:"))
+                                {
+                                    string toolId = cmd.Substring(5).Trim();
+                                    _capsuleWindow?.NavigateToTool(toolId);
+                                    if (_capsuleWindow?.IsTucked ?? false) _capsuleWindow?.SetTucked(false);
+                                }
+                                else if (System.Linq.Enumerable.Any(WindowsBuddy.Tools.ToolRegistry.All, t => string.Equals(t.Id, cmd, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    _capsuleWindow?.NavigateToTool(cmd);
+                                    if (_capsuleWindow?.IsTucked ?? false) _capsuleWindow?.SetTucked(false);
                                 }
                             });
                         }

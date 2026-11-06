@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -118,12 +119,14 @@ namespace WindowsBuddy.Tools.Clipboard
             var tabsContainer = new Grid();
             tabsContainer.Children.Add(tabsDock);
 
-            // Orange sliding underline
+            var p = CapsuleTheme.Current;
+
+            // Sliding underline
             _underline = new Border
             {
                 Height = 2.0,
                 Width = 36.0,
-                Background = new SolidColorBrush(Color.FromRgb(255, 87, 34)), // Orange #FF5722
+                Background = CapsuleTheme.Brush(p.Accent),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Bottom,
                 Margin = new Thickness(2, 0, 0, 0),
@@ -140,9 +143,10 @@ namespace WindowsBuddy.Tools.Clipboard
                 Visibility = Visibility.Collapsed,
                 Height = 24,
                 Margin = new Thickness(0, 2, 0, 4),
-                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
-                Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Foreground = CapsuleTheme.Brush(p.Text),
+                CaretBrush = CapsuleTheme.Brush(p.Text),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 FontSize = 11.5,
                 Padding = new Thickness(6, 2, 6, 2)
@@ -161,7 +165,7 @@ namespace WindowsBuddy.Tools.Clipboard
                 Text = LocalizationService.T("clipboard.today", "Today"),
                 FontSize = 11.0,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(4, 6, 0, 4)
             };
             Grid.SetRow(sectionHeader, 2);
@@ -185,7 +189,7 @@ namespace WindowsBuddy.Tools.Clipboard
             var splitDivider = new Border
             {
                 Width = 1,
-                Background = new SolidColorBrush(Color.FromArgb(24, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.Border),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             Grid.SetColumn(splitDivider, 1);
@@ -316,12 +320,12 @@ namespace WindowsBuddy.Tools.Clipboard
             };
             footerActions.Children.Add(_openLinkButton);
 
-            // Orange Copy button matching screenshot
+            // Copy button
             _copyButton = new Border
             {
                 Height = 26,
                 CornerRadius = new CornerRadius(13),
-                Background = new SolidColorBrush(Color.FromRgb(230, 74, 25)), // #E64A19
+                Background = CapsuleTheme.Brush(p.Accent),
                 Cursor = Cursors.Hand,
                 Padding = new Thickness(14, 0, 14, 0),
                 Margin = new Thickness(0, 0, 8, 0)
@@ -331,7 +335,7 @@ namespace WindowsBuddy.Tools.Clipboard
                 Text = "📋 " + LocalizationService.T("clipboard.copy", "Copy"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.AccentFg),
                 VerticalAlignment = VerticalAlignment.Center
             };
             _copyButton.Child = _copyButtonText;
@@ -373,7 +377,7 @@ namespace WindowsBuddy.Tools.Clipboard
             {
                 Text = "81 lines · 2.3k chars",
                 FontSize = 11.0,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             footerDock.Children.Add(_footerMetaText);
@@ -390,8 +394,8 @@ namespace WindowsBuddy.Tools.Clipboard
             _feedbackTimer.Tick += (_, _) =>
             {
                 _feedbackTimer.Stop();
-                _copyButtonText.Text = "📋 Copy";
-                _copyButton.Background = new SolidColorBrush(Color.FromRgb(230, 74, 25));
+                _copyButtonText.Text = "📋 " + LocalizationService.T("clipboard.copy", "Copy");
+                _copyButton.Background = CapsuleTheme.Brush(CapsuleTheme.Current.Accent);
             };
 
             ClipboardService.Instance.ItemsChanged += () => Dispatcher.InvokeAsync(RefreshList);
@@ -400,12 +404,13 @@ namespace WindowsBuddy.Tools.Clipboard
 
         private TextBlock CreateTabLabel(string text, ClipboardFilter filter)
         {
+            var p = CapsuleTheme.Current;
             var tb = new TextBlock
             {
                 Text = text,
                 FontSize = 12.0,
                 FontWeight = filter == _currentFilter ? FontWeights.Bold : FontWeights.Normal,
-                Foreground = new SolidColorBrush(filter == _currentFilter ? Colors.White : Color.FromRgb(142, 142, 147)),
+                Foreground = filter == _currentFilter ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2),
                 Cursor = Cursors.Hand,
                 Margin = new Thickness(0, 0, 14, 0),
                 VerticalAlignment = VerticalAlignment.Center
@@ -421,18 +426,19 @@ namespace WindowsBuddy.Tools.Clipboard
         private void SetFilter(ClipboardFilter filter)
         {
             _currentFilter = filter;
+            var p = CapsuleTheme.Current;
 
             _tabAllText.FontWeight = _currentFilter == ClipboardFilter.All ? FontWeights.Bold : FontWeights.Normal;
-            _tabAllText.Foreground = new SolidColorBrush(_currentFilter == ClipboardFilter.All ? Colors.White : Color.FromRgb(142, 142, 147));
+            _tabAllText.Foreground = _currentFilter == ClipboardFilter.All ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2);
 
             _tabTextText.FontWeight = _currentFilter == ClipboardFilter.Text ? FontWeights.Bold : FontWeights.Normal;
-            _tabTextText.Foreground = new SolidColorBrush(_currentFilter == ClipboardFilter.Text ? Colors.White : Color.FromRgb(142, 142, 147));
+            _tabTextText.Foreground = _currentFilter == ClipboardFilter.Text ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2);
 
             _tabImagesText.FontWeight = _currentFilter == ClipboardFilter.Images ? FontWeights.Bold : FontWeights.Normal;
-            _tabImagesText.Foreground = new SolidColorBrush(_currentFilter == ClipboardFilter.Images ? Colors.White : Color.FromRgb(142, 142, 147));
+            _tabImagesText.Foreground = _currentFilter == ClipboardFilter.Images ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2);
 
             _tabLinksText.FontWeight = _currentFilter == ClipboardFilter.Links ? FontWeights.Bold : FontWeights.Normal;
-            _tabLinksText.Foreground = new SolidColorBrush(_currentFilter == ClipboardFilter.Links ? Colors.White : Color.FromRgb(142, 142, 147));
+            _tabLinksText.Foreground = _currentFilter == ClipboardFilter.Links ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2);
 
             // Position underline under active tab
             double offset = _currentFilter switch
@@ -461,7 +467,7 @@ namespace WindowsBuddy.Tools.Clipboard
 
             // Update tab counts
             int countAll = all.Count;
-            int countText = all.Count(i => i.Kind == ClipKind.Text || i.Kind == ClipKind.Code || i.Kind == ClipKind.Email);
+            int countText = all.Count(i => i.Kind == ClipKind.Text || i.Kind == ClipKind.Code || i.Kind == ClipKind.Email || i.Kind == ClipKind.Svg || i.Kind == ClipKind.Html || i.Kind == ClipKind.Rtf);
             int countImages = all.Count(i => i.Kind == ClipKind.Image);
             int countLinks = all.Count(i => i.Kind == ClipKind.Link);
 
@@ -474,7 +480,7 @@ namespace WindowsBuddy.Tools.Clipboard
             IEnumerable<ClipboardItem> filtered = all;
             if (_currentFilter == ClipboardFilter.Text)
             {
-                filtered = filtered.Where(i => i.Kind == ClipKind.Text || i.Kind == ClipKind.Code || i.Kind == ClipKind.Email);
+                filtered = filtered.Where(i => i.Kind == ClipKind.Text || i.Kind == ClipKind.Code || i.Kind == ClipKind.Email || i.Kind == ClipKind.Svg || i.Kind == ClipKind.Html || i.Kind == ClipKind.Rtf);
             }
             else if (_currentFilter == ClipboardFilter.Images)
             {
@@ -490,7 +496,9 @@ namespace WindowsBuddy.Tools.Clipboard
                 filtered = filtered.Where(i =>
                     (!string.IsNullOrEmpty(i.Text) && i.Text.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)) ||
                     (!string.IsNullOrEmpty(i.SourceApp) && i.SourceApp.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrEmpty(i.LinkHost) && i.LinkHost.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)));
+                    (!string.IsNullOrEmpty(i.LinkHost) && i.LinkHost.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (i.FilePaths != null && i.FilePaths.Any(f => f.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))) ||
+                    i.GetDisplayTitle().Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
             }
 
             var list = filtered.ToList();
@@ -517,6 +525,7 @@ namespace WindowsBuddy.Tools.Clipboard
                 _selectedItem = list[0];
             }
 
+            var p = CapsuleTheme.Current;
             foreach (var item in list)
             {
                 bool isSelected = item == _selectedItem;
@@ -525,7 +534,9 @@ namespace WindowsBuddy.Tools.Clipboard
                 {
                     Height = 40,
                     CornerRadius = new CornerRadius(8),
-                    Background = new SolidColorBrush(isSelected ? Color.FromRgb(38, 38, 44) : Colors.Transparent),
+                    Background = isSelected ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent,
+                    BorderBrush = isSelected ? CapsuleTheme.Brush(p.Border) : Brushes.Transparent,
+                    BorderThickness = new Thickness(isSelected ? 1 : 0),
                     Padding = new Thickness(8, 4, 8, 4),
                     Margin = new Thickness(0, 1, 0, 1),
                     Cursor = Cursors.Hand
@@ -541,14 +552,15 @@ namespace WindowsBuddy.Tools.Clipboard
                     Width = 28,
                     Height = 28,
                     CornerRadius = new CornerRadius(4),
-                    Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+                    Background = CapsuleTheme.Brush(p.Surface3),
                     ClipToBounds = true,
                     HorizontalAlignment = HorizontalAlignment.Left,
                     VerticalAlignment = VerticalAlignment.Center
                 };
 
-                if (item.Kind == ClipKind.Image && (item.Thumbnail != null || item.Image != null))
+                if (item.Kind == ClipKind.Image && (item.Thumbnail != null || item.Image != null || !string.IsNullOrEmpty(item.StoredFilePath)))
                 {
+                    item.EnsureImage();
                     iconContainer.Child = new Image
                     {
                         Source = item.Thumbnail ?? item.Image,
@@ -577,6 +589,66 @@ namespace WindowsBuddy.Tools.Clipboard
                         VerticalAlignment = VerticalAlignment.Center
                     };
                 }
+                else if (item.Kind == ClipKind.Svg)
+                {
+                    iconContainer.Child = new TextBlock
+                    {
+                        Text = "🎨",
+                        FontSize = 11.0,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                }
+                else if (item.Kind == ClipKind.Pdf)
+                {
+                    iconContainer.Child = new TextBlock
+                    {
+                        Text = "📕",
+                        FontSize = 11.0,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                }
+                else if (item.Kind == ClipKind.Audio)
+                {
+                    iconContainer.Child = new TextBlock
+                    {
+                        Text = "🎵",
+                        FontSize = 11.0,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                }
+                else if (item.Kind == ClipKind.Video)
+                {
+                    iconContainer.Child = new TextBlock
+                    {
+                        Text = "🎬",
+                        FontSize = 11.0,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                }
+                else if (item.Kind == ClipKind.Archive)
+                {
+                    iconContainer.Child = new TextBlock
+                    {
+                        Text = "📦",
+                        FontSize = 11.0,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                }
+                else if (item.Kind == ClipKind.Files)
+                {
+                    iconContainer.Child = new TextBlock
+                    {
+                        Text = "📁",
+                        FontSize = 11.0,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                }
                 else
                 {
                     iconContainer.Child = new TextBlock
@@ -598,7 +670,7 @@ namespace WindowsBuddy.Tools.Clipboard
                     Text = item.GetDisplayTitle(),
                     FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     TextTrimming = TextTrimming.CharacterEllipsis
                 };
                 textStack.Children.Add(titleBlock);
@@ -607,7 +679,7 @@ namespace WindowsBuddy.Tools.Clipboard
                 {
                     Text = item.GetDisplaySubtitle(),
                     FontSize = 10.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin = new Thickness(0, 1, 0, 0)
                 };
@@ -622,7 +694,7 @@ namespace WindowsBuddy.Tools.Clipboard
                 {
                     if (item != _selectedItem)
                     {
-                        rowBorder.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                        rowBorder.Background = CapsuleTheme.Brush(p.Surface3);
                     }
                 };
                 rowBorder.MouseLeave += (_, _) =>
@@ -647,6 +719,7 @@ namespace WindowsBuddy.Tools.Clipboard
 
         private void RenderPreview()
         {
+            var p = CapsuleTheme.Current;
             _previewHost.Children.Clear();
 
             if (_selectedItem == null)
@@ -658,30 +731,38 @@ namespace WindowsBuddy.Tools.Clipboard
             }
 
             _detailMetaText.Text = $"{_selectedItem.GetKindLabel()} · {_selectedItem.GetTimestampFormatted()}";
+            _detailMetaText.Foreground = CapsuleTheme.Brush(p.Text2);
             _footerMetaText.Text = _selectedItem.GetFooterMeta();
+            _footerMetaText.Foreground = CapsuleTheme.Brush(p.Text2);
             UpdatePinVisual();
 
             _openLinkButton.Visibility = _selectedItem.Kind == ClipKind.Link ? Visibility.Visible : Visibility.Collapsed;
 
-            if (_selectedItem.Kind == ClipKind.Image && _selectedItem.Image != null)
+            if (_selectedItem.Kind == ClipKind.Image)
             {
-                // Full image preview
-                var imgBorder = new Border
+                var bmp = _selectedItem.EnsureImage();
+                if (bmp != null)
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(25, 255, 255, 255)),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(4),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                imgBorder.Child = new Image
-                {
-                    Source = _selectedItem.Image,
-                    Stretch = Stretch.Uniform,
-                    MaxHeight = 150,
-                    MaxWidth = 360
-                };
-                _previewHost.Children.Add(imgBorder);
+                    // Full image preview
+                    var imgBorder = new Border
+                    {
+                        Background = CapsuleTheme.Brush(p.Surface2),
+                        BorderBrush = CapsuleTheme.Brush(p.Border),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(4),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    imgBorder.Child = new Image
+                    {
+                        Source = bmp,
+                        Stretch = Stretch.Uniform,
+                        MaxHeight = 150,
+                        MaxWidth = 360
+                    };
+                    _previewHost.Children.Add(imgBorder);
+                }
             }
             else if (_selectedItem.Kind == ClipKind.Link)
             {
@@ -707,7 +788,7 @@ namespace WindowsBuddy.Tools.Clipboard
                     Text = _selectedItem.LinkHost,
                     FontSize = 14.0,
                     FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
                 linkStack.Children.Add(hostText);
@@ -716,7 +797,7 @@ namespace WindowsBuddy.Tools.Clipboard
                 {
                     Text = _selectedItem.Text,
                     FontSize = 11.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 210, 255)), // light blue
+                    Foreground = CapsuleTheme.Brush(p.Accent),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     MaxWidth = 340,
@@ -728,7 +809,7 @@ namespace WindowsBuddy.Tools.Clipboard
                 {
                     Height = 28,
                     CornerRadius = new CornerRadius(14),
-                    Background = new SolidColorBrush(Color.FromRgb(10, 132, 255)),
+                    Background = CapsuleTheme.Brush(p.Accent),
                     Cursor = Cursors.Hand,
                     Padding = new Thickness(16, 0, 16, 0),
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -737,7 +818,7 @@ namespace WindowsBuddy.Tools.Clipboard
                         Text = "Open in Browser ↗",
                         FontSize = 11.5,
                         FontWeight = FontWeights.SemiBold,
-                        Foreground = Brushes.White,
+                        Foreground = CapsuleTheme.Brush(p.AccentFg),
                         VerticalAlignment = VerticalAlignment.Center
                     }
                 };
@@ -750,6 +831,95 @@ namespace WindowsBuddy.Tools.Clipboard
 
                 _previewHost.Children.Add(linkStack);
             }
+            else if (_selectedItem.Kind is ClipKind.Pdf or ClipKind.Audio or ClipKind.Video or ClipKind.Archive or ClipKind.Files)
+            {
+                // File Card Preview
+                var fileStack = new StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(10)
+                };
+
+                string icon = _selectedItem.Kind switch
+                {
+                    ClipKind.Pdf => "📕",
+                    ClipKind.Audio => "🎵",
+                    ClipKind.Video => "🎬",
+                    ClipKind.Archive => "📦",
+                    _ => "📁"
+                };
+
+                fileStack.Children.Add(new TextBlock
+                {
+                    Text = icon,
+                    FontSize = 32,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+
+                fileStack.Children.Add(new TextBlock
+                {
+                    Text = _selectedItem.GetDisplayTitle(),
+                    FontSize = 13.5,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = CapsuleTheme.Brush(p.Text),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxWidth = 340
+                });
+
+                if (!string.IsNullOrEmpty(_selectedItem.StoredFilePath))
+                {
+                    fileStack.Children.Add(new TextBlock
+                    {
+                        Text = _selectedItem.StoredFilePath,
+                        FontSize = 10.5,
+                        Foreground = CapsuleTheme.Brush(p.Text2),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        MaxWidth = 340,
+                        Margin = new Thickness(0, 4, 0, 10)
+                    });
+
+                    var openFileBtn = new Border
+                    {
+                        Height = 28,
+                        CornerRadius = new CornerRadius(14),
+                        Background = CapsuleTheme.Brush(p.Accent),
+                        Cursor = Cursors.Hand,
+                        Padding = new Thickness(16, 0, 16, 0),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Child = new TextBlock
+                        {
+                            Text = "Reveal in Explorer 📂",
+                            FontSize = 11.5,
+                            FontWeight = FontWeights.SemiBold,
+                            Foreground = CapsuleTheme.Brush(p.AccentFg),
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    };
+                    openFileBtn.MouseLeftButtonUp += (_, e) =>
+                    {
+                        e.Handled = true;
+                        try
+                        {
+                            if (File.Exists(_selectedItem.StoredFilePath))
+                            {
+                                Process.Start("explorer.exe", $"/select,\"{_selectedItem.StoredFilePath}\"");
+                            }
+                            else if (Directory.Exists(_selectedItem.StoredFilePath))
+                            {
+                                Process.Start("explorer.exe", $"\"{_selectedItem.StoredFilePath}\"");
+                            }
+                        }
+                        catch { }
+                    };
+                    fileStack.Children.Add(openFileBtn);
+                }
+
+                _previewHost.Children.Add(fileStack);
+            }
             else
             {
                 // Monospace Code / Text preview
@@ -760,11 +930,11 @@ namespace WindowsBuddy.Tools.Clipboard
                 };
                 var textBlock = new TextBlock
                 {
-                    Text = _selectedItem.Text,
+                    Text = _selectedItem.GetFullText(),
                     FontFamily = new FontFamily("Consolas, Cascadia Code, Segoe UI Mono, monospace"),
                     FontSize = 12.0,
                     LineHeight = 18.0,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(2)
                 };
@@ -817,25 +987,29 @@ namespace WindowsBuddy.Tools.Clipboard
             try
             {
                 var sfd = new Microsoft.Win32.SaveFileDialog();
-                if (_selectedItem.Kind == ClipKind.Image && _selectedItem.Image != null)
+                var bmp = _selectedItem.EnsureImage();
+                if (_selectedItem.Kind == ClipKind.Image && bmp != null)
                 {
                     sfd.FileName = $"image_{DateTime.Now:yyyyMMdd_HHmmss}.png";
                     sfd.Filter = "PNG Image (*.png)|*.png";
-                    if (sfd.ShowDialog() == true)
+                    if (WindowsBuddy.BuddyCapsule.Core.NotchInteractionGuard.RunModal(() => sfd.ShowDialog()) == true)
                     {
                         using var fs = new System.IO.FileStream(sfd.FileName, System.IO.FileMode.Create);
                         var enc = new PngBitmapEncoder();
-                        enc.Frames.Add(BitmapFrame.Create(_selectedItem.Image));
+                        enc.Frames.Add(BitmapFrame.Create(bmp));
                         enc.Save(fs);
                     }
                 }
                 else
                 {
-                    sfd.FileName = $"snippet_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-                    sfd.Filter = "Text File (*.txt)|*.txt";
-                    if (sfd.ShowDialog() == true)
+                    string ext = _selectedItem.Kind == ClipKind.Svg ? "svg" : "txt";
+                    sfd.FileName = $"snippet_{DateTime.Now:yyyyMMdd_HHmmss}.{ext}";
+                    sfd.Filter = _selectedItem.Kind == ClipKind.Svg
+                        ? "SVG File (*.svg)|*.svg|All Files (*.*)|*.*"
+                        : "Text File (*.txt)|*.txt|All Files (*.*)|*.*";
+                    if (WindowsBuddy.BuddyCapsule.Core.NotchInteractionGuard.RunModal(() => sfd.ShowDialog()) == true)
                     {
-                        System.IO.File.WriteAllText(sfd.FileName, _selectedItem.Text);
+                        System.IO.File.WriteAllText(sfd.FileName, _selectedItem.GetFullText(), System.Text.Encoding.UTF8);
                     }
                 }
             }

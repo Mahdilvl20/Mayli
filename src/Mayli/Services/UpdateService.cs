@@ -23,7 +23,7 @@ namespace WindowsBuddy.Services
 
     public static class UpdateService
     {
-        public const string CurrentVersion = "1.1.59";
+        public const string CurrentVersion = "1.1.60";
         private const string RepoOwner = "Mahdilvl20";
         private const string RepoName = "Mayli";
 

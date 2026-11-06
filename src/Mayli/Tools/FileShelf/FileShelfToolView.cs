@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.FileShelf
@@ -47,6 +48,7 @@ namespace WindowsBuddy.Tools.FileShelf
 
         private void BuildUI()
         {
+            var p = CapsuleTheme.Current;
             ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(176) });
             ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -62,7 +64,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 Text = LocalizationService.T("shelf.shelves", "SHELVES"),
                 FontSize = 10.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(14, 12, 0, 8)
             };
             Grid.SetRow(header, 0);
@@ -90,17 +92,17 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = LocalizationService.T("shelf.new_shelf", "+ New shelf"),
                 FontSize = 12.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                Foreground = CapsuleTheme.Brush(p.Text2)
             };
             newShelfBtn.Child = newShelfText;
             newShelfBtn.MouseEnter += (_, _) =>
             {
-                newShelfText.Foreground = Brushes.White;
-                newShelfBtn.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                newShelfText.Foreground = CapsuleTheme.Brush(p.Text);
+                newShelfBtn.Background = CapsuleTheme.Brush(p.Surface2);
             };
             newShelfBtn.MouseLeave += (_, _) =>
             {
-                newShelfText.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
+                newShelfText.Foreground = CapsuleTheme.Brush(p.Text2);
                 newShelfBtn.Background = Brushes.Transparent;
             };
             newShelfBtn.MouseLeftButtonUp += (_, _) => PromptNewShelf();
@@ -115,7 +117,7 @@ namespace WindowsBuddy.Tools.FileShelf
             var divider = new Border
             {
                 Width = 1,
-                Background = new SolidColorBrush(Color.FromRgb(28, 28, 34)),
+                Background = CapsuleTheme.Brush(p.Border),
                 VerticalAlignment = VerticalAlignment.Stretch
             };
             Grid.SetColumn(divider, 1);
@@ -133,7 +135,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 Text = "Desk",
                 FontSize = 13.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White
+                Foreground = CapsuleTheme.Brush(p.Text)
             };
             titleStack.Children.Add(_shelfTitleText);
 
@@ -141,7 +143,7 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = "Empty",
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(8, 1, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -196,8 +198,8 @@ namespace WindowsBuddy.Tools.FileShelf
 
             _dropZoneBg = new Rectangle
             {
-                Fill = new SolidColorBrush(Color.FromRgb(12, 12, 15)),
-                Stroke = new SolidColorBrush(Color.FromRgb(44, 44, 52)),
+                Fill = CapsuleTheme.Brush(p.Surface),
+                Stroke = CapsuleTheme.Brush(p.Border),
                 StrokeThickness = 1,
                 StrokeDashArray = new DoubleCollection { 4, 3 },
                 RadiusX = 12,
@@ -223,7 +225,7 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = "📄",
                 FontSize = 13,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 0, 7, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -233,7 +235,7 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = LocalizationService.T("shelf.empty_desc", "Nothing on Desk yet · drop files or paste with Ctrl+V"),
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             _emptyStatePanel.Children.Add(emptyMsg);
@@ -242,7 +244,7 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = "|",
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(50, 50, 58)),
+                Foreground = CapsuleTheme.Brush(p.Border),
                 Margin = new Thickness(10, 0, 10, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -253,7 +255,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 Text = LocalizationService.T("shelf.choose_files", "Choose files"),
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Accent),
                 Cursor = Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -288,16 +290,17 @@ namespace WindowsBuddy.Tools.FileShelf
 
         private TextBlock CreateActionLink(string text, Action onClick)
         {
+            var p = CapsuleTheme.Current;
             var tb = new TextBlock
             {
                 Text = text,
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Cursor = Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            tb.MouseEnter += (_, _) => tb.Foreground = Brushes.White;
-            tb.MouseLeave += (_, _) => tb.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
+            tb.MouseEnter += (_, _) => tb.Foreground = CapsuleTheme.Brush(p.Text);
+            tb.MouseLeave += (_, _) => tb.Foreground = CapsuleTheme.Brush(p.Text2);
             tb.MouseLeftButtonUp += (_, _) => onClick?.Invoke();
             return tb;
         }
@@ -347,7 +350,7 @@ namespace WindowsBuddy.Tools.FileShelf
                     Multiselect = true,
                     Title = "Park files on Shelf"
                 };
-                if (dlg.ShowDialog() == true)
+                if (WindowsBuddy.BuddyCapsule.Core.NotchInteractionGuard.RunModal(() => dlg.ShowDialog()) == true)
                 {
                     _service.AddFilesToActiveShelf(dlg.FileNames);
                 }
@@ -357,11 +360,12 @@ namespace WindowsBuddy.Tools.FileShelf
 
         private void OnDragEnter(object sender, DragEventArgs e)
         {
+            var p = CapsuleTheme.Current;
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 e.Effects = DragDropEffects.Copy;
-                _dropZoneBg.Stroke = new SolidColorBrush(Color.FromRgb(255, 85, 0));
-                _dropZoneBg.Fill = new SolidColorBrush(Color.FromRgb(22, 22, 28));
+                _dropZoneBg.Stroke = CapsuleTheme.Brush(p.Accent);
+                _dropZoneBg.Fill = CapsuleTheme.Brush(p.Surface2);
             }
             else
             {
@@ -385,15 +389,17 @@ namespace WindowsBuddy.Tools.FileShelf
 
         private void OnDragLeave(object sender, DragEventArgs e)
         {
-            _dropZoneBg.Stroke = new SolidColorBrush(Color.FromRgb(44, 44, 52));
-            _dropZoneBg.Fill = new SolidColorBrush(Color.FromRgb(12, 12, 15));
+            var p = CapsuleTheme.Current;
+            _dropZoneBg.Stroke = CapsuleTheme.Brush(p.Border);
+            _dropZoneBg.Fill = CapsuleTheme.Brush(p.Surface);
             e.Handled = true;
         }
 
         private void OnDrop(object sender, DragEventArgs e)
         {
-            _dropZoneBg.Stroke = new SolidColorBrush(Color.FromRgb(44, 44, 52));
-            _dropZoneBg.Fill = new SolidColorBrush(Color.FromRgb(12, 12, 15));
+            var p = CapsuleTheme.Current;
+            _dropZoneBg.Stroke = CapsuleTheme.Brush(p.Border);
+            _dropZoneBg.Fill = CapsuleTheme.Brush(p.Surface);
 
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -413,6 +419,7 @@ namespace WindowsBuddy.Tools.FileShelf
 
         private void RefreshUI()
         {
+            var p = CapsuleTheme.Current;
             // 1. Rebuild shelves sidebar list
             _shelvesListPanel.Children.Clear();
             var active = _service.ActiveShelf;
@@ -424,7 +431,9 @@ namespace WindowsBuddy.Tools.FileShelf
                 {
                     Height = 32,
                     CornerRadius = new CornerRadius(8),
-                    Background = new SolidColorBrush(isActive ? Color.FromRgb(36, 36, 42) : Colors.Transparent),
+                    Background = isActive ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent,
+                    BorderBrush = isActive ? CapsuleTheme.Brush(p.Border) : Brushes.Transparent,
+                    BorderThickness = new Thickness(isActive ? 1 : 0),
                     Cursor = Cursors.Hand,
                     Margin = new Thickness(0, 2, 0, 2)
                 };
@@ -436,7 +445,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 {
                     Text = shelf.Files.Count.ToString(),
                     FontSize = 12,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 DockPanel.SetDock(countBadge, Dock.Right);
@@ -447,7 +456,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 {
                     Text = "📁",
                     FontSize = 12.5,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     Margin = new Thickness(0, 0, 8, 0),
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -460,7 +469,7 @@ namespace WindowsBuddy.Tools.FileShelf
                     Text = shelf.Name,
                     FontSize = 13,
                     FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
-                    Foreground = Brushes.White,
+                    Foreground = isActive ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2),
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -473,7 +482,7 @@ namespace WindowsBuddy.Tools.FileShelf
 
                 if (!isActive)
                 {
-                    pill.MouseEnter += (_, _) => pill.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                    pill.MouseEnter += (_, _) => pill.Background = CapsuleTheme.Brush(p.Surface2);
                     pill.MouseLeave += (_, _) => pill.Background = Brushes.Transparent;
                 }
 
@@ -525,13 +534,14 @@ namespace WindowsBuddy.Tools.FileShelf
 
         private UIElement CreateFileTile(ParkedFile file)
         {
+            var p = CapsuleTheme.Current;
             var card = new Border
             {
                 Width = 114,
                 Height = 108,
                 CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(Color.FromRgb(23, 23, 28)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48)),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 Margin = new Thickness(5),
                 Cursor = Cursors.Hand
@@ -545,7 +555,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 Width = 18,
                 Height = 18,
                 CornerRadius = new CornerRadius(9),
-                Background = new SolidColorBrush(Color.FromArgb(160, 0, 0, 0)),
+                Background = CapsuleTheme.Brush(p.Surface3),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Visibility = Visibility.Collapsed,
@@ -555,13 +565,13 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = "✕",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             closeBtn.Child = closeText;
             closeBtn.MouseEnter += (_, _) => closeText.Foreground = new SolidColorBrush(Color.FromRgb(255, 80, 80));
-            closeBtn.MouseLeave += (_, _) => closeText.Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200));
+            closeBtn.MouseLeave += (_, _) => closeText.Foreground = CapsuleTheme.Brush(p.Text2);
             closeBtn.MouseLeftButtonUp += (s, e) =>
             {
                 e.Handled = true;
@@ -595,7 +605,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 {
                     Text = GetDefaultGlyph(file.Extension),
                     FontSize = 26,
-                    Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
                 contentStack.Children.Add(glyph);
@@ -605,7 +615,7 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = file.FileName,
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(230, 230, 230)),
+                Foreground = CapsuleTheme.Brush(p.Text),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 TextAlignment = TextAlignment.Center,
                 MaxHeight = 28,
@@ -618,7 +628,7 @@ namespace WindowsBuddy.Tools.FileShelf
             {
                 Text = file.DisplaySize,
                 FontSize = 9.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 1, 0, 0)
             };
@@ -630,14 +640,14 @@ namespace WindowsBuddy.Tools.FileShelf
             // Hover effects
             card.MouseEnter += (_, _) =>
             {
-                card.Background = new SolidColorBrush(Color.FromRgb(34, 34, 42));
-                card.BorderBrush = new SolidColorBrush(Color.FromRgb(62, 62, 76));
+                card.Background = CapsuleTheme.Brush(p.Surface3);
+                card.BorderBrush = CapsuleTheme.Brush(p.BorderStrong);
                 closeBtn.Visibility = Visibility.Visible;
             };
             card.MouseLeave += (_, _) =>
             {
-                card.Background = new SolidColorBrush(Color.FromRgb(23, 23, 28));
-                card.BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48));
+                card.Background = CapsuleTheme.Brush(p.Surface2);
+                card.BorderBrush = CapsuleTheme.Brush(p.Border);
                 closeBtn.Visibility = Visibility.Collapsed;
             };
 

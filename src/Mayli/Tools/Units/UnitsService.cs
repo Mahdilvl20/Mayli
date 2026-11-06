@@ -22,6 +22,7 @@ namespace WindowsBuddy.Tools.Units
         public decimal ConvertedValue => UnitCatalog.Convert(ActiveCategory, FromUnit, ToUnit, InputValue);
 
         public List<RecentConversion> Recents { get; private set; } = new();
+        private readonly Dictionary<string, UnitPairState> _categoryPairs = new(StringComparer.OrdinalIgnoreCase);
 
         private UnitsService()
         {
@@ -38,18 +39,36 @@ namespace WindowsBuddy.Tools.Units
                     if (saved != null)
                     {
                         ActiveCategory = UnitCatalog.FindCategory(saved.Category);
-                        InputValue = saved.Value > 0 ? saved.Value : 1m;
+                        InputValue = saved.Value != 0 ? saved.Value : 1m;
 
-                        if (saved.Pairs != null && saved.Pairs.TryGetValue(ActiveCategory.Name, out var p))
+                        _categoryPairs.Clear();
+                        if (saved.Pairs != null)
                         {
-                            FromUnit = ActiveCategory.Find(p.from);
-                            ToUnit = ActiveCategory.Find(p.to);
+                            foreach (var kvp in saved.Pairs)
+                            {
+                                if (kvp.Value != null && !string.IsNullOrEmpty(kvp.Value.From) && !string.IsNullOrEmpty(kvp.Value.To))
+                                {
+                                    _categoryPairs[kvp.Key] = kvp.Value;
+                                }
+                            }
+                        }
+
+                        if (_categoryPairs.TryGetValue(ActiveCategory.Name, out var p) && !string.IsNullOrEmpty(p.From) && !string.IsNullOrEmpty(p.To))
+                        {
+                            FromUnit = ActiveCategory.Find(p.From);
+                            ToUnit = ActiveCategory.Find(p.To);
                         }
                         else
                         {
                             FromUnit = ActiveCategory.Find(ActiveCategory.DefaultFrom);
                             ToUnit = ActiveCategory.Find(ActiveCategory.DefaultTo);
                         }
+
+                        if (FromUnit != null && ToUnit != null && string.Equals(FromUnit.Symbol, ToUnit.Symbol, StringComparison.OrdinalIgnoreCase) && ActiveCategory.Units.Count > 1)
+                        {
+                            ToUnit = ActiveCategory.Units.FirstOrDefault(u => !string.Equals(u.Symbol, FromUnit.Symbol, StringComparison.OrdinalIgnoreCase)) ?? ActiveCategory.Units[1];
+                        }
+                        _categoryPairs[ActiveCategory.Name] = new UnitPairState(FromUnit.Symbol, ToUnit.Symbol);
 
                         Recents = saved.Recents ?? new List<RecentConversion>();
                     }
@@ -71,6 +90,7 @@ namespace WindowsBuddy.Tools.Units
             FromUnit = ActiveCategory.Find("m");
             ToUnit = ActiveCategory.Find("ft");
             InputValue = 1m;
+            _categoryPairs["Length"] = new UnitPairState("m", "ft");
             Recents = new List<RecentConversion>
             {
                 new RecentConversion
@@ -95,10 +115,7 @@ namespace WindowsBuddy.Tools.Units
                     {
                         Category = ActiveCategory?.Name ?? "Length",
                         Value = InputValue,
-                        Pairs = new Dictionary<string, (string from, string to)>
-                        {
-                            [ActiveCategory.Name] = (FromUnit.Symbol, ToUnit.Symbol)
-                        },
+                        Pairs = new Dictionary<string, UnitPairState>(_categoryPairs, StringComparer.OrdinalIgnoreCase),
                         Recents = Recents
                     };
                     PersistenceHelper.SafeWriteJson(PrefsFileName, state);
@@ -112,15 +129,33 @@ namespace WindowsBuddy.Tools.Units
             lock (_lock)
             {
                 var cat = UnitCatalog.FindCategory(catName);
-                if (cat != null && cat != ActiveCategory)
+                if (cat == null) return;
+                if (ActiveCategory != null && string.Equals(cat.Name, ActiveCategory.Name, StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                ActiveCategory = cat;
+
+                if (_categoryPairs.TryGetValue(cat.Name, out var p) && !string.IsNullOrEmpty(p.From) && !string.IsNullOrEmpty(p.To))
                 {
-                    ActiveCategory = cat;
+                    FromUnit = cat.Find(p.From);
+                    ToUnit = cat.Find(p.To);
+                }
+                else
+                {
                     FromUnit = cat.Find(cat.DefaultFrom);
                     ToUnit = cat.Find(cat.DefaultTo);
-                    CommitRecent();
-                    Save();
-                    StateChanged?.Invoke();
                 }
+
+                if (FromUnit != null && ToUnit != null && string.Equals(FromUnit.Symbol, ToUnit.Symbol, StringComparison.OrdinalIgnoreCase) && cat.Units.Count > 1)
+                {
+                    ToUnit = cat.Units.FirstOrDefault(u => !string.Equals(u.Symbol, FromUnit.Symbol, StringComparison.OrdinalIgnoreCase)) ?? cat.Units[1];
+                }
+
+                _categoryPairs[cat.Name] = new UnitPairState(FromUnit.Symbol, ToUnit.Symbol);
+
+                CommitRecent();
+                Save();
+                StateChanged?.Invoke();
             }
         }
 
@@ -130,6 +165,10 @@ namespace WindowsBuddy.Tools.Units
             lock (_lock)
             {
                 FromUnit = u;
+                if (ActiveCategory != null)
+                {
+                    _categoryPairs[ActiveCategory.Name] = new UnitPairState(FromUnit.Symbol, ToUnit?.Symbol ?? "");
+                }
                 CommitRecent();
                 Save();
                 StateChanged?.Invoke();
@@ -142,6 +181,10 @@ namespace WindowsBuddy.Tools.Units
             lock (_lock)
             {
                 ToUnit = u;
+                if (ActiveCategory != null)
+                {
+                    _categoryPairs[ActiveCategory.Name] = new UnitPairState(FromUnit?.Symbol ?? "", ToUnit.Symbol);
+                }
                 CommitRecent();
                 Save();
                 StateChanged?.Invoke();
@@ -166,6 +209,10 @@ namespace WindowsBuddy.Tools.Units
                 var temp = FromUnit;
                 FromUnit = ToUnit;
                 ToUnit = temp;
+                if (ActiveCategory != null && FromUnit != null && ToUnit != null)
+                {
+                    _categoryPairs[ActiveCategory.Name] = new UnitPairState(FromUnit.Symbol, ToUnit.Symbol);
+                }
                 CommitRecent();
                 Save();
                 StateChanged?.Invoke();

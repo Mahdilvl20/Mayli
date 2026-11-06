@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.Tools.Notes;
 using WindowsBuddy.Services;
 
@@ -46,6 +47,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public NotesToolView()
         {
+            var p = CapsuleTheme.Current;
             FlowDirection = LocalizationService.CurrentFlowDirection;
             Background = Brushes.Transparent;
 
@@ -80,7 +82,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 {
                     Text = "🔍",
                     FontSize = 11.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 }
@@ -98,7 +100,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     _searchBox.Text = string.Empty;
                 }
             };
-            searchBtn.MouseEnter += (_, _) => searchBtn.Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
+            searchBtn.MouseEnter += (_, _) => searchBtn.Background = CapsuleTheme.Brush(p.Surface2);
             searchBtn.MouseLeave += (_, _) => searchBtn.Background = Brushes.Transparent;
             headerIcons.Children.Add(searchBtn);
 
@@ -115,12 +117,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     Text = "+",
                     FontSize = 15.0,
                     FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
-            addBtn.MouseEnter += (_, _) => addBtn.Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
+            addBtn.MouseEnter += (_, _) => addBtn.Background = CapsuleTheme.Brush(p.Surface2);
             addBtn.MouseLeave += (_, _) => addBtn.Background = Brushes.Transparent;
             addBtn.MouseLeftButtonUp += (_, e) =>
             {
@@ -137,7 +139,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = LocalizationService.T("notes.all_notes", "All notes"),
                 FontSize = 13.0,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
             leftHeader.Children.Add(allNotesText);
@@ -151,9 +153,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Visibility = Visibility.Collapsed,
                 Height = 24,
                 Margin = new Thickness(4, 0, 4, 4),
-                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
-                Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Foreground = CapsuleTheme.Brush(p.Text),
+                CaretBrush = CapsuleTheme.Brush(p.Text),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 FontSize = 11.5,
                 Padding = new Thickness(6, 2, 6, 2)
@@ -189,14 +192,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = LocalizationService.T("notes.no_notes", "No notes yet"),
                 FontSize = 12.0,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 8)
             });
             var newNoteBtn = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(46, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(14, 6, 14, 6),
@@ -208,14 +211,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = LocalizationService.T("notes.new_note", "New note"),
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Center
             };
             newNoteBtn.Child = newNoteText;
-            newNoteBtn.MouseEnter += (_, _) => newNoteBtn.Background = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255));
-            newNoteBtn.MouseLeave += (_, _) => newNoteBtn.Background = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
+            newNoteBtn.MouseEnter += (_, _) => newNoteBtn.Background = CapsuleTheme.Brush(p.Surface3);
+            newNoteBtn.MouseLeave += (_, _) => newNoteBtn.Background = CapsuleTheme.Brush(p.Surface2);
             newNoteBtn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -234,7 +237,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var verticalDivider = new Border
             {
                 Width = 1,
-                Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.Border),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             Grid.SetColumn(verticalDivider, 1);
@@ -245,12 +248,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
             // -------------------------------------------------------------
             var rightGrid = new Grid { Margin = new Thickness(14, 0, 4, 0) };
 
-            // Empty Editor View (Matching Screenshot!)
+            // Empty Editor View
             _emptyEditorText = new TextBlock
             {
                 Text = LocalizationService.T("notes.empty_prompt", "Create a note to start writing"),
                 FontSize = 13.0,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Visible
@@ -353,8 +356,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 FontSize = 15.0,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
-                CaretBrush = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                CaretBrush = CapsuleTheme.Brush(p.Text),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -372,8 +375,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 AcceptsReturn = true,
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 12.5,
-                Foreground = Brushes.White,
-                CaretBrush = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                CaretBrush = CapsuleTheme.Brush(p.Text),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -390,7 +393,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "0 words",
                 FontSize = 11.0,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             DockPanel.SetDock(_wordsText, Dock.Right);
@@ -400,7 +403,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "Edited just now",
                 FontSize = 11.0,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             editorFooter.Children.Add(_editedText);
@@ -468,6 +471,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 _selectedNote = allNotes[0];
             }
 
+            var p = CapsuleTheme.Current;
             foreach (var note in allNotes)
             {
                 bool isSelected = _selectedNote != null && note.Id == _selectedNote.Id;
@@ -476,7 +480,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 {
                     Height = 44,
                     CornerRadius = new CornerRadius(8),
-                    Background = new SolidColorBrush(isSelected ? Color.FromRgb(38, 38, 44) : Colors.Transparent),
+                    Background = isSelected ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent,
+                    BorderBrush = isSelected ? CapsuleTheme.Brush(p.Border) : Brushes.Transparent,
+                    BorderThickness = new Thickness(isSelected ? 1 : 0),
                     Padding = new Thickness(8, 4, 8, 4),
                     Margin = new Thickness(0, 1, 0, 1),
                     Cursor = Cursors.Hand
@@ -489,7 +495,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     Text = note.GetDisplayTitle(),
                     FontSize = 12.0,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     TextTrimming = TextTrimming.CharacterEllipsis
                 };
                 rowStack.Children.Add(titleBlock);
@@ -498,7 +504,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 {
                     Text = note.GetDisplayPreview(),
                     FontSize = 10.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin = new Thickness(0, 1, 0, 0)
                 };
@@ -510,7 +516,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 {
                     if (_selectedNote == null || note.Id != _selectedNote.Id)
                     {
-                        rowBorder.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                        rowBorder.Background = CapsuleTheme.Brush(p.Surface3);
                     }
                 };
                 rowBorder.MouseLeave += (_, _) =>

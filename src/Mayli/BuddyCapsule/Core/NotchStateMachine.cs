@@ -139,6 +139,19 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
         }
 
+        /// <summary>
+        /// Called when a hold (popup / dialog) is released: if the pointer is no longer over the notch,
+        /// start the normal close grace period.
+        /// </summary>
+        public void ReevaluateHold()
+        {
+            if (!PointerInside && IsOpenOrOpening && !(HoldOpen?.Invoke() ?? false))
+            {
+                _graceTimer.Stop();
+                _graceTimer.Start();
+            }
+        }
+
         public void Click(string reason)
         {
             if (!IsOpenOrOpening)

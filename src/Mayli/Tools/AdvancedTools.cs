@@ -32,6 +32,8 @@ namespace WindowsBuddy.Tools
         {
             _ = WindowsBuddy.Tools.Weather.WeatherService.Instance.FetchWeatherAsync();
         }
+
+        public void InvalidateView() { }
     }
 
     /// <summary>
@@ -49,6 +51,8 @@ namespace WindowsBuddy.Tools
         {
             WindowsBuddy.Tools.ScreenTime.ScreenTimeService.Instance.Refresh();
         }
+
+        public void InvalidateView() { }
     }
 
     /// <summary>
@@ -115,6 +119,7 @@ namespace WindowsBuddy.Tools
         }
 
         public void OnActivated() { }
+        public void InvalidateView() { }
     }
 
     /// <summary>
@@ -187,5 +192,6 @@ namespace WindowsBuddy.Tools
         }
 
         public void OnActivated() { }
+        public void InvalidateView() { }
     }
 }

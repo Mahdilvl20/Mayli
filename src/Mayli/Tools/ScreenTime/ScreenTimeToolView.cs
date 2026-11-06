@@ -77,12 +77,13 @@ namespace WindowsBuddy.Tools.ScreenTime
 
         private Border BuildTodayCard()
         {
+            var p = CapsuleTheme.Current;
             var card = new Border
             {
                 MinHeight = 85,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorBrush(Color.FromRgb(18, 18, 22)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(30, 30, 36)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(14, 10, 14, 10),
@@ -97,7 +98,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = "📊  " + LocalizationService.T("screentime.today", "Today"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 0, 0, 8)
             };
             DockPanel.SetDock(header, Dock.Top);
@@ -116,7 +117,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = _service.TodayTotalFormatted,
                 FontSize = 24,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = CapsuleTheme.Brush(p.Text)
             };
             m1.Children.Add(_todayTotalText);
 
@@ -124,7 +125,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             {
                 Text = LocalizationService.T("screentime.screen_time", "Screen time"),
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 2, 0, 0)
             };
             m1.Children.Add(l1);
@@ -146,14 +147,14 @@ namespace WindowsBuddy.Tools.ScreenTime
             {
                 Width = 40,
                 Height = 40,
-                Stroke = new SolidColorBrush(Color.FromRgb(36, 36, 44)),
+                Stroke = CapsuleTheme.Brush(p.Surface3),
                 StrokeThickness = 3
             };
             ringCanvas.Children.Add(bgCircle);
 
             _limitArcPath = new Path
             {
-                Stroke = Brushes.White,
+                Stroke = CapsuleTheme.Brush(p.Accent),
                 StrokeThickness = 3,
                 StrokeStartLineCap = PenLineCap.Round,
                 StrokeEndLineCap = PenLineCap.Round
@@ -167,7 +168,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = _service.LimitRemainingFormatted,
                 FontSize = 19,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = CapsuleTheme.Brush(p.Text)
             };
             m2TextStack.Children.Add(_limitLeftText);
 
@@ -176,7 +177,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             {
                 Text = $"of {_service.LimitFormatted} ",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             limitSubRow.Children.Add(_limitLabelText);
@@ -195,7 +196,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 {
                     Text = "✎",
                     FontSize = 11.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextAlignment = TextAlignment.Center
@@ -203,13 +204,13 @@ namespace WindowsBuddy.Tools.ScreenTime
             };
             pencilBorder.MouseEnter += (_, _) =>
             {
-                pencilBorder.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
-                if (pencilBorder.Child is TextBlock tb) tb.Foreground = Brushes.White;
+                pencilBorder.Background = CapsuleTheme.Brush(p.Surface3);
+                if (pencilBorder.Child is TextBlock tb) tb.Foreground = CapsuleTheme.Brush(p.Text);
             };
             pencilBorder.MouseLeave += (_, _) =>
             {
                 pencilBorder.Background = Brushes.Transparent;
-                if (pencilBorder.Child is TextBlock tb) tb.Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 190));
+                if (pencilBorder.Child is TextBlock tb) tb.Foreground = CapsuleTheme.Brush(p.Text2);
             };
             pencilBorder.MouseLeftButtonUp += (_, _) => ShowLimitPicker();
             limitSubRow.Children.Add(pencilBorder);
@@ -227,7 +228,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = $"{_service.AppsUsedToday}",
                 FontSize = 24,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             m3.Children.Add(_appsCountText);
@@ -236,7 +237,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             {
                 Text = LocalizationService.T("screentime.apps_used", "Apps used"),
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 2, 0, 0),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -252,12 +253,13 @@ namespace WindowsBuddy.Tools.ScreenTime
 
         private Border BuildWeekCard()
         {
+            var p = CapsuleTheme.Current;
             var card = new Border
             {
                 MinHeight = 110,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorBrush(Color.FromRgb(18, 18, 22)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(30, 30, 36)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(14, 10, 14, 10)
@@ -273,7 +275,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = "📅  " + LocalizationService.T("screentime.last7days", "Last 7 days"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             DockPanel.SetDock(title, Dock.Left);
@@ -283,7 +285,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             {
                 Text = string.Format(LocalizationService.T("screentime.avg_fmt", "avg {0}"), ScreenTimeService.FormatDuration(_service.GetWeeklyAverageSeconds())),
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -303,10 +305,11 @@ namespace WindowsBuddy.Tools.ScreenTime
 
         private Border BuildByAppCard()
         {
+            var p = CapsuleTheme.Current;
             var card = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(18, 18, 22)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(30, 30, 36)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(14, 10, 14, 10)
@@ -322,7 +325,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = "📊  " + LocalizationService.T("screentime.by_app", "By app"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             DockPanel.SetDock(title, Dock.Left);
@@ -343,7 +346,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             {
                 Text = "⟳",
                 FontSize = 13.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Center
@@ -351,13 +354,13 @@ namespace WindowsBuddy.Tools.ScreenTime
             refreshBorder.Child = _refreshBtn;
             refreshBorder.MouseEnter += (_, _) =>
             {
-                refreshBorder.Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
-                _refreshBtn.Foreground = Brushes.White;
+                refreshBorder.Background = CapsuleTheme.Brush(p.Surface3);
+                _refreshBtn.Foreground = CapsuleTheme.Brush(p.Text);
             };
             refreshBorder.MouseLeave += (_, _) =>
             {
                 refreshBorder.Background = Brushes.Transparent;
-                _refreshBtn.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
+                _refreshBtn.Foreground = CapsuleTheme.Brush(p.Text2);
             };
             refreshBorder.MouseLeftButtonUp += (_, _) => RefreshUI();
             DockPanel.SetDock(refreshBorder, Dock.Right);
@@ -381,17 +384,18 @@ namespace WindowsBuddy.Tools.ScreenTime
 
         private Grid BuildLimitModalOverlay()
         {
+            var p = CapsuleTheme.Current;
             var overlay = new Grid
             {
-                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                Background = new SolidColorBrush(Color.FromArgb(180, p.Bg.R, p.Bg.G, p.Bg.B)),
                 Visibility = Visibility.Collapsed
             };
 
             var dialog = new Border
             {
                 Width = 280,
-                Background = new SolidColorBrush(Color.FromRgb(22, 22, 28)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(46, 46, 56)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.BorderStrong),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(16),
@@ -405,7 +409,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = "Set Daily Screen Limit",
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Margin = new Thickness(0, 0, 0, 12)
             });
 
@@ -420,14 +424,14 @@ namespace WindowsBuddy.Tools.ScreenTime
                     Padding = new Thickness(12, 6, 12, 6),
                     Margin = new Thickness(3),
                     Cursor = Cursors.Hand,
-                    Background = _service.DailyLimitSeconds == sec ? new SolidColorBrush(Color.FromRgb(230, 74, 25)) : new SolidColorBrush(Color.FromRgb(36, 36, 46))
+                    Background = _service.DailyLimitSeconds == sec ? CapsuleTheme.Brush(p.Accent) : CapsuleTheme.Brush(p.Surface2)
                 };
                 chip.Child = new TextBlock
                 {
                     Text = $"{h}h",
                     FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = Brushes.White
+                    Foreground = _service.DailyLimitSeconds == sec ? CapsuleTheme.Brush(p.AccentFg) : CapsuleTheme.Brush(p.Text)
                 };
                 chip.MouseLeftButtonUp += (_, _) =>
                 {
@@ -441,13 +445,13 @@ namespace WindowsBuddy.Tools.ScreenTime
 
             var closeBtn = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
+                Background = CapsuleTheme.Brush(p.Surface2),
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(12, 6, 12, 6),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Cursor = Cursors.Hand
             };
-            closeBtn.Child = new TextBlock { Text = "Cancel", FontSize = 11, Foreground = Brushes.White };
+            closeBtn.Child = new TextBlock { Text = "Cancel", FontSize = 11, Foreground = CapsuleTheme.Brush(p.Text) };
             closeBtn.MouseLeftButtonUp += (_, _) => overlay.Visibility = Visibility.Collapsed;
             stack.Children.Add(closeBtn);
 
@@ -532,6 +536,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
 
+                var p = CapsuleTheme.Current;
                 if (d.TotalSeconds > 0)
                 {
                     // Duration label above bar
@@ -540,20 +545,20 @@ namespace WindowsBuddy.Tools.ScreenTime
                         Text = d.DurationFormatted,
                         FontSize = 10.5,
                         FontWeight = FontWeights.SemiBold,
-                        Foreground = Brushes.White,
+                        Foreground = CapsuleTheme.Brush(p.Text),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         Margin = new Thickness(0, 0, 0, 4)
                     };
                     contentStack.Children.Add(durLabel);
 
-                    // Solid White Rounded Pill Bar
+                    // Rounded Pill Bar
                     double barH = Math.Clamp(d.HeightFraction * 54.0 + 8.0, 10.0, 62.0);
                     var bar = new Border
                     {
                         Width = 24,
                         Height = barH,
                         CornerRadius = new CornerRadius(6),
-                        Background = Brushes.White,
+                        Background = CapsuleTheme.Brush(p.Accent),
                         HorizontalAlignment = HorizontalAlignment.Center
                     };
                     contentStack.Children.Add(bar);
@@ -566,7 +571,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                         Width = 14,
                         Height = 2.5,
                         CornerRadius = new CornerRadius(1.25),
-                        Background = new SolidColorBrush(Color.FromRgb(46, 46, 54)),
+                        Background = CapsuleTheme.Brush(p.Surface3),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         Margin = new Thickness(0, 0, 0, 6)
                     };
@@ -582,7 +587,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                     Text = d.DayName,
                     FontSize = 10.5,
                     FontWeight = d.IsToday ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = d.IsToday ? Brushes.White : new SolidColorBrush(Color.FromRgb(120, 120, 130)),
+                    Foreground = d.IsToday ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 6, 0, 0)
                 };
@@ -597,6 +602,7 @@ namespace WindowsBuddy.Tools.ScreenTime
         {
             if (_appListStack == null) return;
             _appListStack.Children.Clear();
+            var p = CapsuleTheme.Current;
 
             var apps = _service.GetTopAppsToday();
             if (apps.Count == 0)
@@ -605,7 +611,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 {
                     Text = LocalizationService.T("screentime.no_activity", "No app activity recorded yet today."),
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 130)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     Margin = new Thickness(0, 18, 0, 0),
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
@@ -650,7 +656,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                     Text = app.Name,
                     FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin = new Thickness(0, 0, 0, 4)
                 };
@@ -668,7 +674,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
                 var trackBg = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(38, 38, 46)),
+                    Background = CapsuleTheme.Brush(p.Surface2),
                     CornerRadius = new CornerRadius(1.5)
                 };
                 Grid.SetColumnSpan(trackBg, 2);
@@ -676,7 +682,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
                 var fillBar = new Border
                 {
-                    Background = Brushes.White,
+                    Background = CapsuleTheme.Brush(p.Accent),
                     CornerRadius = new CornerRadius(1.5)
                 };
                 Grid.SetColumn(fillBar, 0);
@@ -699,7 +705,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                     Text = app.DurationFormatted,
                     FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     HorizontalAlignment = HorizontalAlignment.Right
                 };
                 rightStack.Children.Add(timeText);
@@ -708,7 +714,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 {
                     Text = app.PercentageFormatted,
                     FontSize = 10.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 130)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Right,
                     Margin = new Thickness(0, 1, 0, 0)
                 };

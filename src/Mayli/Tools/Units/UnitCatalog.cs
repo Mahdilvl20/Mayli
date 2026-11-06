@@ -148,29 +148,6 @@ namespace WindowsBuddy.Tools.Units
                     new Unit("month", "Months", 2630016m),
                     new Unit("year", "Years", 31557600m)
                 }
-            },
-
-            // 8. Currency
-            new UnitCategory
-            {
-                Name = "Currency",
-                Icon = "💵",
-                DefaultFrom = "USD",
-                DefaultTo = "EUR",
-                Common = new[] { "GBP", "JPY", "AED" },
-                Units = new List<Unit>
-                {
-                    new Unit("USD", "US Dollar", 1m),
-                    new Unit("EUR", "Euro", 0.92m),
-                    new Unit("GBP", "British Pound", 0.77m),
-                    new Unit("JPY", "Japanese Yen", 152.4m),
-                    new Unit("AED", "UAE Dirham", 3.6725m),
-                    new Unit("CAD", "Canadian Dollar", 1.39m),
-                    new Unit("AUD", "Australian Dollar", 1.52m),
-                    new Unit("CHF", "Swiss Franc", 0.86m),
-                    new Unit("CNY", "Chinese Yuan", 7.12m),
-                    new Unit("INR", "Indian Rupee", 84.08m)
-                }
             }
         };
 
@@ -188,14 +165,6 @@ namespace WindowsBuddy.Tools.Units
             if (category.IsTemperature)
             {
                 return ConvertTemperature(from.Symbol, to.Symbol, value);
-            }
-
-            // Currency special conversion
-            if (category.IsCurrency)
-            {
-                // from USD base: val / from.Factor * to.Factor
-                if (from.Factor == 0) return 0;
-                return value / from.Factor * to.Factor;
             }
 
             // Standard linear conversion

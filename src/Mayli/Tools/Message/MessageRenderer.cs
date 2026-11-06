@@ -69,7 +69,9 @@ namespace WindowsBuddy.Tools.Message
             MessageAnimationMode mode,
             double speedMultiplier,
             DispatcherTimer existingTypeOnTimer,
-            out DispatcherTimer newTypeOnTimer)
+            out DispatcherTimer newTypeOnTimer,
+            double containerWidth = 260.0,
+            bool isRtl = false)
         {
             newTypeOnTimer = null;
             if (element == null) return;
@@ -78,8 +80,17 @@ namespace WindowsBuddy.Tools.Message
 
             double speed = Math.Clamp(speedMultiplier, 0.3, 3.0);
             double baseDurationSec = 0.45 / speed;
+            double w = containerWidth > 80.0 ? containerWidth : 260.0;
+            double halfNotch = w / 2.0;
 
             // Reset transforms & effects
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            if (element.RenderTransform is Animatable animatable)
+            {
+                animatable.BeginAnimation(TranslateTransform.XProperty, null);
+                animatable.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                animatable.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            }
             element.RenderTransform = null;
             element.Effect = null;
             element.Opacity = 1.0;
@@ -92,15 +103,22 @@ namespace WindowsBuddy.Tools.Message
             {
                 case MessageAnimationMode.Slide:
                 {
-                    var trans = new TranslateTransform(-70.0, 0.0);
+                    double elemW = element.ActualWidth > 10.0
+                        ? element.ActualWidth
+                        : (textBlock?.ActualWidth > 10.0 ? textBlock.ActualWidth + 24.0 : (fullText.Length * 8.5 + 24.0));
+                    double elementHalfW = elemW / 2.0;
+
+                    // Slide smoothly into the Center from completely outside the Notch edge
+                    double startX = isRtl ? (halfNotch + elementHalfW + 15.0) : -(halfNotch + elementHalfW + 15.0);
+                    var trans = new TranslateTransform(startX, 0.0);
                     element.RenderTransform = trans;
                     element.Opacity = 0.0;
 
-                    var animX = new DoubleAnimation(-70.0, 0.0, new Duration(TimeSpan.FromSeconds(baseDurationSec)))
+                    var animX = new DoubleAnimation(startX, 0.0, new Duration(TimeSpan.FromSeconds(baseDurationSec)))
                     {
                         EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
                     };
-                    var animO = new DoubleAnimation(0.0, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 0.7)))
+                    var animO = new DoubleAnimation(0.0, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 0.75)))
                     {
                         EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
                     };
@@ -113,10 +131,21 @@ namespace WindowsBuddy.Tools.Message
                 case MessageAnimationMode.Fade:
                 {
                     element.Opacity = 0.0;
-                    var animO = new DoubleAnimation(0.0, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 1.2)))
+                    var scale = new ScaleTransform(0.85, 0.85);
+                    element.RenderTransformOrigin = new Point(0.5, 0.5);
+                    element.RenderTransform = scale;
+
+                    var animO = new DoubleAnimation(0.0, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 1.15)))
                     {
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
+                    var animS = new DoubleAnimation(0.85, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 1.15)))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    scale.BeginAnimation(ScaleTransform.ScaleXProperty, animS);
+                    scale.BeginAnimation(ScaleTransform.ScaleYProperty, animS);
                     element.BeginAnimation(UIElement.OpacityProperty, animO);
                     break;
                 }
@@ -125,9 +154,9 @@ namespace WindowsBuddy.Tools.Message
                 {
                     if (textBlock != null && !string.IsNullOrEmpty(fullText))
                     {
-                        textBlock.Text = "";
+                        textBlock.Text = "|";
                         int idx = 0;
-                        double charIntervalMs = Math.Max(20.0, 60.0 / speed);
+                        double charIntervalMs = Math.Max(22.0, 65.0 / speed);
 
                         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(charIntervalMs) };
                         timer.Tick += (s, e) =>
@@ -135,10 +164,11 @@ namespace WindowsBuddy.Tools.Message
                             if (idx < fullText.Length)
                             {
                                 idx++;
-                                textBlock.Text = fullText.Substring(0, idx);
+                                textBlock.Text = fullText.Substring(0, idx) + (idx < fullText.Length ? "|" : "");
                             }
                             else
                             {
+                                textBlock.Text = fullText;
                                 timer.Stop();
                             }
                         };
@@ -150,14 +180,28 @@ namespace WindowsBuddy.Tools.Message
 
                 case MessageAnimationMode.Scroll:
                 {
-                    var trans = new TranslateTransform(80.0, 0.0);
+                    // Calculate element's actual half-width so it enters and exits cleanly at the true notch edges
+                    double elemW = element.ActualWidth > 10.0
+                        ? element.ActualWidth
+                        : (textBlock?.ActualWidth > 10.0 ? textBlock.ActualWidth + 24.0 : (fullText.Length * 8.5 + 24.0));
+                    double elementHalfW = elemW / 2.0;
+
+                    // Travel continuously from right edge completely across to left edge (classic marquee)
+                    double travelX = halfNotch + elementHalfW + 10.0;
+                    double fromX = travelX;
+                    double toX = -travelX;
+
+                    var trans = new TranslateTransform(fromX, 0.0);
                     element.RenderTransform = trans;
 
-                    var animScroll = new DoubleAnimation(80.0, -80.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 4.0)))
+                    double totalDistance = travelX * 2.0;
+                    double speedPxPerSec = Math.Max(28.0, 70.0 * speed);
+                    double scrollDurationSec = totalDistance / speedPxPerSec;
+
+                    var animScroll = new DoubleAnimation(fromX, toX, new Duration(TimeSpan.FromSeconds(scrollDurationSec)))
                     {
                         RepeatBehavior = RepeatBehavior.Forever,
-                        AutoReverse = true,
-                        EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                        AutoReverse = false
                     };
                     trans.BeginAnimation(TranslateTransform.XProperty, animScroll);
                     break;
@@ -165,15 +209,20 @@ namespace WindowsBuddy.Tools.Message
 
                 case MessageAnimationMode.Blur:
                 {
-                    var blur = new BlurEffect { Radius = 16.0 };
+                    var blur = new BlurEffect { Radius = 20.0 };
                     element.Effect = blur;
-                    element.Opacity = 0.3;
+                    element.Opacity = 0.1;
 
-                    var animBlur = new DoubleAnimation(16.0, 0.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 1.2)))
+                    var animBlur = new DoubleAnimation(20.0, 0.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 1.2)))
                     {
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
-                    var animO = new DoubleAnimation(0.3, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 0.9)));
+                    var animO = new DoubleAnimation(0.1, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 0.9)))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    animBlur.Completed += (_, _) => { element.Effect = null; };
 
                     blur.BeginAnimation(BlurEffect.RadiusProperty, animBlur);
                     element.BeginAnimation(UIElement.OpacityProperty, animO);
@@ -182,16 +231,19 @@ namespace WindowsBuddy.Tools.Message
 
                 case MessageAnimationMode.Pulse:
                 {
-                    var scale = new ScaleTransform(0.85, 0.85);
+                    var scale = new ScaleTransform(0.76, 0.76);
                     element.RenderTransformOrigin = new Point(0.5, 0.5);
                     element.RenderTransform = scale;
-                    element.Opacity = 0.2;
+                    element.Opacity = 0.15;
 
-                    var animScale = new DoubleAnimation(0.85, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 1.1)))
+                    var animScale = new DoubleAnimation(0.76, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 1.15)))
                     {
-                        EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
+                        EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.45 }
                     };
-                    var animO = new DoubleAnimation(0.2, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 0.7)));
+                    var animO = new DoubleAnimation(0.15, 1.0, new Duration(TimeSpan.FromSeconds(baseDurationSec * 0.7)))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
 
                     scale.BeginAnimation(ScaleTransform.ScaleXProperty, animScale);
                     scale.BeginAnimation(ScaleTransform.ScaleYProperty, animScale);

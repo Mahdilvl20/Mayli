@@ -169,6 +169,23 @@ namespace WindowsBuddy.Core
         [DllImport("user32.dll")]
         public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
+        public enum POWER_PLATFORM_ROLE
+        {
+            PlatformRoleUnspecified = 0,
+            PlatformRoleDesktop = 1,
+            PlatformRoleMobile = 2,
+            PlatformRoleWorkstation = 3,
+            PlatformRoleEnterpriseServer = 4,
+            PlatformRoleSOHOServer = 5,
+            PlatformRoleAppliance = 6,
+            PlatformRolePerformanceServer = 7,
+            PlatformRoleSlate = 8,
+            PlatformRoleMaximum = 9
+        }
+
+        [DllImport("powrprof.dll", SetLastError = true)]
+        public static extern POWER_PLATFORM_ROLE PowerDeterminePlatformRole();
+
         [DllImport("kernel32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS sps);
@@ -183,6 +200,12 @@ namespace WindowsBuddy.Core
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+        [DllImport("shcore.dll")]
+        public static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]

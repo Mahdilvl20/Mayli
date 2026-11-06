@@ -636,11 +636,14 @@ while ($true) {
                 }
 
                 IsMusicPlaying = playing;
-                CurrentTrack = playing ? title : "";
-                CurrentArtist = playing ? cleanArtist : "";
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    CurrentTrack = title;
+                    CurrentArtist = cleanArtist;
+                }
 
                 MediaService.Instance.State.IsPlaying = playing;
-                if (playing)
+                if (!string.IsNullOrWhiteSpace(CurrentTrack))
                 {
                     MediaService.Instance.State.Title = CurrentTrack;
                     MediaService.Instance.State.Artist = CurrentArtist;

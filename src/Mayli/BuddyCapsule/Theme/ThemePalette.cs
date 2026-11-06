@@ -146,10 +146,10 @@ namespace WindowsBuddy.BuddyCapsule.Theme
             TextDisabled = Color.FromRgb(185, 185, 195),
             Icon = Color.FromRgb(28, 28, 32),
             IconMuted = Color.FromRgb(110, 110, 120),
-            Accent = Color.FromRgb(28, 28, 32),
+            Accent = Color.FromRgb(0, 113, 227), // Apple System Blue #0071E3
             AccentFg = Color.FromRgb(255, 255, 255),
-            AccentSoft = Color.FromArgb(24, 0, 0, 0),
-            AccentStrong = Color.FromRgb(0, 0, 0),
+            AccentSoft = Color.FromArgb(28, 0, 113, 227),
+            AccentStrong = Color.FromRgb(0, 90, 190),
             DockPill = Color.FromRgb(242, 243, 246),
             ControlFill = Color.FromArgb(18, 0, 0, 0),
             ControlFillHover = Color.FromArgb(32, 0, 0, 0)

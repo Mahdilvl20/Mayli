@@ -55,6 +55,22 @@ namespace WindowsBuddy.Services
         public static FlowDirection CurrentFlowDirection =>
             AppPreferences.Instance.IsPersian ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
 
+        public static bool IsRtl(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return AppPreferences.Instance.IsPersian;
+            foreach (char c in text)
+            {
+                if ((c >= 0x0600 && c <= 0x06FF) ||
+                    (c >= 0x0750 && c <= 0x077F) ||
+                    (c >= 0xFB50 && c <= 0xFDFF) ||
+                    (c >= 0xFE70 && c <= 0xFEFF))
+                {
+                    return true;
+                }
+            }
+            return AppPreferences.Instance.IsPersian;
+        }
+
         public static event Action LanguageChanged;
 
         private static readonly Dictionary<string, string> _fa = new(StringComparer.OrdinalIgnoreCase)
@@ -165,6 +181,9 @@ namespace WindowsBuddy.Services
 
             // System Tool
             ["system.battery"] = "باتری",
+            ["system.ac_power"] = "برق مستقیم",
+            ["system.desktop_pc"] = "کامپیوتر رومیزی",
+            ["system.connected"] = "متصل",
             ["system.network"] = "شبکه",
             ["system.performance"] = "عملکرد",
             ["system.volume"] = "بلندی صدا",
@@ -266,11 +285,32 @@ namespace WindowsBuddy.Services
             // Message Tool
             ["message.live_preview"] = "پیش‌نمایش زنده",
             ["message.placeholder"] = "متن پیام را بنویسید...",
-            ["message.flash"] = "چشمک‌زن",
+            ["message.flash"] = "نمایش در ناچ",
             ["message.clear"] = "پاک کردن",
-            ["message.take_down"] = "حذف پیام",
+            ["message.take_down"] = "حذف پیام از ناچ",
             ["message.speed"] = "سرعت",
-            ["message.repeat"] = "تکرار تا حذف پیام",
+            ["message.speed.slow"] = "آهسته",
+            ["message.speed.normal"] = "معمولی",
+            ["message.speed.fast"] = "سریع",
+            ["message.repeat"] = "تکرار تا حذف دستی",
+            ["message.animation"] = "انیمیشن",
+            ["message.anim.slide"] = "اسلاید",
+            ["message.anim.fade"] = "محو شدن",
+            ["message.anim.typeon"] = "تایپ زنده",
+            ["message.anim.scroll"] = "طوماری",
+            ["message.anim.blur"] = "تاری",
+            ["message.anim.pulse"] = "ضربان",
+            ["message.color"] = "رنگ",
+            ["message.finish"] = "جنس روکش",
+            ["message.finish.solid"] = "ساده",
+            ["message.finish.silver"] = "نقره‌ای",
+            ["message.finish.ocean"] = "اقیانوس",
+            ["message.finish.aurora"] = "شفق قطبی",
+            ["message.duration"] = "مدت زمان",
+            ["message.shows_fmt"] = "نمایش {0} ثانیه",
+            ["message.pinned"] = "سنجاق‌شده",
+            ["message.custom"] = "سفارشی",
+            ["message.custom_sec"] = "ثانیه",
 
             // Notch Settings Page
             ["notch.title"] = "ناچ",
@@ -349,7 +389,8 @@ namespace WindowsBuddy.Services
             ["notch.closed.date.title"] = "تاریخ",
             ["notch.closed.date.desc"] = "نمایش روز و تاریخ در کنار ساعت (مثلاً Sat 3 · 9:41)",
             ["notch.closed.battery.title"] = "باتری",
-            ["notch.closed.battery.desc"] = "درصد شارژ و وضعیت اتصال به برق",
+            ["notch.closed.battery.desc"] = "نمایش درصد شارژ و اتصال به برق (در صورت غیرفعال بودن، ساعت در وسط ناچ قرار می‌گیرد)",
+            ["notch.closed.battery.desc_pc"] = "روی کامپیوتر رومیزی (بدون باتری) غیرفعال است؛ ساعت خودکار در وسط قرار می‌گیرد",
             ["notch.closed.nowplaying.title"] = "در حال پخش (Now playing)",
             ["notch.closed.nowplaying.desc"] = "نمایش کنترل‌های فشرده رسانه هنگام پخش موسیقی یا ویدیو",
             ["notch.closed.bt.title"] = "بلوتوث",
@@ -472,6 +513,9 @@ namespace WindowsBuddy.Services
 
             // System Tool
             ["system.battery"] = "Battery",
+            ["system.ac_power"] = "AC Power",
+            ["system.desktop_pc"] = "Desktop PC",
+            ["system.connected"] = "Connected",
             ["system.network"] = "Network",
             ["system.performance"] = "Performance",
             ["system.volume"] = "Volume",
@@ -577,7 +621,28 @@ namespace WindowsBuddy.Services
             ["message.clear"] = "Clear",
             ["message.take_down"] = "Take Down",
             ["message.speed"] = "Speed",
+            ["message.speed.slow"] = "Slow",
+            ["message.speed.normal"] = "Normal",
+            ["message.speed.fast"] = "Fast",
             ["message.repeat"] = "Repeat until taken down",
+            ["message.animation"] = "Animation",
+            ["message.anim.slide"] = "Slide",
+            ["message.anim.fade"] = "Fade",
+            ["message.anim.typeon"] = "Type-on",
+            ["message.anim.scroll"] = "Scroll",
+            ["message.anim.blur"] = "Blur",
+            ["message.anim.pulse"] = "Pulse",
+            ["message.color"] = "Colour",
+            ["message.finish"] = "Finish",
+            ["message.finish.solid"] = "Solid",
+            ["message.finish.silver"] = "Silver",
+            ["message.finish.ocean"] = "Ocean",
+            ["message.finish.aurora"] = "Aurora",
+            ["message.duration"] = "Duration",
+            ["message.shows_fmt"] = "Shows for {0}s",
+            ["message.pinned"] = "Pinned",
+            ["message.custom"] = "Custom",
+            ["message.custom_sec"] = "Seconds",
 
             // Notch Settings Page
             ["notch.title"] = "Notch",
@@ -656,7 +721,8 @@ namespace WindowsBuddy.Services
             ["notch.closed.date.title"] = "Date",
             ["notch.closed.date.desc"] = "Day and date next to the time, e.g. Sat 3 · 9:41",
             ["notch.closed.battery.title"] = "Battery",
-            ["notch.closed.battery.desc"] = "Level and charging",
+            ["notch.closed.battery.desc"] = "Battery level and charging status (when disabled, the clock moves to the center)",
+            ["notch.closed.battery.desc_pc"] = "Not available on Desktop PC (Clock is automatically centered)",
             ["notch.closed.nowplaying.title"] = "Now playing",
             ["notch.closed.nowplaying.desc"] = "Compact media controls while music or video plays",
             ["notch.closed.bt.title"] = "Bluetooth",

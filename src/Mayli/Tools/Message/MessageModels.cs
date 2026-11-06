@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
+using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Message
 {
@@ -38,7 +39,7 @@ namespace WindowsBuddy.Tools.Message
         public string CustomColorHex { get; set; } = "#FFFFFF";
         public MessageFinish Finish { get; set; } = MessageFinish.None;
         public MessageDurationMode Duration { get; set; } = MessageDurationMode.Sec5;
-        public int CustomDurationSeconds { get; set; } = 5;
+        public int CustomDurationSeconds { get; set; } = 15;
         public bool RepeatEnabled { get; set; } = false;
 
         [JsonIgnore]
@@ -53,14 +54,14 @@ namespace WindowsBuddy.Tools.Message
 
         [JsonIgnore]
         public string DurationLabel => RepeatEnabled
-            ? "Pinned"
+            ? LocalizationService.T("message.pinned", "Pinned")
             : Duration switch
             {
-                MessageDurationMode.Sec3 => "Shows for 3s",
-                MessageDurationMode.Sec5 => "Shows for 5s",
-                MessageDurationMode.Sec10 => "Shows for 10s",
-                MessageDurationMode.Custom => $"Shows for {CustomDurationSeconds}s",
-                _ => "Shows for 5s"
+                MessageDurationMode.Sec3 => string.Format(LocalizationService.T("message.shows_fmt", "Shows for {0}s"), 3),
+                MessageDurationMode.Sec5 => string.Format(LocalizationService.T("message.shows_fmt", "Shows for {0}s"), 5),
+                MessageDurationMode.Sec10 => string.Format(LocalizationService.T("message.shows_fmt", "Shows for {0}s"), 10),
+                MessageDurationMode.Custom => string.Format(LocalizationService.T("message.shows_fmt", "Shows for {0}s"), Math.Clamp(CustomDurationSeconds, 1, 300)),
+                _ => string.Format(LocalizationService.T("message.shows_fmt", "Shows for {0}s"), 5)
             };
 
         public MessageSettings Clone()

@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Weather
@@ -85,9 +86,12 @@ namespace WindowsBuddy.Tools.Weather
         #region Card 1: Current Weather
         private void BuildCurrentCard()
         {
+            var p = CapsuleTheme.Current;
             _currentCard = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(20, 20, 24)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(14, 12, 14, 12),
                 Margin = new Thickness(0, 0, 4, 0)
@@ -110,7 +114,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = "18°",
                 FontSize = 38,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Margin = new Thickness(0, 0, 0, 0)
             };
             topStack.Children.Add(_currentTempText);
@@ -120,7 +124,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = "Overcast",
                 FontSize = 14,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Margin = new Thickness(0, 1, 0, 2)
             };
             topStack.Children.Add(_currentConditionText);
@@ -129,7 +133,7 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Text = "H 25°  L 10° · Feels like 15°",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                Foreground = CapsuleTheme.Brush(p.Text2)
             };
             topStack.Children.Add(_currentHighLowText);
 
@@ -142,7 +146,7 @@ namespace WindowsBuddy.Tools.Weather
             var div = new Border
             {
                 Height = 1,
-                Background = new SolidColorBrush(Color.FromRgb(34, 34, 40)),
+                Background = CapsuleTheme.Brush(p.Border),
                 Margin = new Thickness(0, 10, 0, 8)
             };
             bottomStack.Children.Add(div);
@@ -151,7 +155,7 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Text = "Sunrise 6:19 · Sunset 5:13",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                Foreground = CapsuleTheme.Brush(p.Text2)
             };
             bottomStack.Children.Add(_currentSunText);
 
@@ -159,7 +163,7 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Text = "Updated 10:22",
                 FontSize = 10.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 2, 0, 0)
             };
             bottomStack.Children.Add(_currentUpdatedText);
@@ -176,9 +180,12 @@ namespace WindowsBuddy.Tools.Weather
         #region Card 2: Hourly Forecast
         private void BuildHourlyCard()
         {
+            var p = CapsuleTheme.Current;
             _hourlyCard = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(20, 20, 24)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(14, 12, 14, 12),
                 Margin = new Thickness(4, 0, 4, 0)
@@ -192,7 +199,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = LocalizationService.T("weather.hourly", "Hourly"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 0, 0, 4)
             };
             DockPanel.SetDock(header, Dock.Top);
@@ -204,7 +211,7 @@ namespace WindowsBuddy.Tools.Weather
             var div = new Border
             {
                 Height = 1,
-                Background = new SolidColorBrush(Color.FromRgb(34, 34, 40)),
+                Background = CapsuleTheme.Brush(p.Border),
                 Margin = new Thickness(0, 8, 0, 6)
             };
             bottomArea.Children.Add(div);
@@ -251,19 +258,20 @@ namespace WindowsBuddy.Tools.Weather
 
         private StackPanel CreateMetricBlock(string iconGlyph, string label, out TextBlock valBlock)
         {
+            var p = CapsuleTheme.Current;
             var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             var top = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
             top.Children.Add(new TextBlock
             {
                 Text = iconGlyph + " ",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                Foreground = CapsuleTheme.Brush(p.Text2)
             });
             top.Children.Add(new TextBlock
             {
                 Text = label,
                 FontSize = 9.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                Foreground = CapsuleTheme.Brush(p.Text2)
             });
             sp.Children.Add(top);
 
@@ -272,7 +280,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = "--",
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 2, 0, 0)
             };
@@ -284,9 +292,12 @@ namespace WindowsBuddy.Tools.Weather
         #region Card 3: 5-Day Forecast
         private void BuildForecastCard()
         {
+            var p = CapsuleTheme.Current;
             _forecastCard = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(20, 20, 24)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(14, 12, 14, 12),
                 Margin = new Thickness(4, 0, 0, 0)
@@ -299,7 +310,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = LocalizationService.T("weather.5day", "5-Day"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 0, 0, 6)
             };
             DockPanel.SetDock(header, Dock.Top);
@@ -317,17 +328,18 @@ namespace WindowsBuddy.Tools.Weather
         #region City Picker Screen
         private void BuildCityPickerView()
         {
+            var p = CapsuleTheme.Current;
             _pickerGrid = new Grid
             {
                 Visibility = Visibility.Collapsed,
-                Background = new SolidColorBrush(Color.FromRgb(14, 14, 18))
+                Background = new SolidColorBrush(Color.FromArgb(180, p.Bg.R, p.Bg.G, p.Bg.B))
             };
 
             var card = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(20, 20, 26)),
+                Background = CapsuleTheme.Brush(p.Surface),
                 CornerRadius = new CornerRadius(14),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 48)),
+                BorderBrush = CapsuleTheme.Brush(p.BorderStrong),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(20, 16, 20, 16),
                 Margin = new Thickness(10)
@@ -340,7 +352,7 @@ namespace WindowsBuddy.Tools.Weather
 
             var backBtn = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(32, 32, 40)),
+                Background = CapsuleTheme.Brush(p.Surface2),
                 CornerRadius = new CornerRadius(7),
                 Padding = new Thickness(10, 5, 10, 5),
                 Cursor = Cursors.Hand,
@@ -351,11 +363,11 @@ namespace WindowsBuddy.Tools.Weather
                 Text = "← " + LocalizationService.T("weather.back", "Back"),
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White
+                Foreground = CapsuleTheme.Brush(p.Text)
             };
             backBtn.Child = backText;
-            backBtn.MouseEnter += (_, _) => backBtn.Background = new SolidColorBrush(Color.FromRgb(45, 45, 56));
-            backBtn.MouseLeave += (_, _) => backBtn.Background = new SolidColorBrush(Color.FromRgb(32, 32, 40));
+            backBtn.MouseEnter += (_, _) => backBtn.Background = CapsuleTheme.Brush(p.Surface3);
+            backBtn.MouseLeave += (_, _) => backBtn.Background = CapsuleTheme.Brush(p.Surface2);
             backBtn.MouseLeftButtonUp += (_, _) => HideCityPicker();
             DockPanel.SetDock(backBtn, Dock.Left);
             topBar.Children.Add(backBtn);
@@ -366,7 +378,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = LocalizationService.T("weather.select_city", "Select City"),
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = CapsuleTheme.Brush(p.Text)
             });
             topBar.Children.Add(titleStack);
 
@@ -378,8 +390,8 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Height = 34,
                 CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(Color.FromRgb(26, 26, 34)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(50, 50, 62)),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10, 0, 8, 0),
                 Margin = new Thickness(0, 0, 0, 12)
@@ -391,7 +403,7 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Text = "🔍",
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             };
@@ -403,7 +415,7 @@ namespace WindowsBuddy.Tools.Weather
                 Width = 20,
                 Height = 20,
                 CornerRadius = new CornerRadius(10),
-                Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.Surface3),
                 Cursor = Cursors.Hand,
                 Visibility = Visibility.Collapsed,
                 VerticalAlignment = VerticalAlignment.Center
@@ -412,7 +424,7 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Text = "✕",
                 FontSize = 9.5,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -430,7 +442,7 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Text = LocalizationService.T("weather.search_city", "Search city (e.g. Isfahan, Tehran, London, Tokyo, New York...)"),
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 128)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
@@ -440,9 +452,9 @@ namespace WindowsBuddy.Tools.Weather
             {
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 FontSize = 12.5,
-                CaretBrush = Brushes.White,
+                CaretBrush = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
             _searchBox.TextChanged += OnSearchTextChanged;
@@ -460,7 +472,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = LocalizationService.T("weather.popular", "POPULAR & RECENT CITIES"),
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(2, 0, 0, 6)
             };
             DockPanel.SetDock(listHeader, Dock.Top);
@@ -519,6 +531,7 @@ namespace WindowsBuddy.Tools.Weather
 
         private void PopulateCityPills(List<GeocodedCity> cities)
         {
+            var p = CapsuleTheme.Current;
             _citiesWrapPanel.Children.Clear();
             if (cities == null || cities.Count == 0)
             {
@@ -526,7 +539,7 @@ namespace WindowsBuddy.Tools.Weather
                 {
                     Text = LocalizationService.T("weather.no_cities", "No cities found. Try another search term."),
                     FontSize = 12,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     Margin = new Thickness(6, 12, 0, 0)
                 });
                 return;
@@ -536,7 +549,9 @@ namespace WindowsBuddy.Tools.Weather
             {
                 var pill = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 38)),
+                    Background = CapsuleTheme.Brush(p.Surface2),
+                    BorderBrush = CapsuleTheme.Brush(p.Border),
+                    BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(12, 7, 12, 7),
                     Margin = new Thickness(4),
@@ -549,7 +564,7 @@ namespace WindowsBuddy.Tools.Weather
                     Text = city.Name,
                     FontSize = 12,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = Brushes.White
+                    Foreground = CapsuleTheme.Brush(p.Text)
                 });
 
                 string extra = !string.IsNullOrEmpty(city.Country) ? $" · {city.Country}" : "";
@@ -557,14 +572,14 @@ namespace WindowsBuddy.Tools.Weather
                 {
                     Text = extra,
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     Margin = new Thickness(2, 0, 0, 0)
                 });
 
                 pill.Child = sp;
 
-                pill.MouseEnter += (_, _) => pill.Background = new SolidColorBrush(Color.FromRgb(48, 48, 62));
-                pill.MouseLeave += (_, _) => pill.Background = new SolidColorBrush(Color.FromRgb(30, 30, 38));
+                pill.MouseEnter += (_, _) => pill.Background = CapsuleTheme.Brush(p.Surface3);
+                pill.MouseLeave += (_, _) => pill.Background = CapsuleTheme.Brush(p.Surface2);
 
                 var captured = city;
                 pill.MouseLeftButtonUp += (_, _) =>
@@ -607,12 +622,13 @@ namespace WindowsBuddy.Tools.Weather
                 var h = data.Hourly[i];
                 var col = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
 
+                var p = CapsuleTheme.Current;
                 col.Children.Add(new TextBlock
                 {
                     Text = h.Time,
                     FontSize = 10,
                     FontWeight = i == 0 ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = i == 0 ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = i == 0 ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 0, 0, 4)
                 });
@@ -623,7 +639,7 @@ namespace WindowsBuddy.Tools.Weather
                 {
                     Text = _service.FormatTemp(h.Temp),
                     FontSize = 11.5,
-                    Foreground = Brushes.White,
+                    Foreground = CapsuleTheme.Brush(p.Text),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 4, 0, 0)
                 });
@@ -661,6 +677,7 @@ namespace WindowsBuddy.Tools.Weather
 
         private void DrawHourlyCurveChart(List<HourlyForecast> hours)
         {
+            var p = CapsuleTheme.Current;
             _hourlyChartCanvas.Children.Clear();
             if (hours == null || hours.Count < 2) return;
 
@@ -709,8 +726,8 @@ namespace WindowsBuddy.Tools.Weather
                 StartPoint = new Point(0, 0),
                 EndPoint = new Point(0, 1)
             };
-            areaBrush.GradientStops.Add(new GradientStop(Color.FromArgb(170, 72, 36, 22), 0.0));
-            areaBrush.GradientStops.Add(new GradientStop(Color.FromArgb(20, 24, 18, 16), 1.0));
+            areaBrush.GradientStops.Add(new GradientStop(Color.FromArgb(80, p.Accent.R, p.Accent.G, p.Accent.B), 0.0));
+            areaBrush.GradientStops.Add(new GradientStop(Colors.Transparent, 1.0));
 
             var areaPath = new Path
             {
@@ -738,7 +755,7 @@ namespace WindowsBuddy.Tools.Weather
             var linePath = new Path
             {
                 Data = lineGeom,
-                Stroke = Brushes.White,
+                Stroke = CapsuleTheme.Brush(p.Accent),
                 StrokeThickness = 2.0,
                 StrokeStartLineCap = PenLineCap.Round,
                 StrokeEndLineCap = PenLineCap.Round
@@ -752,7 +769,7 @@ namespace WindowsBuddy.Tools.Weather
                 {
                     Width = 5,
                     Height = 5,
-                    Fill = Brushes.White
+                    Fill = CapsuleTheme.Brush(p.Accent)
                 };
                 Canvas.SetLeft(dot, points[i].X - 2.5);
                 Canvas.SetTop(dot, points[i].Y - 2.5);
@@ -762,6 +779,7 @@ namespace WindowsBuddy.Tools.Weather
 
         private UIElement CreateDailyRow(DailyForecast day, double globalMin, double globalMax, double currentTemp)
         {
+            var p = CapsuleTheme.Current;
             var dock = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
 
             // Day Name
@@ -770,7 +788,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = day.DayName,
                 FontSize = 12,
                 FontWeight = string.Equals(day.DayName, "Today", StringComparison.OrdinalIgnoreCase) ? FontWeights.SemiBold : FontWeights.Normal,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Width = 40,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -794,7 +812,7 @@ namespace WindowsBuddy.Tools.Weather
                 Text = _service.FormatTemp(day.MaxTemp),
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Width = 28,
                 TextAlignment = TextAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center

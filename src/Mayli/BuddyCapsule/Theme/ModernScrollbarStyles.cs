@@ -10,47 +10,60 @@ namespace WindowsBuddy.BuddyCapsule.Theme
 {
     public static class ModernScrollbarStyles
     {
-        private static bool _applied = false;
+        private static ResourceDictionary _currentDict = null;
 
         public static void ApplyToApplication(Application app)
         {
-            if (_applied || app == null) return;
+            if (app == null) return;
+            UpdateStyles(app);
+            CapsuleTheme.ThemeChanged += () =>
+            {
+                app.Dispatcher.InvokeAsync(() => UpdateStyles(app));
+            };
+        }
 
+        private static void UpdateStyles(Application app)
+        {
             try
             {
-                const string xaml = @"
+                bool isLight = CapsuleTheme.Current.IsLight;
+                string thumbBase = isLight ? "#38000000" : "#38FFFFFF";
+                string thumbHover = isLight ? "#70000000" : "#70FFFFFF";
+                string thumbDrag = isLight ? "#A0000000" : "#A0FFFFFF";
+
+                string xaml = $@"
 <ResourceDictionary xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation""
                     xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml"">
-    <Style x:Key=""ModernScrollBarPageButton"" TargetType=""{x:Type RepeatButton}"">
+    <Style x:Key=""ModernScrollBarPageButton"" TargetType=""{{x:Type RepeatButton}}"">
         <Setter Property=""OverridesDefaultStyle"" Value=""true"" />
         <Setter Property=""Background"" Value=""Transparent"" />
         <Setter Property=""Focusable"" Value=""false"" />
         <Setter Property=""IsTabStop"" Value=""false"" />
         <Setter Property=""Template"">
             <Setter.Value>
-                <ControlTemplate TargetType=""{x:Type RepeatButton}"">
-                    <Rectangle Fill=""{TemplateBinding Background}"" Height=""{TemplateBinding Height}"" Width=""{TemplateBinding Width}"" />
+                <ControlTemplate TargetType=""{{x:Type RepeatButton}}"">
+                    <Rectangle Fill=""{{TemplateBinding Background}}"" Height=""{{TemplateBinding Height}}"" Width=""{{TemplateBinding Width}}"" />
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
-    <Style x:Key=""ModernScrollBarThumb"" TargetType=""{x:Type Thumb}"">
+    <Style x:Key=""ModernScrollBarThumb"" TargetType=""{{x:Type Thumb}}"">
         <Setter Property=""OverridesDefaultStyle"" Value=""true"" />
         <Setter Property=""IsTabStop"" Value=""false"" />
         <Setter Property=""Template"">
             <Setter.Value>
-                <ControlTemplate TargetType=""{x:Type Thumb}"">
+                <ControlTemplate TargetType=""{{x:Type Thumb}}"">
                     <Border x:Name=""ThumbBorder""
-                            Background=""#38FFFFFF""
+                            Background=""{thumbBase}""
                             CornerRadius=""2.5""
                             Margin=""0"" />
                     <ControlTemplate.Triggers>
                         <Trigger Property=""IsMouseOver"" Value=""true"">
-                            <Setter TargetName=""ThumbBorder"" Property=""Background"" Value=""#70FFFFFF"" />
+                            <Setter TargetName=""ThumbBorder"" Property=""Background"" Value=""{thumbHover}"" />
                         </Trigger>
                         <Trigger Property=""IsDragging"" Value=""true"">
-                            <Setter TargetName=""ThumbBorder"" Property=""Background"" Value=""#A0FFFFFF"" />
+                            <Setter TargetName=""ThumbBorder"" Property=""Background"" Value=""{thumbDrag}"" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -58,7 +71,7 @@ namespace WindowsBuddy.BuddyCapsule.Theme
         </Setter>
     </Style>
 
-    <Style TargetType=""{x:Type ScrollBar}"">
+    <Style TargetType=""{{x:Type ScrollBar}}"">
         <Setter Property=""OverridesDefaultStyle"" Value=""true"" />
         <Setter Property=""SnapsToDevicePixels"" Value=""true"" />
         <Setter Property=""Background"" Value=""Transparent"" />
@@ -69,17 +82,17 @@ namespace WindowsBuddy.BuddyCapsule.Theme
                 <Setter Property=""MaxWidth"" Value=""5"" />
                 <Setter Property=""Template"">
                     <Setter.Value>
-                        <ControlTemplate TargetType=""{x:Type ScrollBar}"">
+                        <ControlTemplate TargetType=""{{x:Type ScrollBar}}"">
                             <Grid Background=""Transparent"" SnapsToDevicePixels=""true"">
                                 <Track x:Name=""PART_Track"" IsDirectionReversed=""true"">
                                     <Track.DecreaseRepeatButton>
-                                        <RepeatButton Style=""{StaticResource ModernScrollBarPageButton}"" Command=""{x:Static ScrollBar.PageUpCommand}"" />
+                                        <RepeatButton Style=""{{StaticResource ModernScrollBarPageButton}}"" Command=""{{x:Static ScrollBar.PageUpCommand}}"" />
                                     </Track.DecreaseRepeatButton>
                                     <Track.Thumb>
-                                        <Thumb Style=""{StaticResource ModernScrollBarThumb}"" />
+                                        <Thumb Style=""{{StaticResource ModernScrollBarThumb}}"" />
                                     </Track.Thumb>
                                     <Track.IncreaseRepeatButton>
-                                        <RepeatButton Style=""{StaticResource ModernScrollBarPageButton}"" Command=""{x:Static ScrollBar.PageDownCommand}"" />
+                                        <RepeatButton Style=""{{StaticResource ModernScrollBarPageButton}}"" Command=""{{x:Static ScrollBar.PageDownCommand}}"" />
                                     </Track.IncreaseRepeatButton>
                                 </Track>
                             </Grid>
@@ -93,17 +106,17 @@ namespace WindowsBuddy.BuddyCapsule.Theme
                 <Setter Property=""MaxHeight"" Value=""5"" />
                 <Setter Property=""Template"">
                     <Setter.Value>
-                        <ControlTemplate TargetType=""{x:Type ScrollBar}"">
+                        <ControlTemplate TargetType=""{{x:Type ScrollBar}}"">
                             <Grid Background=""Transparent"" SnapsToDevicePixels=""true"">
                                 <Track x:Name=""PART_Track"" IsDirectionReversed=""false"">
                                     <Track.DecreaseRepeatButton>
-                                        <RepeatButton Style=""{StaticResource ModernScrollBarPageButton}"" Command=""{x:Static ScrollBar.PageLeftCommand}"" />
+                                        <RepeatButton Style=""{{StaticResource ModernScrollBarPageButton}}"" Command=""{{x:Static ScrollBar.PageLeftCommand}}"" />
                                     </Track.DecreaseRepeatButton>
                                     <Track.Thumb>
-                                        <Thumb Style=""{StaticResource ModernScrollBarThumb}"" />
+                                        <Thumb Style=""{{StaticResource ModernScrollBarThumb}}"" />
                                     </Track.Thumb>
                                     <Track.IncreaseRepeatButton>
-                                        <RepeatButton Style=""{StaticResource ModernScrollBarPageButton}"" Command=""{x:Static ScrollBar.PageRightCommand}"" />
+                                        <RepeatButton Style=""{{StaticResource ModernScrollBarPageButton}}"" Command=""{{x:Static ScrollBar.PageRightCommand}}"" />
                                     </Track.IncreaseRepeatButton>
                                 </Track>
                             </Grid>
@@ -118,8 +131,12 @@ namespace WindowsBuddy.BuddyCapsule.Theme
                 using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xaml));
                 if (XamlReader.Load(stream) is ResourceDictionary dict)
                 {
+                    if (_currentDict != null)
+                    {
+                        app.Resources.MergedDictionaries.Remove(_currentDict);
+                    }
+                    _currentDict = dict;
                     app.Resources.MergedDictionaries.Add(dict);
-                    _applied = true;
                 }
             }
             catch (Exception ex)

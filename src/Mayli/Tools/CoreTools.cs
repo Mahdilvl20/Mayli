@@ -25,6 +25,7 @@ namespace WindowsBuddy.Tools
         string IconGlyph { get; }
         FrameworkElement BuildView();
         void OnActivated();
+        void InvalidateView();
     }
 
     public static class ToolRegistry
@@ -32,6 +33,19 @@ namespace WindowsBuddy.Tools
         private static readonly List<IBuddyTool> _tools = new();
         public static IReadOnlyList<IBuddyTool> All => _tools;
         public static Action<string> OnToolNavigationRequested;
+
+        static ToolRegistry()
+        {
+            CapsuleTheme.ThemeChanged += InvalidateAllViews;
+        }
+
+        public static void InvalidateAllViews()
+        {
+            foreach (var tool in _tools)
+            {
+                try { tool.InvalidateView(); } catch { }
+            }
+        }
 
         public static void RegisterDefaults()
         {
@@ -1077,6 +1091,8 @@ namespace WindowsBuddy.Tools
         {
             RefreshAllCards();
         }
+
+        public void InvalidateView() { }
     }
 
     /// <summary>
@@ -1098,6 +1114,7 @@ namespace WindowsBuddy.Tools
         }
 
         public void OnActivated() { }
+        public void InvalidateView() => _view = null;
     }
 
     internal static class ToolViewLifecycleHelper
@@ -1144,7 +1161,12 @@ namespace WindowsBuddy.Tools
             return _view;
         }
 
-        public void OnActivated() { }
+        public void OnActivated()
+        {
+            _view?.OnActivated();
+        }
+
+        public void InvalidateView() => _view = null;
     }
 
     /// <summary>
@@ -1176,6 +1198,8 @@ namespace WindowsBuddy.Tools
             WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
             _view?.RefreshList();
         }
+
+        public void InvalidateView() => _view = null;
     }
 
     /// <summary>
@@ -1200,6 +1224,8 @@ namespace WindowsBuddy.Tools
         {
             _view?.RefreshList();
         }
+
+        public void InvalidateView() => _view = null;
     }
 
     /// <summary>
@@ -1229,6 +1255,8 @@ namespace WindowsBuddy.Tools
         {
             _view?.UpdateVisuals();
         }
+
+        public void InvalidateView() => _view = null;
     }
 
     #region Supplementary Dock Tools for the 18 Dock Icons
@@ -1255,6 +1283,8 @@ namespace WindowsBuddy.Tools
         {
             _view?.RefreshAllMetrics();
         }
+
+        public void InvalidateView() => _view = null;
     }
 
     public sealed class ClockTool : IBuddyTool
@@ -1270,6 +1300,7 @@ namespace WindowsBuddy.Tools
             return _view;
         }
         public void OnActivated() { }
+        public void InvalidateView() => _view = null;
     }
 
     public sealed class CalendarTool : IBuddyTool
@@ -1288,6 +1319,7 @@ namespace WindowsBuddy.Tools
             return card;
         }
         public void OnActivated() { }
+        public void InvalidateView() { }
     }
 
     public sealed class TransferTool : IBuddyTool
@@ -1303,6 +1335,7 @@ namespace WindowsBuddy.Tools
             return _view;
         }
         public void OnActivated() { }
+        public void InvalidateView() => _view = null;
     }
 
     public sealed class QuickToolsTool : IBuddyTool
@@ -1317,7 +1350,11 @@ namespace WindowsBuddy.Tools
             ToolViewLifecycleHelper.DetachFromParent(_view);
             return _view;
         }
-        public void OnActivated() { }
+        public void OnActivated()
+        {
+            _view?.OnActivated();
+        }
+        public void InvalidateView() => _view = null;
     }
 
     /// <summary>
@@ -1336,6 +1373,7 @@ namespace WindowsBuddy.Tools
             return _view;
         }
         public void OnActivated() { }
+        public void InvalidateView() => _view = null;
     }
 
     public sealed class AudioTool : IBuddyTool
@@ -1361,6 +1399,7 @@ namespace WindowsBuddy.Tools
             return _card;
         }
         public void OnActivated() { }
+        public void InvalidateView() => _card = null;
     }
 
     public sealed class PetCompanionTool : IBuddyTool
@@ -1450,6 +1489,7 @@ namespace WindowsBuddy.Tools
             return _card;
         }
         public void OnActivated() { }
+        public void InvalidateView() => _card = null;
     }
 
     #endregion

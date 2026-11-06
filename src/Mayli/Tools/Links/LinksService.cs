@@ -20,6 +20,18 @@ namespace WindowsBuddy.Tools.Links
         public List<LinksBookmark> Bookmarks { get; private set; } = new();
         public List<SearchEngineItem> Engines { get; private set; } = new();
         public string SelectedEngine { get; set; } = "Google";
+        public string ActiveCategory { get; set; } = "All";
+
+        public static readonly string[] Categories = new[]
+        {
+            "All",
+            "📌 Pinned",
+            "💻 Dev",
+            "💼 Work",
+            "🎬 Media",
+            "💬 Social",
+            "🌐 General"
+        };
 
         private LinksService()
         {
@@ -32,11 +44,13 @@ namespace WindowsBuddy.Tools.Links
             Engines = new List<SearchEngineItem>
             {
                 new SearchEngineItem { Name = "Google", SearchUrl = "https://www.google.com/search?q={0}", Domain = "google.com", IconGlyph = "G" },
+                new SearchEngineItem { Name = "DuckDuckGo", SearchUrl = "https://duckduckgo.com/?q={0}", Domain = "duckduckgo.com", IconGlyph = "🦆" },
+                new SearchEngineItem { Name = "Bing", SearchUrl = "https://www.bing.com/search?q={0}", Domain = "bing.com", IconGlyph = "b" },
                 new SearchEngineItem { Name = "YouTube", SearchUrl = "https://www.youtube.com/results?search_query={0}", Domain = "youtube.com", IconGlyph = "▶" },
                 new SearchEngineItem { Name = "GitHub", SearchUrl = "https://github.com/search?q={0}", Domain = "github.com", IconGlyph = "🐈" },
-                new SearchEngineItem { Name = "Stack Overflow", SearchUrl = "https://stackoverflow.com/search?q={0}", Domain = "stackoverflow.com", IconGlyph = "📚" },
                 new SearchEngineItem { Name = "ChatGPT", SearchUrl = "https://chatgpt.com/?q={0}", Domain = "chatgpt.com", IconGlyph = "✻" },
-                new SearchEngineItem { Name = "Perplexity", SearchUrl = "https://www.perplexity.ai/search?q={0}", Domain = "perplexity.ai", IconGlyph = "✳" }
+                new SearchEngineItem { Name = "Perplexity", SearchUrl = "https://www.perplexity.ai/search?q={0}", Domain = "perplexity.ai", IconGlyph = "✳" },
+                new SearchEngineItem { Name = "Wikipedia", SearchUrl = "https://en.wikipedia.org/wiki/Special:Search?search={0}", Domain = "wikipedia.org", IconGlyph = "W" }
             };
         }
 
@@ -50,9 +64,19 @@ namespace WindowsBuddy.Tools.Links
                     if (saved != null && saved.Bookmarks != null && saved.Bookmarks.Count > 0)
                     {
                         Bookmarks = saved.Bookmarks;
+                        Bookmarks.RemoveAll(b => (b.Name != null && b.Name.StartsWith("may", StringComparison.OrdinalIgnoreCase)) ||
+                                                 (b.Url != null && b.Url.Contains("mayli", StringComparison.OrdinalIgnoreCase)));
+                        if (Bookmarks.Count == 0)
+                        {
+                            InitDefaults();
+                        }
                         if (!string.IsNullOrEmpty(saved.SelectedEngine))
                         {
                             SelectedEngine = saved.SelectedEngine;
+                        }
+                        if (!string.IsNullOrEmpty(saved.ActiveCategory))
+                        {
+                            ActiveCategory = saved.ActiveCategory;
                         }
                     }
                     else
@@ -74,19 +98,15 @@ namespace WindowsBuddy.Tools.Links
                 new LinksBookmark
                 {
                     Id = Guid.NewGuid().ToString("N"),
-                    Name = "mayli.in",
-                    Url = "https://mayli.in",
-                    Pinned = true
-                },
-                new LinksBookmark
-                {
-                    Id = Guid.NewGuid().ToString("N"),
-                    Name = "github.com",
+                    Name = "GitHub",
                     Url = "https://github.com",
-                    Pinned = true
+                    Category = "💻 Dev",
+                    Pinned = true,
+                    AddedAt = DateTime.Now
                 }
             };
             SelectedEngine = "Google";
+            ActiveCategory = "All";
             Save();
         }
 
@@ -99,6 +119,7 @@ namespace WindowsBuddy.Tools.Links
                     var dto = new LinksStorageDto
                     {
                         SelectedEngine = SelectedEngine,
+                        ActiveCategory = ActiveCategory,
                         Bookmarks = Bookmarks
                     };
                     PersistenceHelper.SafeWriteJson(PrefsFileName, dto);
@@ -120,6 +141,16 @@ namespace WindowsBuddy.Tools.Links
             }
         }
 
+        public void SetActiveCategory(string category)
+        {
+            lock (_lock)
+            {
+                ActiveCategory = category;
+                Save();
+                StateChanged?.Invoke();
+            }
+        }
+
         public void PerformSearch(string query)
         {
             if (string.IsNullOrWhiteSpace(query))
@@ -134,34 +165,78 @@ namespace WindowsBuddy.Tools.Links
             OpenUrl(url);
         }
 
-        public void AddBookmark(string name, string url)
+        public void AddBookmark(string name, string url, string category = "🌐 General", bool pinned = false)
         {
             if (string.IsNullOrWhiteSpace(url)) return;
 
-            string normalizedUrl = url.Trim();
-            if (!normalizedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-                !normalizedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                normalizedUrl = "https://" + normalizedUrl;
-            }
-
-            string cleanName = string.IsNullOrWhiteSpace(name) ? Path.GetFileName(normalizedUrl) : name.Trim();
-            if (string.IsNullOrEmpty(cleanName))
-            {
-                try { cleanName = new Uri(normalizedUrl).Host; } catch { cleanName = normalizedUrl; }
-            }
+            string normalizedUrl = NormalizeUrl(url);
+            string cleanName = CleanTitle(name, normalizedUrl);
 
             lock (_lock)
             {
-                Bookmarks.Add(new LinksBookmark
+                Bookmarks.Insert(0, new LinksBookmark
                 {
                     Id = Guid.NewGuid().ToString("N"),
                     Name = cleanName,
                     Url = normalizedUrl,
+                    Category = string.IsNullOrWhiteSpace(category) ? "🌐 General" : category,
+                    Pinned = pinned,
                     AddedAt = DateTime.Now
                 });
                 Save();
                 StateChanged?.Invoke();
+            }
+        }
+
+        public void UpdateBookmark(string id, string name, string url, string category, bool pinned)
+        {
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(url)) return;
+
+            string normalizedUrl = NormalizeUrl(url);
+            string cleanName = CleanTitle(name, normalizedUrl);
+
+            lock (_lock)
+            {
+                var item = Bookmarks.FirstOrDefault(b => string.Equals(b.Id, id, StringComparison.OrdinalIgnoreCase));
+                if (item != null)
+                {
+                    item.Name = cleanName;
+                    item.Url = normalizedUrl;
+                    item.Category = string.IsNullOrWhiteSpace(category) ? "🌐 General" : category;
+                    item.Pinned = pinned;
+                    Save();
+                    StateChanged?.Invoke();
+                }
+            }
+        }
+
+        public void TogglePin(string id)
+        {
+            lock (_lock)
+            {
+                var item = Bookmarks.FirstOrDefault(b => string.Equals(b.Id, id, StringComparison.OrdinalIgnoreCase));
+                if (item != null)
+                {
+                    item.Pinned = !item.Pinned;
+                    Save();
+                    StateChanged?.Invoke();
+                }
+            }
+        }
+
+        public void RecordVisit(string id)
+        {
+            lock (_lock)
+            {
+                var item = Bookmarks.FirstOrDefault(b => string.Equals(b.Id, id, StringComparison.OrdinalIgnoreCase));
+                if (item != null)
+                {
+                    item.VisitCount++;
+                    Save();
+                    OpenUrl(item.Url);
+                    StateChanged?.Invoke();
+                    return;
+                }
             }
         }
 
@@ -176,6 +251,67 @@ namespace WindowsBuddy.Tools.Links
                     Save();
                     StateChanged?.Invoke();
                 }
+            }
+        }
+
+        public List<LinksBookmark> GetFilteredBookmarks(string query, string category)
+        {
+            IEnumerable<LinksBookmark> list = Bookmarks;
+
+            // Category filter
+            if (!string.IsNullOrWhiteSpace(category) && !string.Equals(category, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                if (category.Contains("Pinned", StringComparison.OrdinalIgnoreCase))
+                {
+                    list = list.Where(b => b.Pinned);
+                }
+                else
+                {
+                    list = list.Where(b => string.Equals(b.Category, category, StringComparison.OrdinalIgnoreCase)
+                                        || b.Category.Contains(category, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            // Search query filter
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                string q = query.Trim().ToLowerInvariant();
+                list = list.Where(b => (b.Name != null && b.Name.ToLowerInvariant().Contains(q))
+                                    || (b.Url != null && b.Url.ToLowerInvariant().Contains(q))
+                                    || (b.Domain != null && b.Domain.ToLowerInvariant().Contains(q)));
+            }
+
+            // Order: Pinned first, then VisitCount desc, then AddedAt desc
+            return list.OrderByDescending(b => b.Pinned)
+                       .ThenByDescending(b => b.VisitCount)
+                       .ThenByDescending(b => b.AddedAt)
+                       .ToList();
+        }
+
+        private static string NormalizeUrl(string url)
+        {
+            string trimmed = url.Trim();
+            if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "https://" + trimmed;
+            }
+            return trimmed;
+        }
+
+        private static string CleanTitle(string name, string url)
+        {
+            if (!string.IsNullOrWhiteSpace(name)) return name.Trim();
+            try
+            {
+                var uri = new Uri(url);
+                string host = uri.Host.ToLowerInvariant();
+                if (host.StartsWith("www.")) host = host.Substring(4);
+                return host;
+            }
+            catch
+            {
+                return url;
             }
         }
 

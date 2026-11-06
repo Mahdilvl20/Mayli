@@ -73,6 +73,25 @@ namespace WindowsBuddy.Tools.Message
             });
         }
 
+        public void UpdateLive(MessageSettings settings)
+        {
+            lock (_lock)
+            {
+                Settings = settings.Clone();
+                IsPinned = Settings.RepeatEnabled;
+                Save();
+            }
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                if (IsLive)
+                {
+                    FlashRequested?.Invoke(Settings);
+                }
+                StateChanged?.Invoke();
+            });
+        }
+
         public void UpdateSettings(MessageSettings settings)
         {
             lock (_lock)

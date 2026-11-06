@@ -29,7 +29,6 @@ namespace WindowsBuddy.Tools.Units
         public List<Unit> Units { get; set; } = new();
 
         public bool IsTemperature => string.Equals(Name, "Temperature", StringComparison.OrdinalIgnoreCase);
-        public bool IsCurrency => string.Equals(Name, "Currency", StringComparison.OrdinalIgnoreCase);
 
         public Unit Find(string symbol)
         {
@@ -49,11 +48,25 @@ namespace WindowsBuddy.Tools.Units
         public string DisplayText => $"{InputValue} {FromSymbol} → {ResultText} {ToSymbol}";
     }
 
+    public sealed class UnitPairState
+    {
+        public string From { get; set; } = string.Empty;
+        public string To { get; set; } = string.Empty;
+
+        public UnitPairState() { }
+
+        public UnitPairState(string from, string to)
+        {
+            From = from ?? string.Empty;
+            To = to ?? string.Empty;
+        }
+    }
+
     public sealed class UnitsState
     {
         public string Category { get; set; } = "Length";
         public decimal Value { get; set; } = 1m;
-        public Dictionary<string, (string from, string to)> Pairs { get; set; } = new();
+        public Dictionary<string, UnitPairState> Pairs { get; set; } = new();
         public List<RecentConversion> Recents { get; set; } = new();
     }
 }

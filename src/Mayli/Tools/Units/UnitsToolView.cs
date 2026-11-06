@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.Services;
 
 namespace WindowsBuddy.Tools.Units
@@ -35,14 +36,31 @@ namespace WindowsBuddy.Tools.Units
         private StackPanel _commonEquivalentsPanel;
         private TextBlock _recentText;
 
+        private bool _isUpdatingTextInternally;
+
         public UnitsToolView()
         {
             FlowDirection = LocalizationService.CurrentFlowDirection;
             BuildUI();
 
+            Loaded += (_, _) =>
+            {
+                _service.StateChanged -= OnStateChanged;
+                _service.StateChanged += OnStateChanged;
+                RefreshUI();
+            };
+
+            Unloaded += (_, _) =>
+            {
+                _service.StateChanged -= OnStateChanged;
+            };
+        }
+
+        public void OnActivated()
+        {
+            _service.StateChanged -= OnStateChanged;
             _service.StateChanged += OnStateChanged;
-            Loaded += (_, _) => RefreshUI();
-            Unloaded += (_, _) => _service.StateChanged -= OnStateChanged;
+            RefreshUI();
         }
 
         private void BuildUI()
@@ -56,6 +74,7 @@ namespace WindowsBuddy.Tools.Units
             _categoriesPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             sidebar.Children.Add(_categoriesPanel);
 
+            var p = CapsuleTheme.Current;
             Grid.SetColumn(sidebar, 0);
             Children.Add(sidebar);
 
@@ -63,7 +82,7 @@ namespace WindowsBuddy.Tools.Units
             var vDivider = new Border
             {
                 Width = 1,
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 38)),
+                Background = CapsuleTheme.Brush(p.Border),
                 VerticalAlignment = VerticalAlignment.Stretch
             };
             Grid.SetColumn(vDivider, 1);
@@ -83,7 +102,7 @@ namespace WindowsBuddy.Tools.Units
             {
                 Text = LocalizationService.T("units.from", "From"),
                 FontSize = 10.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 0, 0, 2)
             };
             fromBlock.Children.Add(fromLabel);
@@ -99,10 +118,10 @@ namespace WindowsBuddy.Tools.Units
                 Text = "1",
                 FontSize = 30,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                CaretBrush = Brushes.White,
+                CaretBrush = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
             _fromInputBox.TextChanged += OnInputTextChanged;
@@ -117,7 +136,7 @@ namespace WindowsBuddy.Tools.Units
             var hLine = new Border
             {
                 Height = 1,
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 38)),
+                Background = CapsuleTheme.Brush(p.Border),
                 VerticalAlignment = VerticalAlignment.Center
             };
             swapGrid.Children.Add(hLine);
@@ -127,8 +146,8 @@ namespace WindowsBuddy.Tools.Units
                 Width = 26,
                 Height = 26,
                 CornerRadius = new CornerRadius(13),
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 38)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(48, 48, 58)),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 Cursor = Cursors.Hand,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -138,14 +157,18 @@ namespace WindowsBuddy.Tools.Units
             {
                 Text = "⇅",
                 FontSize = 12,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             swapBtn.Child = swapTxt;
-            swapBtn.MouseEnter += (_, _) => swapBtn.Background = new SolidColorBrush(Color.FromRgb(46, 46, 58));
-            swapBtn.MouseLeave += (_, _) => swapBtn.Background = new SolidColorBrush(Color.FromRgb(30, 30, 38));
-            swapBtn.MouseLeftButtonUp += (_, _) => _service.Swap();
+            swapBtn.MouseEnter += (_, _) => swapBtn.Background = CapsuleTheme.Brush(p.Surface3);
+            swapBtn.MouseLeave += (_, _) => swapBtn.Background = CapsuleTheme.Brush(p.Surface2);
+            swapBtn.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                _service.Swap();
+            };
 
             swapGrid.Children.Add(swapBtn);
             Grid.SetRow(swapGrid, 1);
@@ -157,7 +180,7 @@ namespace WindowsBuddy.Tools.Units
             {
                 Text = LocalizationService.T("units.to", "To"),
                 FontSize = 10.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 0, 0, 2)
             };
             toBlock.Children.Add(toLabel);
@@ -174,7 +197,7 @@ namespace WindowsBuddy.Tools.Units
                 Text = "3.28084",
                 FontSize = 30,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
             toLeftSp.Children.Add(_toResultText);
@@ -193,14 +216,18 @@ namespace WindowsBuddy.Tools.Units
             {
                 Text = "⎘",
                 FontSize = 13,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             _copyResultBtn.Child = _copyGlyph;
-            _copyResultBtn.MouseEnter += (_, _) => _copyGlyph.Foreground = Brushes.White;
-            _copyResultBtn.MouseLeave += (_, _) => _copyGlyph.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
-            _copyResultBtn.MouseLeftButtonUp += (_, _) => CopyResultToClipboard();
+            _copyResultBtn.MouseEnter += (_, _) => _copyGlyph.Foreground = CapsuleTheme.Brush(p.Text);
+            _copyResultBtn.MouseLeave += (_, _) => _copyGlyph.Foreground = CapsuleTheme.Brush(p.Text2);
+            _copyResultBtn.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                CopyResultToClipboard();
+            };
 
             toLeftSp.Children.Add(_copyResultBtn);
             toRow.Children.Add(toLeftSp);
@@ -219,7 +246,7 @@ namespace WindowsBuddy.Tools.Units
             {
                 Text = "Recent  1 m → 3.28084 ft",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 128)),
+                Foreground = CapsuleTheme.Brush(p.Text3),
                 VerticalAlignment = VerticalAlignment.Bottom
             };
             Grid.SetRow(_recentText, 4);
@@ -231,9 +258,12 @@ namespace WindowsBuddy.Tools.Units
 
         private Border CreateUnitSelector(out TextBlock nameText, out TextBlock symText, Action onClick)
         {
+            var p = CapsuleTheme.Current;
             var btn = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(26, 26, 34)),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(7),
                 Padding = new Thickness(10, 5, 8, 5),
                 Cursor = Cursors.Hand,
@@ -246,7 +276,7 @@ namespace WindowsBuddy.Tools.Units
                 Text = "Meters",
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
             sp.Children.Add(nameText);
@@ -255,7 +285,7 @@ namespace WindowsBuddy.Tools.Units
             {
                 Text = "  m  ",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             sp.Children.Add(symText);
@@ -264,24 +294,49 @@ namespace WindowsBuddy.Tools.Units
             {
                 Text = "⌵",
                 FontSize = 9.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             sp.Children.Add(arrow);
 
             btn.Child = sp;
-            btn.MouseEnter += (_, _) => btn.Background = new SolidColorBrush(Color.FromRgb(38, 38, 48));
-            btn.MouseLeave += (_, _) => btn.Background = new SolidColorBrush(Color.FromRgb(26, 26, 34));
-            btn.MouseLeftButtonUp += (_, _) => onClick?.Invoke();
+            btn.MouseEnter += (_, _) => btn.Background = CapsuleTheme.Brush(p.Surface3);
+            btn.MouseLeave += (_, _) => btn.Background = CapsuleTheme.Brush(p.Surface2);
+            btn.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                onClick?.Invoke();
+            };
 
             return btn;
         }
 
         private void OnInputTextChanged(object sender, TextChangedEventArgs e)
         {
+            if (_isUpdatingTextInternally) return;
+
             string txt = _fromInputBox.Text?.Trim();
-            if (decimal.TryParse(txt, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal val) && val >= 0)
+            if (string.IsNullOrWhiteSpace(txt))
             {
+                _toResultText.Text = "0";
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in txt)
+            {
+                if (c >= '۰' && c <= '۹') sb.Append((char)('0' + (c - '۰')));
+                else if (c >= '٠' && c <= '٩') sb.Append((char)('0' + (c - '٠')));
+                else if (c == ',' || c == '٫') sb.Append('.');
+                else sb.Append(c);
+            }
+
+            if (decimal.TryParse(sb.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal val))
+            {
+                if (val < 0 && !_service.ActiveCategory.IsTemperature)
+                {
+                    val = Math.Abs(val);
+                }
                 _service.SetInputValue(val);
             }
         }
@@ -291,20 +346,23 @@ namespace WindowsBuddy.Tools.Units
             Dispatcher.Invoke(RefreshUI);
         }
 
-        private void RefreshUI()
+        public void RefreshUI()
         {
+            var p = CapsuleTheme.Current;
             // 1. Rebuild categories sidebar
             _categoriesPanel.Children.Clear();
             var activeCat = _service.ActiveCategory;
 
             foreach (var cat in UnitCatalog.All)
             {
-                bool isActive = cat == activeCat;
+                bool isActive = string.Equals(cat.Name, activeCat?.Name, StringComparison.OrdinalIgnoreCase);
                 var pill = new Border
                 {
                     Height = 25,
                     CornerRadius = new CornerRadius(6),
-                    Background = new SolidColorBrush(isActive ? Color.FromRgb(34, 34, 42) : Colors.Transparent),
+                    Background = isActive ? CapsuleTheme.Brush(p.AccentSoft) : Brushes.Transparent,
+                    BorderBrush = isActive ? CapsuleTheme.Brush(p.Accent) : Brushes.Transparent,
+                    BorderThickness = new Thickness(isActive ? 1 : 0),
                     Padding = new Thickness(8, 2, 8, 2),
                     Margin = new Thickness(0, 1, 0, 1),
                     Cursor = Cursors.Hand
@@ -315,7 +373,7 @@ namespace WindowsBuddy.Tools.Units
                 {
                     Text = cat.Icon + " ",
                     FontSize = 11.5,
-                    Foreground = isActive ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = isActive ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2),
                     VerticalAlignment = VerticalAlignment.Center
                 });
                 sp.Children.Add(new TextBlock
@@ -323,18 +381,22 @@ namespace WindowsBuddy.Tools.Units
                     Text = cat.Name,
                     FontSize = 11.5,
                     FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
-                    Foreground = isActive ? Brushes.White : new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = isActive ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2),
                     VerticalAlignment = VerticalAlignment.Center
                 });
 
                 pill.Child = sp;
 
                 string cname = cat.Name;
-                pill.MouseLeftButtonUp += (_, _) => _service.SelectCategory(cname);
+                pill.PreviewMouseLeftButtonDown += (_, e) =>
+                {
+                    e.Handled = true;
+                    _service.SelectCategory(cname);
+                };
 
                 if (!isActive)
                 {
-                    pill.MouseEnter += (_, _) => pill.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+                    pill.MouseEnter += (_, _) => pill.Background = CapsuleTheme.Brush(p.ControlFillHover);
                     pill.MouseLeave += (_, _) => pill.Background = Brushes.Transparent;
                 }
 
@@ -356,11 +418,25 @@ namespace WindowsBuddy.Tools.Units
                 _toUnitSymbolText.Text = $"  {to.Symbol}  ";
             }
 
-            // 3. Update result
+            // 3. Keep Input box synchronized if not focused
+            if (!_fromInputBox.IsFocused)
+            {
+                _isUpdatingTextInternally = true;
+                try
+                {
+                    _fromInputBox.Text = UnitCatalog.FormatResult(_service.InputValue);
+                }
+                finally
+                {
+                    _isUpdatingTextInternally = false;
+                }
+            }
+
+            // 4. Update result
             decimal res = _service.ConvertedValue;
             _toResultText.Text = UnitCatalog.FormatResult(res);
 
-            // 4. Update Common Equivalents
+            // 5. Update Common Equivalents
             _commonEquivalentsPanel.Children.Clear();
             var commons = _service.GetCommonEquivalents();
             foreach (var item in commons)
@@ -371,7 +447,7 @@ namespace WindowsBuddy.Tools.Units
                 {
                     Text = item.name,
                     FontSize = 11.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    Foreground = CapsuleTheme.Brush(p.Text2),
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 DockPanel.SetDock(leftName, Dock.Left);
@@ -383,13 +459,13 @@ namespace WindowsBuddy.Tools.Units
                     Text = item.value,
                     FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = Brushes.White
+                    Foreground = CapsuleTheme.Brush(p.Text)
                 });
                 rightSp.Children.Add(new TextBlock
                 {
                     Text = "  " + item.symbol,
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147))
+                    Foreground = CapsuleTheme.Brush(p.Text2)
                 });
 
                 DockPanel.SetDock(rightSp, Dock.Right);
@@ -398,7 +474,7 @@ namespace WindowsBuddy.Tools.Units
                 _commonEquivalentsPanel.Children.Add(row);
             }
 
-            // 5. Update Recent
+            // 6. Update Recent
             if (_service.Recents.Count > 0)
             {
                 _recentText.Text = $"{LocalizationService.T("units.recent", "Recent")}  {_service.Recents[0].DisplayText}";
@@ -407,17 +483,28 @@ namespace WindowsBuddy.Tools.Units
 
         private void ShowUnitMenu(bool isFrom)
         {
-            var cm = new ContextMenu();
+            var p = CapsuleTheme.Current;
+            var cm = new ContextMenu
+            {
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.BorderStrong),
+                BorderThickness = new Thickness(1),
+                Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
+            };
+
             var targetBtn = isFrom ? _fromUnitBtn : _toUnitBtn;
             var currentUnit = isFrom ? _service.FromUnit : _service.ToUnit;
 
             foreach (var u in _service.ActiveCategory.Units)
             {
+                bool isChecked = string.Equals(u.Symbol, currentUnit?.Symbol, StringComparison.OrdinalIgnoreCase);
                 var mi = new MenuItem
                 {
                     Header = $"{u.Name}  ({u.Symbol})",
                     IsCheckable = true,
-                    IsChecked = u.Symbol == currentUnit?.Symbol
+                    IsChecked = isChecked,
+                    Foreground = CapsuleTheme.Brush(p.Text),
+                    FontSize = 11.5
                 };
                 var captured = u;
                 mi.Click += (_, _) =>
@@ -436,6 +523,7 @@ namespace WindowsBuddy.Tools.Units
         {
             try
             {
+                var p = CapsuleTheme.Current;
                 System.Windows.Clipboard.SetText(_toResultText.Text);
                 _copyGlyph.Text = "✓";
                 _copyGlyph.Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88));
@@ -445,7 +533,7 @@ namespace WindowsBuddy.Tools.Units
                 {
                     timer.Stop();
                     _copyGlyph.Text = "⎘";
-                    _copyGlyph.Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147));
+                    _copyGlyph.Foreground = CapsuleTheme.Brush(p.Text2);
                 };
                 timer.Start();
             }

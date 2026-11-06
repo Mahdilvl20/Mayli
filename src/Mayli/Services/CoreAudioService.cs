@@ -30,12 +30,21 @@ namespace WindowsBuddy.Services
             try
             {
                 var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
-                if (enumerator.GetDefaultAudioEndpoint(0, 1, out var device) == 0 && device != null)
+                IMMDevice device = null;
+                // Try eConsole (0) first, fallback to eMultimedia (1)
+                int hr = enumerator.GetDefaultAudioEndpoint(0, 0, out device);
+                if (hr != 0 || device == null)
+                {
+                    hr = enumerator.GetDefaultAudioEndpoint(0, 1, out device);
+                }
+
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", $"GetDefaultAudioEndpoint hr=0x{hr:X8}, device null={device == null}");
+
+                if (device != null)
                 {
                     // Query Device Friendly Name
                     try
                     {
-                        var storeGuid = new Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99");
                         if (device.OpenPropertyStore(0, out var store) == 0 && store != null)
                         {
                             var pkey = new PROPERTYKEY
@@ -49,18 +58,30 @@ namespace WindowsBuddy.Services
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        WindowsBuddy.Core.LogWriter.WriteNow("audio", $"PropStore error: {ex}");
+                    }
 
                     var volumeGuid = typeof(IAudioEndpointVolume).GUID;
-                    if (device.Activate(ref volumeGuid, 23, IntPtr.Zero, out var ep) == 0 && ep is IAudioEndpointVolume vol)
+                    int actHr = device.Activate(ref volumeGuid, 23, IntPtr.Zero, out var ep);
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Activate hr=0x{actHr:X8}, ep type={(ep != null ? ep.GetType().FullName : "null")}");
+
+                    if (ep is IAudioEndpointVolume vol)
                     {
                         _endpointVolume = vol;
                         RefreshState();
+                        WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Successfully initialized endpoint volume. CurrentVol={_volumePercent}%, Muted={_isMuted}, Dev='{_deviceName}'");
+                    }
+                    else
+                    {
+                        WindowsBuddy.Core.LogWriter.WriteNow("audio", $"ep is NOT IAudioEndpointVolume!");
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Initialize EXCEPTION: {ex}");
                 _deviceName = "Realtek(R) Audio";
                 _volumePercent = 100;
                 _isMuted = false;
@@ -69,6 +90,10 @@ namespace WindowsBuddy.Services
 
         public void RefreshState()
         {
+            if (_endpointVolume == null)
+            {
+                Initialize();
+            }
             if (_endpointVolume == null) return;
             try
             {
@@ -89,20 +114,33 @@ namespace WindowsBuddy.Services
             percent = Math.Clamp(percent, 0, 100);
             _volumePercent = percent;
 
+            if (_endpointVolume == null)
+            {
+                Initialize();
+            }
+
             if (_endpointVolume != null)
             {
                 try
                 {
                     float scalar = percent / 100.0f;
                     var ctx = Guid.Empty;
-                    _endpointVolume.SetMasterVolumeLevelScalar(scalar, ref ctx);
+                    int hr = _endpointVolume.SetMasterVolumeLevelScalar(scalar, ref ctx);
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SetMasterVolumeLevelScalar({scalar:F2}) returned hr=0x{hr:X8}");
                     if (_isMuted && percent > 0)
                     {
                         _endpointVolume.SetMute(false, ref ctx);
                         _isMuted = false;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SetVolumePercent EXCEPTION: {ex}");
+                }
+            }
+            else
+            {
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", "SetVolumePercent called but _endpointVolume is NULL!");
             }
 
             VolumeChanged?.Invoke();
@@ -110,15 +148,24 @@ namespace WindowsBuddy.Services
 
         public void ToggleMute()
         {
+            if (_endpointVolume == null)
+            {
+                Initialize();
+            }
+
             _isMuted = !_isMuted;
             if (_endpointVolume != null)
             {
                 try
                 {
                     var ctx = Guid.Empty;
-                    _endpointVolume.SetMute(_isMuted, ref ctx);
+                    int hr = _endpointVolume.SetMute(_isMuted, ref ctx);
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SetMute({_isMuted}) returned hr=0x{hr:X8}");
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"ToggleMute EXCEPTION: {ex}");
+                }
             }
             VolumeChanged?.Invoke();
         }
@@ -134,8 +181,11 @@ namespace WindowsBuddy.Services
         [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         private interface IMMDeviceEnumerator
         {
-            int EnumAudioEndpoints(int dataFlow, uint stateMask, out IntPtr devices);
-            int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint);
+            [PreserveSig] int EnumAudioEndpoints(int dataFlow, uint stateMask, out IntPtr devices);
+            [PreserveSig] int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint);
+            [PreserveSig] int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string pwstrId, out IMMDevice device);
+            [PreserveSig] int RegisterEndpointNotificationCallback(IntPtr pClient);
+            [PreserveSig] int UnregisterEndpointNotificationCallback(IntPtr pClient);
         }
 
         [ComImport]
@@ -143,8 +193,10 @@ namespace WindowsBuddy.Services
         [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         private interface IMMDevice
         {
-            int Activate(ref Guid iid, uint dwClsCtx, IntPtr pActivationParams, [MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
-            int OpenPropertyStore(uint stgmAccess, out IPropertyStore ppProperties);
+            [PreserveSig] int Activate([In] ref Guid iid, uint dwClsCtx, IntPtr pActivationParams, [MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
+            [PreserveSig] int OpenPropertyStore(uint stgmAccess, out IPropertyStore ppProperties);
+            [PreserveSig] int GetId([MarshalAs(UnmanagedType.LPWStr)] out string ppstrId);
+            [PreserveSig] int GetState(out uint pdwState);
         }
 
         [ComImport]
@@ -152,11 +204,11 @@ namespace WindowsBuddy.Services
         [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         private interface IPropertyStore
         {
-            int GetCount(out uint count);
-            int GetAt(uint iProp, out PROPERTYKEY pkey);
-            int GetValue(ref PROPERTYKEY key, out PROPVARIANT pv);
-            int SetValue(ref PROPERTYKEY key, ref PROPVARIANT pv);
-            int Commit();
+            [PreserveSig] int GetCount(out uint count);
+            [PreserveSig] int GetAt(uint iProp, out PROPERTYKEY pkey);
+            [PreserveSig] int GetValue([In] ref PROPERTYKEY key, out PROPVARIANT pv);
+            [PreserveSig] int SetValue([In] ref PROPERTYKEY key, [In] ref PROPVARIANT pv);
+            [PreserveSig] int Commit();
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -169,7 +221,10 @@ namespace WindowsBuddy.Services
         [StructLayout(LayoutKind.Explicit)]
         private struct PROPVARIANT
         {
-            [FieldOffset(0)] public short vt;
+            [FieldOffset(0)] public ushort vt;
+            [FieldOffset(2)] public ushort wReserved1;
+            [FieldOffset(4)] public ushort wReserved2;
+            [FieldOffset(6)] public ushort wReserved3;
             [FieldOffset(8)] public IntPtr pwszVal;
         }
 
@@ -178,19 +233,24 @@ namespace WindowsBuddy.Services
         [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         private interface IAudioEndpointVolume
         {
-            int RegisterControlChangeNotify(IntPtr pNotify);
-            int UnregisterControlChangeNotify(IntPtr pNotify);
-            int GetChannelCount(out uint pnChannelCount);
-            int SetMasterVolumeLevel(float fLevelDB, ref Guid pguidEventContext);
-            int SetMasterVolumeLevelScalar(float fLevel, ref Guid pguidEventContext);
-            int GetMasterVolumeLevel(out float pfLevelDB);
-            int GetMasterVolumeLevelScalar(out float pfLevel);
-            int SetChannelVolumeLevel(uint nChannel, float fLevelDB, ref Guid pguidEventContext);
-            int SetChannelVolumeLevelScalar(uint nChannel, float fLevel, ref Guid pguidEventContext);
-            int GetChannelVolumeLevel(uint nChannel, out float pfLevelDB);
-            int GetChannelVolumeLevelScalar(uint nChannel, out float pfLevel);
-            int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, ref Guid pguidEventContext);
-            int GetMute([MarshalAs(UnmanagedType.Bool)] out bool pbMute);
+            [PreserveSig] int RegisterControlChangeNotify(IntPtr pNotify);
+            [PreserveSig] int UnregisterControlChangeNotify(IntPtr pNotify);
+            [PreserveSig] int GetChannelCount(out uint pnChannelCount);
+            [PreserveSig] int SetMasterVolumeLevel(float fLevelDB, [In] ref Guid pguidEventContext);
+            [PreserveSig] int SetMasterVolumeLevelScalar(float fLevel, [In] ref Guid pguidEventContext);
+            [PreserveSig] int GetMasterVolumeLevel(out float pfLevelDB);
+            [PreserveSig] int GetMasterVolumeLevelScalar(out float pfLevel);
+            [PreserveSig] int SetChannelVolumeLevel(uint nChannel, float fLevelDB, [In] ref Guid pguidEventContext);
+            [PreserveSig] int SetChannelVolumeLevelScalar(uint nChannel, float fLevel, [In] ref Guid pguidEventContext);
+            [PreserveSig] int GetChannelVolumeLevel(uint nChannel, out float pfLevelDB);
+            [PreserveSig] int GetChannelVolumeLevelScalar(uint nChannel, out float pfLevel);
+            [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, [In] ref Guid pguidEventContext);
+            [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool pbMute);
+            [PreserveSig] int GetVolumeStepInfo(out uint pnStep, out uint pnStepCount);
+            [PreserveSig] int VolumeStepUp([In] ref Guid pguidEventContext);
+            [PreserveSig] int VolumeStepDown([In] ref Guid pguidEventContext);
+            [PreserveSig] int QueryHardwareSupport(out uint pdwHardwareSupportMask);
+            [PreserveSig] int GetVolumeRange(out float pflVolumeMindB, out float pflVolumeMaxdB, out float pflVolumeIncrementdB);
         }
 
         #endregion

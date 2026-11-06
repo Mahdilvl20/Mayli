@@ -9,6 +9,8 @@ namespace WindowsBuddy.Tools.Links
         public string Name { get; set; } = string.Empty;
         public string Url { get; set; } = string.Empty;
         public bool Pinned { get; set; }
+        public string Category { get; set; } = "General";
+        public int VisitCount { get; set; } = 0;
         public DateTime AddedAt { get; set; } = DateTime.Now;
 
         public string Domain
@@ -49,6 +51,7 @@ namespace WindowsBuddy.Tools.Links
     public sealed class LinksStorageDto
     {
         public string SelectedEngine { get; set; } = "Google";
+        public string ActiveCategory { get; set; } = "All";
         public List<LinksBookmark> Bookmarks { get; set; } = new();
     }
 }

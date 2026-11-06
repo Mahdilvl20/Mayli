@@ -12,6 +12,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.Core;
 using WindowsBuddy.Services;
+using WindowsBuddy.BuddyCapsule.Theme;
 
 namespace WindowsBuddy.BuddyCapsule.UI
 {
@@ -77,6 +78,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             Background = Brushes.Transparent;
             Margin = new Thickness(1, 0, 4, 0);
 
+            var p = CapsuleTheme.Current;
             _rootGrid = new Grid();
             _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             _rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(ColumnGap) });
@@ -97,7 +99,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "Health 72%",
                 FontSize = 11.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             DockPanel.SetDock(_batHealth, Dock.Right);
@@ -108,14 +110,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "▭ ",
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             batLeftHead.Children.Add(new TextBlock
             {
                 Text = LocalizationService.T("system.battery", "Battery"),
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             batHeader.Children.Add(batLeftHead);
@@ -127,7 +129,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Height = 7.0,
                 CornerRadius = new CornerRadius(3.5),
-                Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.ControlFill),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 8, 0, 0)
             };
@@ -135,7 +137,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Height = 7.0,
                 CornerRadius = new CornerRadius(3.5),
-                Background = new SolidColorBrush(Color.FromRgb(255, 87, 34)), // Orange #FF5722
+                Background = CapsuleTheme.Brush(p.Accent),
                 HorizontalAlignment = HorizontalAlignment.Left
             };
             _batTrack.Child = _batFill;
@@ -149,7 +151,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = "100%",
                 FontSize = 26.0,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Margin = new Thickness(0, 0, 10, 0),
                 VerticalAlignment = VerticalAlignment.Bottom
             };
@@ -157,7 +159,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "Fully charged",
                 FontSize = 12.0,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Bottom,
                 Margin = new Thickness(0, 0, 0, 4)
             };
@@ -181,14 +183,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "📶 ",
                 FontSize = 11.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             netHeader.Children.Add(new TextBlock
             {
                 Text = LocalizationService.T("system.network", "Network"),
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             DockPanel.SetDock(netHeader, Dock.Top);
@@ -206,7 +208,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = "↓ 3 KB/s",
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Margin = new Thickness(0, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -223,7 +225,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = "↑ 53 B/s",
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 Margin = new Thickness(0, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -242,13 +244,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = "Wi-Fi",
                 FontSize = 24.0,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = CapsuleTheme.Brush(p.Text)
             };
             _netSub = new TextBlock
             {
                 Text = "Wi-Fi · 58 Mbps",
                 FontSize = 11.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 Margin = new Thickness(0, 1, 0, 0),
                 MaxWidth = 180,
                 TextTrimming = TextTrimming.CharacterEllipsis
@@ -273,14 +275,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "⚙ ",
                 FontSize = 11.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             perfHeader.Children.Add(new TextBlock
             {
                 Text = LocalizationService.T("system.performance", "Performance"),
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             DockPanel.SetDock(perfHeader, Dock.Top);
@@ -293,8 +295,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             // CPU
             var cpuStack = new StackPanel { Margin = new Thickness(0, 0, 6, 0) };
-            _cpuVal = new TextBlock { Text = "22%", FontSize = 20.0, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
-            var cpuSub = new TextBlock { Text = "CPU", FontSize = 11.0, Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)), Margin = new Thickness(0, 1, 0, 3) };
+            _cpuVal = new TextBlock { Text = "22%", FontSize = 20.0, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) };
+            var cpuSub = new TextBlock { Text = "CPU", FontSize = 11.0, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 1, 0, 3) };
             _cpuSpark = new MiniSparkline { Height = 14, HorizontalAlignment = HorizontalAlignment.Stretch };
             cpuStack.Children.Add(_cpuVal);
             cpuStack.Children.Add(cpuSub);
@@ -304,8 +306,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             // RAM
             var ramStack = new StackPanel { Margin = new Thickness(3, 0, 3, 0) };
-            _ramVal = new TextBlock { Text = "59%", FontSize = 20.0, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
-            var ramSub = new TextBlock { Text = "RAM", FontSize = 11.0, Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)), Margin = new Thickness(0, 1, 0, 3) };
+            _ramVal = new TextBlock { Text = "59%", FontSize = 20.0, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) };
+            var ramSub = new TextBlock { Text = "RAM", FontSize = 11.0, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 1, 0, 3) };
             _ramSpark = new MiniSparkline { Height = 14, HorizontalAlignment = HorizontalAlignment.Stretch };
             ramStack.Children.Add(_ramVal);
             ramStack.Children.Add(ramSub);
@@ -315,8 +317,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             // Disk
             var diskStack = new StackPanel { Margin = new Thickness(6, 0, 0, 0) };
-            _diskVal = new TextBlock { Text = "1%", FontSize = 20.0, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
-            var diskSub = new TextBlock { Text = "Disk", FontSize = 11.0, Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)), Margin = new Thickness(0, 1, 0, 3) };
+            _diskVal = new TextBlock { Text = "1%", FontSize = 20.0, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text) };
+            var diskSub = new TextBlock { Text = "Disk", FontSize = 11.0, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 1, 0, 3) };
             _diskSpark = new MiniSparkline { Height = 14, HorizontalAlignment = HorizontalAlignment.Stretch };
             diskStack.Children.Add(_diskVal);
             diskStack.Children.Add(diskSub);
@@ -341,7 +343,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "Realtek(R) Audio ⌵",
                 FontSize = 11.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
                 ToolTip = "Active Audio Device",
@@ -356,14 +358,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "🔊 ",
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             volLeftHead.Children.Add(new TextBlock
             {
                 Text = LocalizationService.T("system.volume", "Volume"),
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
             volHeader.Children.Add(volLeftHead);
@@ -377,21 +379,23 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Cursor = Cursors.Hand,
                 Margin = new Thickness(0, 6, 0, 0),
-                ClipToBounds = true
+                ClipToBounds = true,
+                Background = Brushes.Transparent,
+                FlowDirection = FlowDirection.LeftToRight
             };
 
             _volumeTrack = new Border
             {
                 Height = 4.0,
                 CornerRadius = new CornerRadius(2.0),
-                Background = new SolidColorBrush(Color.FromArgb(36, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.ControlFill),
                 HorizontalAlignment = HorizontalAlignment.Stretch
             };
             _volumeFill = new Border
             {
                 Height = 4.0,
                 CornerRadius = new CornerRadius(2.0),
-                Background = new SolidColorBrush(Color.FromRgb(255, 87, 34)), // Orange #FF5722
+                Background = CapsuleTheme.Brush(p.Accent),
                 HorizontalAlignment = HorizontalAlignment.Left
             };
             _volumeThumb = new Border
@@ -399,12 +403,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Width = 14.0,
                 Height = 14.0,
                 CornerRadius = new CornerRadius(7.0),
-                Background = Brushes.White,
+                Background = CapsuleTheme.Brush(p.IsLight ? p.Accent : Colors.White),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect
                 {
                     BlurRadius = 4,
                     ShadowDepth = 1,
-                    Opacity = 0.5,
+                    Opacity = 0.35,
                     Color = Colors.Black
                 }
             };
@@ -413,6 +417,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _volumeSliderCanvas.Children.Add(_volumeFill);
             _volumeSliderCanvas.Children.Add(_volumeThumb);
 
+            Canvas.SetLeft(_volumeTrack, 0.0);
+            Canvas.SetLeft(_volumeFill, 0.0);
             Canvas.SetTop(_volumeTrack, 7.0);
             Canvas.SetTop(_volumeFill, 7.0);
             Canvas.SetTop(_volumeThumb, 2.0);
@@ -421,6 +427,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _volumeSliderCanvas.MouseLeftButtonDown += OnVolumeSliderMouseDown;
             _volumeSliderCanvas.MouseMove += OnVolumeSliderMouseMove;
             _volumeSliderCanvas.MouseLeftButtonUp += OnVolumeSliderMouseUp;
+            _volumeSliderCanvas.LostMouseCapture += (_, _) => _isDraggingSlider = false;
+
+            _volumeSliderCanvas.MouseWheel += (s, e) =>
+            {
+                e.Handled = true;
+                int delta = e.Delta > 0 ? 2 : -2;
+                CoreAudioService.Instance.SetVolumePercent(CoreAudioService.Instance.VolumePercent + delta);
+                UpdateVolumeVisual();
+            };
 
             DockPanel.SetDock(_volumeSliderCanvas, Dock.Bottom);
             volDock.Children.Add(_volumeSliderCanvas);
@@ -431,7 +446,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = "100%",
                 FontSize = 26.0,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center
             };
             volHeroGrid.Children.Add(_volHero);
@@ -440,6 +455,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 Text = "🔊",
                 FontSize = 14,
+                Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -448,7 +464,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Width = 32,
                 Height = 32,
                 CornerRadius = new CornerRadius(16),
-                Background = new SolidColorBrush(Color.FromArgb(24, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.ControlFill),
                 Cursor = Cursors.Hand,
                 ToolTip = "Mute / Unmute",
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -465,6 +481,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             volDock.Children.Add(volHeroGrid);
             volCard.Child = volDock;
+            volCard.MouseWheel += (s, e) =>
+            {
+                e.Handled = true;
+                int delta = e.Delta > 0 ? 2 : -2;
+                CoreAudioService.Instance.SetVolumePercent(CoreAudioService.Instance.VolumePercent + delta);
+                UpdateVolumeVisual();
+            };
             Grid.SetRow(volCard, 2);
             Grid.SetColumn(volCard, 2);
             _rootGrid.Children.Add(volCard);
@@ -497,17 +520,22 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 }
             };
 
-            CoreAudioService.Instance.VolumeChanged += () => Dispatcher.InvokeAsync(UpdateVolumeVisual);
+            CoreAudioService.Instance.VolumeChanged += () => Dispatcher.InvokeAsync(() => UpdateVolumeVisual());
+            SystemMonitorService.TelemetryChanged += _ => Dispatcher.InvokeAsync(() =>
+            {
+                if (IsVisible && IsLoaded) RefreshAllMetrics();
+            });
 
             RefreshAllMetrics();
         }
 
         private static Border CreateCardContainer()
         {
+            var p = CapsuleTheme.Current;
             return new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(16, 16, 18)), // Exact dark card surface
-                BorderBrush = new SolidColorBrush(Color.FromArgb(16, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(CardCornerRadius)
             };
@@ -523,6 +551,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private void RefreshBattery()
         {
+            if (!DeviceService.HasBattery)
+            {
+                _batHero.Text = LocalizationService.T("system.ac_power", "AC Power");
+                _batSub.Text = LocalizationService.T("system.desktop_pc", "Desktop PC");
+                _batHealth.Text = LocalizationService.T("system.connected", "Connected");
+                UpdateBatteryVisual();
+                return;
+            }
+
             if (NativeMethods.GetSystemPowerStatus(out var sps))
             {
                 int pct = sps.BatteryLifePercent <= 100 ? sps.BatteryLifePercent : 100;
@@ -553,6 +590,17 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private void UpdateBatteryVisual()
         {
+            if (!DeviceService.HasBattery)
+            {
+                double trackWidth = _batTrack.ActualWidth;
+                if (trackWidth > 5)
+                {
+                    _batFill.Width = trackWidth;
+                    _batFill.Background = new SolidColorBrush(Color.FromRgb(48, 209, 88));
+                }
+                return;
+            }
+
             if (NativeMethods.GetSystemPowerStatus(out var sps))
             {
                 int pct = sps.BatteryLifePercent <= 100 ? sps.BatteryLifePercent : 100;
@@ -639,34 +687,37 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private void RefreshPerformance()
         {
-            var data = SystemMonitorService.FetchLiveTelemetry();
+            var data = SystemMonitorService.Current;
 
             // CPU
-            int cpu = (int)Math.Round(data.CpuUsagePercent);
+            int cpu = data.CpuUsagePercent;
             _cpuVal.Text = $"{cpu}%";
             _cpuHistory.Add(cpu);
             if (_cpuHistory.Count > 20) _cpuHistory.RemoveAt(0);
             _cpuSpark.SetData(_cpuHistory);
 
             // RAM
-            int ram = (int)Math.Round(data.MemoryUsagePercent);
+            int ram = data.MemoryUsagePercent;
             _ramVal.Text = $"{ram}%";
             _ramHistory.Add(ram);
             if (_ramHistory.Count > 20) _ramHistory.RemoveAt(0);
             _ramSpark.SetData(_ramHistory);
 
             // Disk
-            int disk = (int)Math.Clamp(Math.Round(data.DiskUsagePercent), 1, 100);
+            int disk = data.DiskUsagePercent;
             _diskVal.Text = $"{disk}%";
             _diskHistory.Add(disk);
             if (_diskHistory.Count > 20) _diskHistory.RemoveAt(0);
             _diskSpark.SetData(_diskHistory);
         }
 
-        private void UpdateVolumeVisual()
+        private void UpdateVolumeVisual(bool force = false)
         {
             var audio = CoreAudioService.Instance;
-            audio.RefreshState();
+            if (!_isDraggingSlider || force)
+            {
+                audio.RefreshState();
+            }
 
             _volHero.Text = audio.IsMuted ? "Muted" : $"{audio.VolumePercent}%";
             _muteIcon.Text = audio.IsMuted ? "🔇" : "🔊";
@@ -689,6 +740,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private void OnVolumeSliderMouseDown(object sender, MouseButtonEventArgs e)
         {
+            e.Handled = true;
             _isDraggingSlider = true;
             _volumeSliderCanvas.CaptureMouse();
             ApplyVolumeFromPointer(e.GetPosition(_volumeSliderCanvas).X);
@@ -698,6 +750,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         {
             if (_isDraggingSlider)
             {
+                e.Handled = true;
                 ApplyVolumeFromPointer(e.GetPosition(_volumeSliderCanvas).X);
             }
         }
@@ -706,6 +759,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         {
             if (_isDraggingSlider)
             {
+                e.Handled = true;
                 _isDraggingSlider = false;
                 _volumeSliderCanvas.ReleaseMouseCapture();
                 ApplyVolumeFromPointer(e.GetPosition(_volumeSliderCanvas).X);
@@ -717,8 +771,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
             double trackW = _volumeSliderCanvas.ActualWidth > 10 ? _volumeSliderCanvas.ActualWidth : 310.0;
             double ratio = Math.Clamp(pointerX / trackW, 0.0, 1.0);
             int percent = (int)Math.Round(ratio * 100.0);
+            WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SystemToolView ApplyVolumeFromPointer: pointerX={pointerX:F1}, trackW={trackW:F1}, ratio={ratio:F2}, percent={percent}");
             CoreAudioService.Instance.SetVolumePercent(percent);
-            UpdateVolumeVisual();
+            UpdateVolumeVisual(force: true);
         }
     }
 
@@ -732,11 +787,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         public MiniSparkline()
         {
+            var p = CapsuleTheme.Current;
             var grid = new Grid { ClipToBounds = true };
             _areaPath = new System.Windows.Shapes.Path();
             _curvePath = new System.Windows.Shapes.Path
             {
-                Stroke = new SolidColorBrush(Color.FromRgb(255, 87, 34)), // Orange #FF5722
+                Stroke = CapsuleTheme.Brush(p.Accent),
                 StrokeThickness = 1.6,
                 StrokeLineJoin = PenLineJoin.Round
             };
@@ -788,13 +844,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
             curveGeom.Figures.Add(curveFig);
             areaGeom.Figures.Add(areaFig);
 
+            var p = CapsuleTheme.Current;
+            _curvePath.Stroke = CapsuleTheme.Brush(p.Accent);
+
             var areaBrush = new LinearGradientBrush
             {
                 StartPoint = new Point(0, 0),
                 EndPoint = new Point(0, 1)
             };
-            areaBrush.GradientStops.Add(new GradientStop(Color.FromArgb(64, 255, 87, 34), 0.0));
-            areaBrush.GradientStops.Add(new GradientStop(Color.FromArgb(0, 255, 87, 34), 1.0));
+            areaBrush.GradientStops.Add(new GradientStop(Color.FromArgb(64, p.Accent.R, p.Accent.G, p.Accent.B), 0.0));
+            areaBrush.GradientStops.Add(new GradientStop(Color.FromArgb(0, p.Accent.R, p.Accent.G, p.Accent.B), 1.0));
 
             _areaPath.Data = areaGeom;
             _areaPath.Fill = areaBrush;

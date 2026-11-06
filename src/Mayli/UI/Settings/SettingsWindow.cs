@@ -1082,7 +1082,9 @@ namespace WindowsBuddy.UI.Settings
                         host.Children.Add(previewEdge);
                     }
 
-                    bool isCenter = string.Equals(prefs.NotchRestingLayout, "Center", StringComparison.OrdinalIgnoreCase);
+                    bool shouldShowBattery = prefs.ShowClosedBattery && DeviceService.ShouldShowBatteryIndicators;
+                    bool hasRightContent = prefs.ShowClosedBluetooth || shouldShowBattery;
+                    bool isCenter = string.Equals(prefs.NotchRestingLayout, "Center", StringComparison.OrdinalIgnoreCase) || !hasRightContent;
                     var restGrid = new Grid
                     {
                         Margin = new Thickness(earW * previewScale + 10, isIsland ? 5 : 0, earW * previewScale + 10, 0),
@@ -1142,7 +1144,8 @@ namespace WindowsBuddy.UI.Settings
                     {
                         Orientation = Orientation.Horizontal,
                         VerticalAlignment = VerticalAlignment.Center,
-                        Margin = (isCenter && !prefs.EnablePetBeta) ? new Thickness(8, 0, 0, 0) : new Thickness(0)
+                        Visibility = hasRightContent ? Visibility.Visible : Visibility.Collapsed,
+                        Margin = (isCenter && hasRightContent && !prefs.EnablePetBeta) ? new Thickness(8, 0, 0, 0) : new Thickness(0)
                     };
                     if (prefs.ShowClosedBluetooth)
                     {
@@ -1152,7 +1155,7 @@ namespace WindowsBuddy.UI.Settings
                             VerticalAlignment = VerticalAlignment.Center
                         });
                     }
-                    if (prefs.ShowClosedBattery)
+                    if (shouldShowBattery)
                     {
                         rightSp.Children.Add(new TextBlock { Text = "⚡", FontSize = 9.5, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)), Margin = new Thickness(0, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center });
                         rightSp.Children.Add(new TextBlock { Text = $"{SystemMonitorService.Current.BatteryPercent}", FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88)), VerticalAlignment = VerticalAlignment.Center });
@@ -1695,15 +1698,22 @@ namespace WindowsBuddy.UI.Settings
             ));
 
             // Battery
-            var closedBatteryToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedBattery);
+            bool hasBattery = DeviceService.HasBattery;
+            var closedBatteryToggle = new MayliToggleSwitch(AppPreferences.Instance.ShowClosedBattery && hasBattery)
+            {
+                IsEnabled = hasBattery
+            };
             closedBatteryToggle.CheckedChanged += b =>
             {
                 AppPreferences.Instance.ShowClosedBattery = b;
                 UpdateLivePreview(currentPreviewHover);
             };
+            string batDesc = hasBattery
+                ? LocalizationService.T("notch.closed.battery.desc", "Level and charging")
+                : LocalizationService.T("notch.closed.battery.desc_pc", "Not available on Desktop PC (No battery)");
             stack.Children.Add(new MayliSettingRow(
                 LocalizationService.T("notch.closed.battery.title", "Battery"),
-                LocalizationService.T("notch.closed.battery.desc", "Level and charging"),
+                batDesc,
                 closedBatteryToggle
             ));
 
