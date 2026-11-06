@@ -8,6 +8,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Renderer;
@@ -103,9 +104,12 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly MediaTransportControlsBar _wideTransportControls;
         private readonly WaveformProgressBar _wideWaveformProgress;
 
-        // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth)
+        // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth, Windows Notifications)
         private readonly Grid _collapsedBannerView;
         private readonly AnimateIcon _bannerAnimateIcon;
+        private readonly Border _bannerAppIconBorder;
+        private readonly Image _bannerAppImage;
+        private readonly TextBlock _bannerAppName;
         private readonly TextBlock _bannerIcon;
         private readonly TextBlock _bannerTitle;
         private readonly TextBlock _bannerSubtitle;
@@ -141,6 +145,18 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly TextBlock _rightIslandTimeText;
         private readonly TranslateTransform _rightIslandTranslate = new(0, 0);
         private readonly ScaleTransform _rightIslandScale = new(0.8, 0.8);
+
+        // 5C. Detached Music Satellite Capsule (when Notification arrives while Music IS playing)
+        // Album Art Image (circular) + pulsating beat ring or glow
+        private readonly Border _musicSatelliteIsland;
+        private readonly Image _musicSatelliteArtworkImage;
+        private readonly TextBlock _musicSatelliteGlyph;
+        private readonly Ellipse _musicSatelliteBeatRing;
+        private readonly TranslateTransform _musicSatelliteTranslate = new(0, 0);
+        private readonly ScaleTransform _musicSatelliteScale = new(0.8, 0.8);
+        private double _musicSatelliteProgress = 0.0;
+        private double _musicSatelliteTarget = 0.0;
+        private BitmapSource _currentArtworkSource;
 
         private double _splitIslandsProgress = 0.0;
         private double _splitIslandsTarget = 0.0;
@@ -687,7 +703,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _collapsedContent.Children.Add(_collapsedMediaWideView);
 
-            // View 3: Dynamic Banner View (Screenshot 2: Copied, Screenshot saved, AirPods Pro Connected)
+            // View 3: Dynamic Banner View (Copied, Screenshot saved, AirPods Connected, Windows Notifications)
             _collapsedBannerView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
             var bannerDock = new DockPanel();
 
@@ -701,6 +717,27 @@ namespace WindowsBuddy.BuddyCapsule.Core
             DockPanel.SetDock(_bannerAnimateIcon, Dock.Left);
             bannerDock.Children.Add(_bannerAnimateIcon);
 
+            _bannerAppIconBorder = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(7),
+                ClipToBounds = true,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255))
+            };
+            _bannerAppImage = new Image
+            {
+                Width = 26,
+                Height = 26,
+                Stretch = Stretch.UniformToFill
+            };
+            _bannerAppIconBorder.Child = _bannerAppImage;
+            DockPanel.SetDock(_bannerAppIconBorder, Dock.Left);
+            bannerDock.Children.Add(_bannerAppIconBorder);
+
             _bannerIcon = new TextBlock
             {
                 Text = "📋",
@@ -711,25 +748,47 @@ namespace WindowsBuddy.BuddyCapsule.Core
             DockPanel.SetDock(_bannerIcon, Dock.Left);
             bannerDock.Children.Add(_bannerIcon);
 
-            var bannerTextStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var bannerTextStack = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 260
+            };
+
+            var topRow = new StackPanel { Orientation = Orientation.Horizontal };
+            _bannerAppName = new TextBlock
+            {
+                Text = "",
+                FontSize = 11.0,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(152, 152, 160)),
+                Margin = new Thickness(0, 0, 6, 0),
+                Visibility = Visibility.Collapsed
+            };
+            topRow.Children.Add(_bannerAppName);
+
             _bannerTitle = new TextBlock
             {
                 Text = "Copied",
-                FontSize = 12.5,
+                FontSize = 12.0,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 220
             };
+            topRow.Children.Add(_bannerTitle);
+            bannerTextStack.Children.Add(topRow);
+
             _bannerSubtitle = new TextBlock
             {
                 Text = " · Image",
-                FontSize = 12,
+                FontSize = 11.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 220,
+                MaxWidth = 250,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
-            bannerTextStack.Children.Add(_bannerTitle);
             bannerTextStack.Children.Add(_bannerSubtitle);
             bannerDock.Children.Add(bannerTextStack);
             _collapsedBannerView.Children.Add(bannerDock);
@@ -1033,7 +1092,83 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 WindowsBuddy.Tools.Timer.TimerService.Instance.ToggleActiveNotchTimer();
             };
 
+            // 5C. Detached Music Satellite Capsule (when Notification arrives while Music IS playing)
+            var musicSatTransformGroup = new TransformGroup();
+            musicSatTransformGroup.Children.Add(_musicSatelliteScale);
+            musicSatTransformGroup.Children.Add(_musicSatelliteTranslate);
+
+            var musicSatGrid = new Grid
+            {
+                Width = 36,
+                Height = 36
+            };
+
+            _musicSatelliteBeatRing = new Ellipse
+            {
+                Width = 36,
+                Height = 36,
+                Stroke = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255)),
+                StrokeThickness = 1.5,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            _musicSatelliteArtworkImage = new Image
+            {
+                Width = 32,
+                Height = 32,
+                Stretch = Stretch.UniformToFill,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Clip = new EllipseGeometry(new Point(16, 16), 16, 16)
+            };
+
+            _musicSatelliteGlyph = new TextBlock
+            {
+                Text = "🎵",
+                FontSize = 14,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed
+            };
+
+            musicSatGrid.Children.Add(_musicSatelliteBeatRing);
+            musicSatGrid.Children.Add(_musicSatelliteArtworkImage);
+            musicSatGrid.Children.Add(_musicSatelliteGlyph);
+
+            _musicSatelliteIsland = new Border
+            {
+                Width = 36,
+                Height = 36,
+                CornerRadius = new CornerRadius(18),
+                Background = CapsuleTheme.Brush(p.Bg),
+                BorderBrush = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 4.5, 0, 0),
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = musicSatTransformGroup,
+                Cursor = Cursors.Hand,
+                Visibility = Visibility.Collapsed,
+                ToolTip = "Music Playing · Click: Play / Pause · Right-click: Next track",
+                Child = musicSatGrid
+            };
+            _musicSatelliteIsland.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                MediaService.Instance.TogglePlayPause();
+                _edgeLight.TriggerBurst(4.5);
+            };
+            _musicSatelliteIsland.MouseRightButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                MediaService.Instance.NextTrack();
+                _edgeLight.TriggerBurst(4.5);
+            };
+
             // Add detached islands before _capsuleCard so they emerge smoothly from behind the main notch
+            _envelopeRoot.Children.Add(_musicSatelliteIsland);
             _envelopeRoot.Children.Add(_leftTimerIsland);
             _envelopeRoot.Children.Add(_rightTimerIsland);
             _envelopeRoot.Children.Add(_capsuleCard);
@@ -1182,11 +1317,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 _bannerDismissTimer.Stop();
                 _isBannerActive = false;
+                _musicSatelliteTarget = 0.0;
                 if (_isMessagePinned)
                 {
                     _isMessageActive = true;
                 }
                 UpdateCollapsedViewState();
+                _morphTimer.Start();
             };
 
             // Message Banner Dismissal Timer
@@ -1202,6 +1339,18 @@ namespace WindowsBuddy.BuddyCapsule.Core
             var actionService = RealtimeNotchActionService.Instance;
             actionService.NotificationRequested += OnRealNotificationRequested;
             actionService.MediaSessionChanged += OnRealMediaSessionChanged;
+
+            // Hook Real Windows Notifications (Toasts from all apps: Telegram, WhatsApp, Chrome, Discord, System)
+            var winNotifService = WindowsNotificationListenerService.Instance;
+            winNotifService.NotificationReceived += OnWindowsNotificationReceived;
+            Loaded += async (_, _) =>
+            {
+                try
+                {
+                    await winNotifService.StartAsync();
+                }
+                catch { }
+            };
 
             // Hook Live Timer / Stopwatch / Pomodoro Events for Standalone & Split Dynamic Island Capsules
             var timerService = WindowsBuddy.Tools.Timer.TimerService.Instance;
@@ -1246,8 +1395,38 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         #region Real-Time Action Handlers
 
+        private static void LogNotif(string msg)
+        {
+            try
+            {
+                string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mayli", "logs");
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "notifications.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [CapsuleWindow] {msg}\r\n");
+            }
+            catch { }
+        }
+
+        private void OnWindowsNotificationReceived(WindowsNotificationPayload winNotif)
+        {
+            LogNotif($"OnWindowsNotificationReceived: App='{winNotif.AppName}', Title='{winNotif.Title}', Msg='{winNotif.Message}', HasIcon={winNotif.AppIcon != null}");
+            Dispatcher.InvokeAsync(() =>
+            {
+                var payload = new NotchNotificationPayload
+                {
+                    AppName = winNotif.AppName,
+                    Title = winNotif.Title,
+                    Subtitle = winNotif.Message,
+                    AppIcon = winNotif.AppIcon,
+                    Icon = winNotif.AppGlyph,
+                    DurationMs = 5000 // 5 seconds display on the notch
+                };
+                OnRealNotificationRequested(payload);
+            });
+        }
+
         private void OnRealNotificationRequested(NotchNotificationPayload payload)
         {
+            LogNotif($"OnRealNotificationRequested: App='{payload.AppName}', Title='{payload.Title}', Icon='{payload.Icon}'");
             Dispatcher.InvokeAsync(() =>
             {
                 // Live Activity filter checks
@@ -1267,11 +1446,29 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     return;
 
                 _isBannerActive = true;
-                _bannerTitle.Text = payload.Title;
-                _bannerSubtitle.Text = payload.Subtitle;
+                _bannerTitle.Text = payload.Title ?? "";
+                _bannerSubtitle.Text = payload.Subtitle ?? "";
 
-                if (payload.Title == "Copied" || payload.Icon == "📋" || payload.Icon == "📎")
+                if (!string.IsNullOrWhiteSpace(payload.AppName))
                 {
+                    _bannerAppName.Text = payload.AppName;
+                    _bannerAppName.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    _bannerAppName.Visibility = Visibility.Collapsed;
+                }
+
+                if (payload.AppIcon != null)
+                {
+                    _bannerAppImage.Source = payload.AppIcon;
+                    _bannerAppIconBorder.Visibility = Visibility.Visible;
+                    _bannerAnimateIcon.Visibility = Visibility.Collapsed;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
+                }
+                else if (payload.Title == "Copied" || payload.Icon == "📋" || payload.Icon == "📎")
+                {
+                    _bannerAppIconBorder.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.IconType = AnimateIconType.CopyCheck;
                     _bannerAnimateIcon.Visibility = Visibility.Visible;
                     _bannerIcon.Visibility = Visibility.Collapsed;
@@ -1279,6 +1476,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
                 else if (payload.Icon == "🎧" || (payload.Title != null && payload.Title.Contains("Connected", StringComparison.OrdinalIgnoreCase)))
                 {
+                    _bannerAppIconBorder.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.IconType = AnimateIconType.Bluetooth;
                     _bannerAnimateIcon.Visibility = Visibility.Visible;
                     _bannerIcon.Visibility = Visibility.Collapsed;
@@ -1286,6 +1484,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
                 else if (payload.Icon == "🔊" || payload.Icon == "🔈")
                 {
+                    _bannerAppIconBorder.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.IconType = AnimateIconType.Volume;
                     _bannerAnimateIcon.Visibility = Visibility.Visible;
                     _bannerIcon.Visibility = Visibility.Collapsed;
@@ -1293,6 +1492,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
                 else if (payload.Icon == "⏱" || payload.Icon == "⏰")
                 {
+                    _bannerAppIconBorder.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.IconType = AnimateIconType.Timer;
                     _bannerAnimateIcon.Visibility = Visibility.Visible;
                     _bannerIcon.Visibility = Visibility.Collapsed;
@@ -1300,9 +1500,36 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
                 else
                 {
+                    _bannerAppIconBorder.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.Visibility = Visibility.Collapsed;
                     _bannerIcon.Visibility = Visibility.Visible;
-                    _bannerIcon.Text = payload.Icon;
+                    _bannerIcon.Text = !string.IsNullOrEmpty(payload.Icon) ? payload.Icon : "🔔";
+                }
+
+                // PRIORITY HANDLING: Notification (5s) > Timer > Music
+                // 1. Music Satellite Island: if music is currently active/playing, album art detaches smoothly to the left!
+                bool isMusicPlaying = _isMusicActive || _isMediaRetained || RealtimeNotchActionService.Instance.IsMusicPlaying;
+                if (isMusicPlaying)
+                {
+                    UpdateMusicSatelliteArtwork();
+                    _musicSatelliteTarget = 1.0;
+                }
+                else
+                {
+                    _musicSatelliteTarget = 0.0;
+                }
+
+                // 2. Timer Priority: if timer is active, timer digits detach to the right island so timer is never lost!
+                var timerSnap = WindowsBuddy.Tools.Timer.TimerService.Instance.GetActiveNotchTimer();
+                bool isTimerActive = timerSnap.IsActive && AppPreferences.Instance.RunningTimersActivity;
+                if (isTimerActive)
+                {
+                    UpdateTimerNotchVisuals(timerSnap);
+                    _splitIslandsTarget = 1.0;
+                }
+                else
+                {
+                    _splitIslandsTarget = 0.0;
                 }
 
                 // Display banner view
@@ -1312,10 +1539,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Visible;
-                _splitIslandsTarget = 0.0;
 
-                _currentBaseCollapsedWidth = BannerCollapsedWidth;
-                _currentBaseCollapsedHeight = BannerCollapsedHeight;
+                bool hasRichNotif = payload.AppIcon != null || !string.IsNullOrWhiteSpace(payload.AppName);
+                _currentBaseCollapsedWidth = hasRichNotif ? 340.0 : BannerCollapsedWidth;
+                _currentBaseCollapsedHeight = hasRichNotif ? 44.0 : BannerCollapsedHeight;
 
                 _edgeLight.TriggerBurst(4.2);
                 EvaluateDynamicVisibility();
@@ -1326,17 +1553,30 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _morphTimer.Start();
                 }
 
-                int durationMs = AppPreferences.Instance.LiveActivityEventDuration switch
-                {
-                    "2 s" => 2000,
-                    "5 s" => 5000,
-                    _ => 3000
-                };
-
+                int durationMs = payload.DurationMs > 0 ? payload.DurationMs : 5000;
                 _bannerDismissTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
                 _bannerDismissTimer.Stop();
                 _bannerDismissTimer.Start();
             });
+        }
+
+        private void UpdateMusicSatelliteArtwork()
+        {
+            if (_currentArtworkSource != null)
+            {
+                _musicSatelliteArtworkImage.Source = _currentArtworkSource;
+                _musicSatelliteArtworkImage.Visibility = Visibility.Visible;
+                _musicSatelliteGlyph.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                _musicSatelliteArtworkImage.Source = null;
+                _musicSatelliteArtworkImage.Visibility = Visibility.Collapsed;
+                _musicSatelliteGlyph.Visibility = Visibility.Visible;
+            }
+
+            Color beatColor = _currentSongBeatColor.A > 0 ? _currentSongBeatColor : Color.FromRgb(255, 60, 90);
+            _musicSatelliteBeatRing.Stroke = new SolidColorBrush(Color.FromArgb(160, beatColor.R, beatColor.G, beatColor.B));
         }
 
         private void OnRealMediaSessionChanged(MediaSessionSnapshot snapshot)
@@ -1407,6 +1647,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _miniEqualizer.IsPlaying = snapshot.IsPlaying;
                 _miniEqualizer.SetBeatColor(beatColor);
                 _waveformProgress.SetBeatColor(beatColor);
+                _currentArtworkSource = snapshot.Artwork;
                 _albumArtThumb.SetArtwork(snapshot.Artwork, artist);
 
                 // Wide media card view (380 x 75)
@@ -1415,6 +1656,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _wideTransportControls.SetPlaying(snapshot.IsPlaying);
                 _wideWaveformProgress.SetBeatColor(beatColor);
                 _wideAlbumArtThumb.SetArtwork(snapshot.Artwork, artist);
+
+                if (_musicSatelliteTarget > 0.005)
+                {
+                    UpdateMusicSatelliteArtwork();
+                }
 
                 // Timeline sync for live remaining countdown (-3:22) and progress scrubber
                 if (snapshot.DurationSeconds > 1.0)
@@ -1726,7 +1972,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
 
             double prevSplitTarget = _splitIslandsTarget;
+            double prevMusicSatTarget = _musicSatelliteTarget;
             _splitIslandsTarget = 0.0;
+            _musicSatelliteTarget = 0.0;
 
             if (_isBannerActive)
             {
@@ -1738,8 +1986,15 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Visible;
-                _currentBaseCollapsedWidth = BannerCollapsedWidth;
-                _currentBaseCollapsedHeight = BannerCollapsedHeight;
+                bool hasRich = _bannerAppIconBorder.Visibility == Visibility.Visible || _bannerAppName.Visibility == Visibility.Visible;
+                _currentBaseCollapsedWidth = hasRich ? 340.0 : BannerCollapsedWidth;
+                _currentBaseCollapsedHeight = hasRich ? 44.0 : BannerCollapsedHeight;
+                if (showMedia)
+                {
+                    UpdateMusicSatelliteArtwork();
+                    _musicSatelliteTarget = 1.0;
+                }
+                if (showTimer) _splitIslandsTarget = 1.0;
             }
             else if (_isMessageActive)
             {
@@ -1829,7 +2084,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _currentBaseCollapsedHeight = rh;
             }
 
-            if ((_morphProgress <= 0.1 && !_machine.IsOpenOrOpening) || Math.Abs(prevSplitTarget - _splitIslandsTarget) > 0.01)
+            if ((_morphProgress <= 0.1 && !_machine.IsOpenOrOpening) ||
+                Math.Abs(prevSplitTarget - _splitIslandsTarget) > 0.01 ||
+                Math.Abs(prevMusicSatTarget - _musicSatelliteTarget) > 0.01)
             {
                 if (_morphProgress <= 0.1 && !_machine.IsOpenOrOpening) _targetProgress = 0.0;
                 _morphTimer.Start();
@@ -2366,6 +2623,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _isTuckCompletedHidden = false;
                 _leftTimerIsland.IsHitTestVisible = false;
                 _rightTimerIsland.IsHitTestVisible = false;
+                _musicSatelliteIsland.IsHitTestVisible = false;
 
                 if (_morphProgress > 0.05)
                 {
@@ -2381,6 +2639,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         _capsuleCard.Visibility = Visibility.Collapsed;
                         _leftTimerIsland.Visibility = Visibility.Collapsed;
                         _rightTimerIsland.Visibility = Visibility.Collapsed;
+                        _musicSatelliteIsland.Visibility = Visibility.Collapsed;
                     }
                 };
             }
@@ -2399,6 +2658,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         // Release animation hold on island opacity so UpdateMorphVisuals can control it freely
                         _leftTimerIsland.BeginAnimation(OpacityProperty, null);
                         _rightTimerIsland.BeginAnimation(OpacityProperty, null);
+                        _musicSatelliteIsland.BeginAnimation(OpacityProperty, null);
                         UpdateMorphVisuals(_morphProgress);
                     }
                 };
@@ -2408,8 +2668,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _capsuleCard.BeginAnimation(OpacityProperty, fadeAnim);
             _leftIslandTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
             _rightIslandTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _musicSatelliteTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
             _leftTimerIsland.BeginAnimation(OpacityProperty, fadeAnim);
             _rightTimerIsland.BeginAnimation(OpacityProperty, fadeAnim);
+            _musicSatelliteIsland.BeginAnimation(OpacityProperty, fadeAnim);
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -2891,7 +3153,20 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _splitIslandsProgress += Math.Sign(splitDiff) * splitStep;
             }
 
-            bool allSettled = morphSettled && sizeSettled && splitSettled;
+            // Smoothly interpolate detached music satellite capsule (0.0 <-> 1.0) over ~300ms
+            double musicDiff = _musicSatelliteTarget - _musicSatelliteProgress;
+            double musicStep = dt / 0.30;
+            bool musicSettled = Math.Abs(musicDiff) <= musicStep;
+            if (musicSettled)
+            {
+                _musicSatelliteProgress = _musicSatelliteTarget;
+            }
+            else
+            {
+                _musicSatelliteProgress += Math.Sign(musicDiff) * musicStep;
+            }
+
+            bool allSettled = morphSettled && sizeSettled && splitSettled && musicSettled;
             _edgeLight.SetMorphing(!allSettled);
 
             if (allSettled)
@@ -2945,7 +3220,39 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _expandedContent.Opacity = Math.Clamp((t - 0.25) / 0.75, 0.0, 1.0);
             _expandedContent.IsHitTestVisible = t > 0.6;
 
-            // Update Left & Right Detached Split Timer Islands (when Music is playing + Timer is active)
+            // Update Detached Music Satellite Island (when Notification arrives while Music is playing)
+            double musicFactor = _musicSatelliteProgress * Math.Clamp(1.0 - t * 3.0, 0.0, 1.0);
+            if (musicFactor <= 0.005 || _isTuckCompletedHidden || _isAutoHiddenByVisibility)
+            {
+                _musicSatelliteIsland.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                _musicSatelliteIsland.Visibility = Visibility.Visible;
+
+                // Smooth cubic ease-out emergence from behind the center notch to the left
+                double musicEase = 1.0 - Math.Pow(1.0 - musicFactor, 3);
+                double gap = 8.0;
+                double satW = 36.0;
+
+                double startLeftX = -(baseW / 2.0 - satW / 2.0 - 8.0);
+                double fullLeftX = -(baseW / 2.0 + gap + satW / 2.0);
+
+                _musicSatelliteTranslate.X = startLeftX + (fullLeftX - startLeftX) * musicEase;
+
+                double satScale = 0.78 + 0.22 * musicEase;
+                _musicSatelliteScale.ScaleX = satScale;
+                _musicSatelliteScale.ScaleY = satScale;
+
+                if (!_isTucked)
+                {
+                    double satOpacity = Math.Clamp(musicEase * 1.15, 0.0, 1.0);
+                    _musicSatelliteIsland.Opacity = satOpacity;
+                    _musicSatelliteIsland.IsHitTestVisible = musicFactor > 0.6;
+                }
+            }
+
+            // Update Left & Right Detached Split Timer Islands (when Music is playing + Timer is active, or Notification + Timer)
             double splitFactor = _splitIslandsProgress * Math.Clamp(1.0 - t * 3.0, 0.0, 1.0);
             if (splitFactor <= 0.005 || _isTuckCompletedHidden || _isAutoHiddenByVisibility)
             {
@@ -2954,7 +3261,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
             else
             {
-                _leftTimerIsland.Visibility = Visibility.Visible;
+                // If music satellite is occupying the left slot during notification, hide left timer ring so only right timer digits show
+                _leftTimerIsland.Visibility = musicFactor > 0.005 ? Visibility.Collapsed : Visibility.Visible;
                 _rightTimerIsland.Visibility = Visibility.Visible;
 
                 // Smooth cubic ease-out emergence from behind the center music notch
@@ -3040,6 +3348,12 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
             var p = CapsuleTheme.Current;
             _notchBackdropPath.Fill = CapsuleTheme.Brush(p.Bg);
+            if (_musicSatelliteIsland != null)
+            {
+                _musicSatelliteIsland.Background = CapsuleTheme.Brush(p.Bg);
+                _musicSatelliteIsland.BorderBrush = Brushes.Transparent;
+                _musicSatelliteIsland.BorderThickness = new Thickness(0);
+            }
             if (_leftTimerIsland != null)
             {
                 _leftTimerIsland.Background = CapsuleTheme.Brush(p.Bg);

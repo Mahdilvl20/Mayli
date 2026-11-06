@@ -134,12 +134,22 @@ CREATE TABLE IF NOT EXISTS clipboard_items (
     source_app TEXT,
     source_app_exe TEXT,
     is_pinned INTEGER DEFAULT 0,
-    timestamp_local TEXT NOT NULL
+    timestamp_local TEXT NOT NULL,
+    image_hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_clipboard_timestamp ON clipboard_items(timestamp_local DESC);
 CREATE INDEX IF NOT EXISTS idx_clipboard_pinned ON clipboard_items(is_pinned);
 ";
                 sqlite3_exec(_db, schemaSql, IntPtr.Zero, IntPtr.Zero, out _);
+                try
+                {
+                    if (sqlite3_prepare16_v2(_db, "ALTER TABLE clipboard_items ADD COLUMN image_hash TEXT;", -1, out var alterStmt, IntPtr.Zero) == SQLITE_OK)
+                    {
+                        sqlite3_step(alterStmt);
+                        sqlite3_finalize(alterStmt);
+                    }
+                }
+                catch { }
             }
         }
 
@@ -157,8 +167,8 @@ CREATE INDEX IF NOT EXISTS idx_clipboard_pinned ON clipboard_items(is_pinned);
 INSERT OR REPLACE INTO clipboard_items (
     id, kind, format_type, storage_method, text_content, blob_data, file_path, file_paths_json,
     file_size_bytes, line_count, word_count, char_count, image_width, image_height,
-    link_host, link_uri, source_app, source_app_exe, is_pinned, timestamp_local
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    link_host, link_uri, source_app, source_app_exe, is_pinned, timestamp_local, image_hash
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
                 if (sqlite3_prepare16_v2(_db, insertSql, -1, out var stmt, IntPtr.Zero) != SQLITE_OK)
                     return;
@@ -225,6 +235,12 @@ INSERT OR REPLACE INTO clipboard_items (
                     sqlite3_bind_int(stmt, 19, item.IsPinned ? 1 : 0);
                     // 20: timestamp_local
                     sqlite3_bind_text16(stmt, 20, item.TimestampLocal.ToString("O"), -1, SQLITE_TRANSIENT);
+                    // 21: image_hash
+                    string hash = item.Kind == ClipKind.Image ? item.GetImageHash() : string.Empty;
+                    if (!string.IsNullOrEmpty(hash))
+                        sqlite3_bind_text16(stmt, 21, hash, -1, SQLITE_TRANSIENT);
+                    else
+                        sqlite3_bind_null(stmt, 21);
 
                     sqlite3_step(stmt);
                 }
@@ -407,7 +423,7 @@ INSERT OR REPLACE INTO clipboard_items (
                 string query = @"
 SELECT id, kind, format_type, storage_method, text_content, blob_data, file_path, file_paths_json,
        file_size_bytes, line_count, word_count, char_count, image_width, image_height,
-       link_host, link_uri, source_app, source_app_exe, is_pinned, timestamp_local
+       link_host, link_uri, source_app, source_app_exe, is_pinned, timestamp_local, image_hash
 FROM clipboard_items
 ORDER BY is_pinned DESC, timestamp_local DESC
 LIMIT ?;";
@@ -481,10 +497,16 @@ LIMIT ?;";
                             item.TimestampLocal = dt.ToLocalTime();
                         }
 
+                        item.ImageHash = ReadColumnText(stmt, 20);
+
                         // Reconstruct in-memory representations for Images & Thumbnails
                         if (item.Kind == ClipKind.Image)
                         {
                             item.EnsureImage();
+                            if (string.IsNullOrEmpty(item.ImageHash))
+                            {
+                                item.GetImageHash();
+                            }
                             if (item.Image != null)
                             {
                                 item.Thumbnail = CreateThumbnail(item.Image, 28, 28);

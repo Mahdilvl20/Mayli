@@ -1182,12 +1182,12 @@ namespace WindowsBuddy.Tools
 
         public static void CaptureCurrentClipboard()
         {
-            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
+            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.ScheduleCaptureDebounced(150);
         }
 
         public FrameworkElement BuildView()
         {
-            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
+            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.ScheduleCaptureDebounced(0);
             _view ??= new WindowsBuddy.Tools.Clipboard.ClipboardToolView();
             ToolViewLifecycleHelper.DetachFromParent(_view);
             return _view;
@@ -1195,7 +1195,7 @@ namespace WindowsBuddy.Tools
 
         public void OnActivated()
         {
-            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.CaptureCurrentClipboard();
+            WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.ScheduleCaptureDebounced(0);
             _view?.RefreshList();
         }
 

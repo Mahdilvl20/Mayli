@@ -3032,7 +3032,42 @@ namespace WindowsBuddy.UI.Settings
                 MessageBox.Show("Live Activities settings have been restored to factory defaults.", "Mayli Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             };
 
-            stack.Children.Add(resetBtn);
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 20) };
+            resetBtn.Margin = new Thickness(0, 0, 0, 0);
+            btnRow.Children.Add(resetBtn);
+
+            var testBtn = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(32, 42, 58)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(50, 75, 110)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(18, 9, 18, 9),
+                Margin = new Thickness(12, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            var testTxt = new TextBlock
+            {
+                Text = "🔔 Test Notch Notification",
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 180, 255))
+            };
+            testBtn.Child = testTxt;
+            testBtn.MouseEnter += (_, _) => testBtn.Background = new SolidColorBrush(Color.FromRgb(42, 56, 78));
+            testBtn.MouseLeave += (_, _) => testBtn.Background = new SolidColorBrush(Color.FromRgb(32, 42, 58));
+            testBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                WindowsBuddy.Services.WindowsNotificationListenerService.Instance.TriggerTestNotification(
+                    appName: "Telegram",
+                    title: "Sara",
+                    message: "Hey, check out this Dynamic Island split notification! ✨"
+                );
+            };
+            btnRow.Children.Add(testBtn);
+
+            stack.Children.Add(btnRow);
 
             return stack;
         }

@@ -29,7 +29,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
         // Card 1: Battery
         private readonly TextBlock _batHero;
         private readonly TextBlock _batSub;
-        private readonly TextBlock _batHealth;
         private readonly Border _batTrack;
         private readonly Border _batFill;
 
@@ -95,15 +94,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var batDock = new DockPanel { Margin = new Thickness(14, 10, 14, 10) };
 
             var batHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
-            _batHealth = new TextBlock
-            {
-                Text = "Health 72%",
-                FontSize = 11.5,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            DockPanel.SetDock(_batHealth, Dock.Right);
-            batHeader.Children.Add(_batHealth);
 
             var batLeftHead = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             batLeftHead.Children.Add(new TextBlock
@@ -555,7 +545,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 _batHero.Text = LocalizationService.T("system.ac_power", "AC Power");
                 _batSub.Text = LocalizationService.T("system.desktop_pc", "Desktop PC");
-                _batHealth.Text = LocalizationService.T("system.connected", "Connected");
                 UpdateBatteryVisual();
                 return;
             }

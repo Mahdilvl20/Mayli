@@ -49,7 +49,46 @@ namespace WindowsBuddy.Tools.Clipboard
                     _items.Clear();
                     if (loaded != null && loaded.Count > 0)
                     {
-                        _items.AddRange(loaded);
+                        var unique = new List<ClipboardItem>();
+                        var seenImageHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        var seenTexts = new HashSet<string>(StringComparer.Ordinal);
+                        var duplicatesToDelete = new List<string>();
+
+                        foreach (var it in loaded)
+                        {
+                            if (it.Kind == ClipKind.Image)
+                            {
+                                string hash = it.GetImageHash();
+                                if (!string.IsNullOrEmpty(hash))
+                                {
+                                    if (seenImageHashes.Contains(hash))
+                                    {
+                                        duplicatesToDelete.Add(it.Id);
+                                        continue;
+                                    }
+                                    seenImageHashes.Add(hash);
+                                }
+                            }
+                            else if (it.Kind != ClipKind.Files)
+                            {
+                                string key = $"{it.Kind}:{it.Text?.Trim()}";
+                                if (seenTexts.Contains(key))
+                                {
+                                    duplicatesToDelete.Add(it.Id);
+                                    continue;
+                                }
+                                seenTexts.Add(key);
+                            }
+
+                            unique.Add(it);
+                        }
+
+                        _items.AddRange(unique);
+
+                        foreach (var id in duplicatesToDelete)
+                        {
+                            try { ClipboardDatabase.Instance.DeleteItem(id); } catch { }
+                        }
                     }
                     else
                     {
@@ -114,18 +153,70 @@ namespace WindowsBuddy.Tools.Clipboard
             _items.Add(linkItem);
         }
 
+        private System.Windows.Threading.DispatcherTimer _captureDebounceTimer;
+        private readonly object _timerLock = new();
+        private DateTime _internalCopyTimestampUtc = DateTime.MinValue;
+        private string _lastCapturedHash = string.Empty;
+        private DateTime _lastCapturedTimeUtc = DateTime.MinValue;
+
+        public void ScheduleCaptureDebounced(int delayMs = 150)
+        {
+            var app = Application.Current;
+            if (app == null) return;
+
+            app.Dispatcher?.InvokeAsync(() =>
+            {
+                lock (_timerLock)
+                {
+                    if (delayMs <= 0)
+                    {
+                        _captureDebounceTimer?.Stop();
+                        _captureDebounceTimer = null;
+                        CaptureCurrentClipboard();
+                        return;
+                    }
+
+                    if (_captureDebounceTimer == null)
+                    {
+                        _captureDebounceTimer = new System.Windows.Threading.DispatcherTimer
+                        {
+                            Interval = TimeSpan.FromMilliseconds(delayMs)
+                        };
+                        _captureDebounceTimer.Tick += (_, _) =>
+                        {
+                            lock (_timerLock)
+                            {
+                                _captureDebounceTimer?.Stop();
+                                _captureDebounceTimer = null;
+                            }
+                            CaptureCurrentClipboard();
+                        };
+                    }
+                    else
+                    {
+                        _captureDebounceTimer.Stop();
+                        _captureDebounceTimer.Interval = TimeSpan.FromMilliseconds(delayMs);
+                    }
+
+                    _captureDebounceTimer.Start();
+                }
+            });
+        }
+
         public void CaptureCurrentClipboard()
         {
+            if ((DateTime.UtcNow - _internalCopyTimestampUtc).TotalMilliseconds < 800)
+            {
+                // Self-copy suppression
+                return;
+            }
+
             if (!TryCapture())
             {
                 Application.Current?.Dispatcher?.InvokeAsync(async () =>
                 {
-                    await Task.Delay(50);
-                    if (!TryCapture())
-                    {
-                        await Task.Delay(100);
-                        TryCapture();
-                    }
+                    await Task.Delay(80);
+                    TryCapture();
                 });
             }
         }
@@ -258,8 +349,42 @@ namespace WindowsBuddy.Tools.Clipboard
         {
             if (bitmap == null) return;
 
+            byte[] rawBytes = ClipboardDatabase.EncodeBitmapToPng(bitmap);
+            if (rawBytes == null || rawBytes.Length == 0) return;
+
+            string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(rawBytes));
+
+            // Rapid burst suppression: if the exact same image was captured within the last 1.2 seconds, ignore
+            if (string.Equals(_lastCapturedHash, hash, StringComparison.OrdinalIgnoreCase) &&
+                (DateTime.UtcNow - _lastCapturedTimeUtc).TotalMilliseconds < 1200)
+            {
+                return;
+            }
+
+            _lastCapturedHash = hash;
+            _lastCapturedTimeUtc = DateTime.UtcNow;
+
             lock (_lock)
             {
+                var existing = _items.FirstOrDefault(i => i.Kind == ClipKind.Image &&
+                    (string.Equals(i.GetImageHash(), hash, StringComparison.OrdinalIgnoreCase) ||
+                     (i.FileSizeBytes == rawBytes.Length && i.ImageWidth == bitmap.PixelWidth && i.ImageHeight == bitmap.PixelHeight && AreBlobsEqual(i, rawBytes))));
+
+                if (existing != null)
+                {
+                    existing.TimestampLocal = DateTime.Now;
+                    existing.ImageHash = hash;
+                    int idx = _items.IndexOf(existing);
+                    if (idx > 0)
+                    {
+                        _items.RemoveAt(idx);
+                        _items.Insert(0, existing);
+                    }
+                    ClipboardDatabase.Instance.SaveItem(existing);
+                    ItemsChanged?.Invoke();
+                    return;
+                }
+
                 int w = bitmap.PixelWidth;
                 int h = bitmap.PixelHeight;
 
@@ -272,11 +397,11 @@ namespace WindowsBuddy.Tools.Clipboard
                     Thumbnail = thumb,
                     ImageWidth = w,
                     ImageHeight = h,
-                    RawBlobData = ClipboardDatabase.EncodeBitmapToPng(bitmap),
+                    RawBlobData = rawBytes,
+                    ImageHash = hash,
+                    FileSizeBytes = rawBytes.Length,
                     TimestampLocal = DateTime.Now
                 };
-
-                item.FileSizeBytes = item.RawBlobData.Length;
 
                 DetectOwnerApp(item);
 
@@ -298,6 +423,28 @@ namespace WindowsBuddy.Tools.Clipboard
             ItemsChanged?.Invoke();
         }
 
+        private static bool AreBlobsEqual(ClipboardItem item, byte[] newBytes)
+        {
+            if (item == null || newBytes == null) return false;
+            if (item.RawBlobData != null && item.RawBlobData.Length == newBytes.Length)
+            {
+                return item.RawBlobData.AsSpan().SequenceEqual(newBytes);
+            }
+            if (string.Equals(item.StorageMethod, "file", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrEmpty(item.StoredFilePath) && File.Exists(item.StoredFilePath))
+            {
+                try
+                {
+                    var fi = new FileInfo(item.StoredFilePath);
+                    if (fi.Length != newBytes.Length) return false;
+                    byte[] fileBytes = File.ReadAllBytes(item.StoredFilePath);
+                    return fileBytes.AsSpan().SequenceEqual(newBytes);
+                }
+                catch { }
+            }
+            return false;
+        }
+
         public void AddFilesItem(System.Collections.Specialized.StringCollection files)
         {
             lock (_lock)
@@ -309,10 +456,29 @@ namespace WindowsBuddy.Tools.Clipboard
                 }
                 if (list.Count == 0) return;
 
+                string joinedPaths = string.Join(Environment.NewLine, list);
+                var existing = _items.FirstOrDefault(i =>
+                    (i.Kind == ClipKind.Files || i.Kind == ClipKind.Pdf || i.Kind == ClipKind.Image || i.Kind == ClipKind.Audio || i.Kind == ClipKind.Video || i.Kind == ClipKind.Archive) &&
+                    string.Equals(i.Text, joinedPaths, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    existing.TimestampLocal = DateTime.Now;
+                    int idx = _items.IndexOf(existing);
+                    if (idx > 0)
+                    {
+                        _items.RemoveAt(idx);
+                        _items.Insert(0, existing);
+                    }
+                    ClipboardDatabase.Instance.SaveItem(existing);
+                    ItemsChanged?.Invoke();
+                    return;
+                }
+
                 var item = new ClipboardItem
                 {
                     FilePaths = list,
-                    Text = string.Join(Environment.NewLine, list),
+                    Text = joinedPaths,
                     TimestampLocal = DateTime.Now
                 };
 
@@ -454,6 +620,7 @@ namespace WindowsBuddy.Tools.Clipboard
         public bool CopyToClipboard(ClipboardItem item)
         {
             if (item == null) return false;
+            _internalCopyTimestampUtc = DateTime.UtcNow;
             try
             {
                 if (item.Kind == ClipKind.Image)

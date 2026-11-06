@@ -83,6 +83,7 @@ namespace WindowsBuddy
                 _capsuleWindow.Show();
                 LogWriter.WriteNow("boot", "Step 5: CapsuleWindow Show done");
 
+                _ = WindowsBuddy.Tools.Clipboard.ClipboardService.Instance;
                 UpdateService.CheckOnStartup();
                 LogWriter.WriteNow("boot", "Step 6: UpdateService done");
 

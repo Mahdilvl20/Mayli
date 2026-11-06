@@ -20,8 +20,10 @@ namespace WindowsBuddy.Services
         public string Icon { get; set; } = "📋";
         public string Title { get; set; } = "Copied";
         public string Subtitle { get; set; } = " · Image";
-        public int DurationMs { get; set; } = 3500;
+        public int DurationMs { get; set; } = 5000;
         public bool IsMediaStatus { get; set; } = false;
+        public BitmapSource AppIcon { get; set; }
+        public string AppName { get; set; }
     }
 
     public sealed class MediaSessionSnapshot

@@ -15,12 +15,12 @@ using WindowsBuddy.Tools.Timer;
 namespace WindowsBuddy.BuddyCapsule.UI
 {
     /// <summary>
-    /// TimerToolView: Full multi-mode Timers & Phone-Style Alarm view:
-    /// 1. Pomodoro (Custom title, Focus/Break/Long Break, Cycles, Auto-start, +1m/+5m)
-    /// 2. Countdown (Direct editable H:M:S + "Ring in X mins" + "Ring at HH:MM", Custom saved presets, Sound & Loop)
-    /// 3. Alarm (Phone-style HH:MM & "In X mins" alarm creator, Multiple alarms list, 6 Synthesized Sounds + Test, Snooze, Daily repeat)
-    /// 4. Stopwatch (Sub-second 0->100% progress ring, Lap recording with Fastest/Slowest badges & Copy)
-    /// 5. Water / Hydration (Daily ml progress, auto-reminder countdown, Notch toggle)
+    /// TimerToolView: High-precision Sheet / Drum Roller Wheel Timer View:
+    /// 1. Pomodoro (Sheet Drum Picker, Task Chips, Focus/Break Cycles, Auto-next)
+    /// 2. Countdown / Timer (Interactive Tumbler, Presets, Repeat Loop, Sound)
+    /// 3. Alarm Clock (Phone-style HH:MM Drum Roller, List, Snooze, Notch)
+    /// 4. Stopwatch (Sub-second live drum, Laps with Fastest/Slowest badges, Copy)
+    /// 5. Hydration (Daily ml, Glass steppers, Auto-reminder countdown)
     /// </summary>
     public sealed class TimerToolView : UserControl
     {
@@ -45,12 +45,21 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private Ellipse _dotStopwatch;
         private Ellipse _dotWater;
 
-        // Center Circular Progress Ring
-        private Path _ringTrack;
-        private Path _ringProgress;
-        private TextBlock _centerTimeText;
-        private TextBlock _centerPhaseText;
-        private TextBlock _centerSubInfoText;
+        // Center Drum Roller Wheel Controls
+        private Border _drumCard;
+        private TextBlock _drumLeftTop;
+        private TextBlock _drumLeftActive;
+        private Border _drumLeftActiveBox;
+        private TextBlock _drumLeftBottom;
+
+        private TextBlock _drumColon;
+
+        private TextBlock _drumRightTop;
+        private TextBlock _drumRightActive;
+        private Border _drumRightActiveBox;
+        private TextBlock _drumRightBottom;
+
+        private TextBlock _drumSubIndicatorText;
         private StackPanel _centerQuickPillsPanel;
 
         // Right Panels Host
@@ -63,6 +72,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         // Pomodoro Controls
         private TextBox _pomoTitleBox;
+        private readonly Border[] _pomoPresetChips = new Border[4];
+        private static readonly string[] PomoPresets = { "💻 Code", "📖 Study", "🎯 Focus", "✍ Write" };
+
         private TextBlock _cycleHeaderText;
         private TextBlock _cycleSubText;
         private StackPanel _cycleDotsPanel;
@@ -91,7 +103,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private TextBlock _countRepeatBtnText;
         private Border _countRingBanner;
 
-        // Alarm Controls (Phone-style Clock Alarm)
+        // Alarm Controls
         private TextBox _alarmTitleBox;
         private TextBox _alarmHourInput;
         private TextBox _alarmMinInput;
@@ -138,11 +150,11 @@ namespace WindowsBuddy.BuddyCapsule.UI
         {
             var rootGrid = new Grid
             {
-                Margin = new Thickness(4, 0, 4, 0),
+                Margin = new Thickness(6, 4, 6, 4),
                 FlowDirection = FlowDirection.LeftToRight
             };
-            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(168) });
-            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(164) });
+            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(148) });
+            rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             // -------------------------------------------------------------
@@ -157,7 +169,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _rowPomo = BuildModeRow(
                 "🍅",
                 LocalizationService.T("focus.pomodoro", "Pomodoro"),
-                "25:00 · Focus",
+                "25:00 • 💻 Code",
                 out _subPomo,
                 out _dotPomo,
                 () => SwitchMode(TimerMode.Pomodoro));
@@ -165,7 +177,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _rowCountdown = BuildModeRow(
                 "⏳",
                 LocalizationService.T("focus.countdown", "Timer"),
-                "15:00 · Ready",
+                "01:00",
                 out _subCountdown,
                 out _dotCountdown,
                 () => SwitchMode(TimerMode.Countdown));
@@ -173,7 +185,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _rowAlarm = BuildModeRow(
                 "⏰",
                 LocalizationService.T("focus.alarm", "Alarm Clock"),
-                "Set time or +min",
+                "No active alarm",
                 out _subAlarm,
                 out _dotAlarm,
                 () => SwitchMode(TimerMode.Alarm));
@@ -189,7 +201,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _rowWater = BuildModeRow(
                 "💧",
                 LocalizationService.T("focus.water", "Hydration"),
-                "0 / 8 · 0 ml",
+                "0 / 8 • 0 ml",
                 out _subWater,
                 out _dotWater,
                 () => SwitchMode(TimerMode.Water));
@@ -204,7 +216,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             rootGrid.Children.Add(leftStack);
 
             // -------------------------------------------------------------
-            // COLUMN 1: CENTER CIRCULAR PROGRESS RING + QUICK PILLS
+            // COLUMN 1: CENTER SHEET / DRUM ROLLER WHEEL + QUICK BUTTONS
             // -------------------------------------------------------------
             var centerOuterStack = new StackPanel
             {
@@ -212,95 +224,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 HorizontalAlignment = HorizontalAlignment.Center
             };
 
-            var centerContainer = new Grid
-            {
-                Width = 148,
-                Height = 148,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Cursor = Cursors.Hand,
-                ToolTip = "Click: Start / Pause · Right-click: Stop & Reset · Scroll: Adjust time"
-            };
-            centerContainer.MouseWheel += OnCenterRingMouseWheel;
-            centerContainer.MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                ToggleCurrentModePrimaryAction();
-            };
-            centerContainer.MouseRightButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                ResetCurrentModeAction();
-            };
-
-            var p = CapsuleTheme.Current;
-            _ringTrack = new Path
-            {
-                Stroke = CapsuleTheme.Brush(p.Border),
-                StrokeThickness = 8.5,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
-            _ringProgress = new Path
-            {
-                Stroke = GetAccentBrush(),
-                StrokeThickness = 8.5,
-                StrokeStartLineCap = PenLineCap.Round,
-                StrokeEndLineCap = PenLineCap.Round,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Visibility = Visibility.Collapsed
-            };
-
-            centerContainer.Children.Add(_ringTrack);
-            centerContainer.Children.Add(_ringProgress);
-
-            var centerTextStack = new StackPanel
-            {
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            _centerTimeText = new TextBlock
-            {
-                Text = "25:00",
-                FontSize = 23,
-                FontWeight = FontWeights.Bold,
-                FontFamily = new FontFamily("Consolas, Segoe UI"),
-                Foreground = CapsuleTheme.Brush(p.Text),
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            _centerPhaseText = new TextBlock
-            {
-                Text = "Focus",
-                FontSize = 11.0,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = GetAccentBrush(),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                MaxWidth = 118,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                Margin = new Thickness(0, 2, 0, 0)
-            };
-            _centerSubInfoText = new TextBlock
-            {
-                Text = "Cycle 1 of 4",
-                FontSize = 9.5,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 1, 0, 0)
-            };
-            centerTextStack.Children.Add(_centerTimeText);
-            centerTextStack.Children.Add(_centerPhaseText);
-            centerTextStack.Children.Add(_centerSubInfoText);
-            centerContainer.Children.Add(centerTextStack);
-
-            centerOuterStack.Children.Add(centerContainer);
+            centerOuterStack.Children.Add(BuildDrumWheelCard());
 
             _centerQuickPillsPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 0),
+                Margin = new Thickness(0, 6, 0, 0),
                 FlowDirection = FlowDirection.LeftToRight
             };
             centerOuterStack.Children.Add(_centerQuickPillsPanel);
@@ -313,9 +243,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
             // -------------------------------------------------------------
             _rightHost = new Grid
             {
-                VerticalAlignment = VerticalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(6, 0, 0, 0)
+                Margin = new Thickness(8, 0, 0, 0)
             };
 
             _pomoPanel = BuildPomodoroPanel();
@@ -341,7 +271,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
             CapsuleTheme.ThemeChanged += () => Dispatcher.InvokeAsync(UpdateVisuals);
             AppPreferences.Instance.Changed += () => Dispatcher.InvokeAsync(UpdateVisuals);
 
-            DrawCircularRingTrack();
             SwitchMode(TimerService.Instance.LastActiveMode);
             UpdateVisuals();
         }
@@ -356,6 +285,309 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 _cachedAccentBrush.Freeze();
             }
             return _cachedAccentBrush;
+        }
+
+        #region Drum Wheel Card Builder & Wheel Handlers
+
+        private Border BuildDrumWheelCard()
+        {
+            var p = CapsuleTheme.Current;
+            _drumCard = new Border
+            {
+                Width = 168,
+                Height = 176,
+                CornerRadius = new CornerRadius(8),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 8, 10, 8),
+                Cursor = Cursors.Hand,
+                ToolTip = "Scroll: Adjust time · Click: Start/Pause · Right-click: Stop & Reset"
+            };
+
+            _drumCard.MouseWheel += (s, e) =>
+            {
+                e.Handled = true;
+                AdjustTumblerLeft(e.Delta > 0 ? +1 : -1);
+            };
+            _drumCard.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                ToggleCurrentModePrimaryAction();
+            };
+            _drumCard.MouseRightButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                ResetCurrentModeAction();
+            };
+
+            var cardStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var tumblersRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // --- LEFT TUMBLER ---
+            var leftTumbler = new StackPanel
+            {
+                Width = 56,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            leftTumbler.MouseWheel += (s, e) =>
+            {
+                e.Handled = true;
+                AdjustTumblerLeft(e.Delta > 0 ? +1 : -1);
+            };
+
+            _drumLeftTop = new TextBlock
+            {
+                Text = "01",
+                FontSize = 22,
+                FontWeight = FontWeights.SemiBold,
+                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                Opacity = 0.38,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            _drumLeftTop.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AdjustTumblerLeft(-1);
+            };
+
+            _drumLeftActive = new TextBlock
+            {
+                Text = "02",
+                FontSize = 30,
+                FontWeight = FontWeights.Bold,
+                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                Foreground = CapsuleTheme.Brush(p.Text),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            _drumLeftActiveBox = new Border
+            {
+                Width = 56,
+                Height = 46,
+                CornerRadius = new CornerRadius(5),
+                BorderBrush = GetAccentBrush(),
+                BorderThickness = new Thickness(1.5),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 2, 0, 2),
+                Child = _drumLeftActive
+            };
+            _drumLeftActiveBox.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                ToggleCurrentModePrimaryAction();
+            };
+
+            _drumLeftBottom = new TextBlock
+            {
+                Text = "03",
+                FontSize = 22,
+                FontWeight = FontWeights.SemiBold,
+                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                Opacity = 0.38,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            _drumLeftBottom.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AdjustTumblerLeft(+1);
+            };
+
+            leftTumbler.Children.Add(_drumLeftTop);
+            leftTumbler.Children.Add(_drumLeftActiveBox);
+            leftTumbler.Children.Add(_drumLeftBottom);
+            tumblersRow.Children.Add(leftTumbler);
+
+            // --- COLON SEPARATOR ---
+            _drumColon = new TextBlock
+            {
+                Text = ":",
+                FontSize = 26,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(6, -4, 6, 0)
+            };
+            tumblersRow.Children.Add(_drumColon);
+
+            // --- RIGHT TUMBLER ---
+            var rightTumbler = new StackPanel
+            {
+                Width = 56,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            rightTumbler.MouseWheel += (s, e) =>
+            {
+                e.Handled = true;
+                AdjustTumblerRight(e.Delta > 0 ? +1 : -1);
+            };
+
+            _drumRightTop = new TextBlock
+            {
+                Text = "29",
+                FontSize = 22,
+                FontWeight = FontWeights.SemiBold,
+                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                Opacity = 0.38,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            _drumRightTop.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AdjustTumblerRight(-1);
+            };
+
+            _drumRightActive = new TextBlock
+            {
+                Text = "30",
+                FontSize = 30,
+                FontWeight = FontWeights.Bold,
+                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                Foreground = CapsuleTheme.Brush(p.Text),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            _drumRightActiveBox = new Border
+            {
+                Width = 56,
+                Height = 46,
+                CornerRadius = new CornerRadius(5),
+                BorderBrush = GetAccentBrush(),
+                BorderThickness = new Thickness(1.5),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 2, 0, 2),
+                Child = _drumRightActive
+            };
+            _drumRightActiveBox.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                ToggleCurrentModePrimaryAction();
+            };
+
+            _drumRightBottom = new TextBlock
+            {
+                Text = "31",
+                FontSize = 22,
+                FontWeight = FontWeights.SemiBold,
+                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                Opacity = 0.38,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            _drumRightBottom.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                AdjustTumblerRight(+1);
+            };
+
+            rightTumbler.Children.Add(_drumRightTop);
+            rightTumbler.Children.Add(_drumRightActiveBox);
+            rightTumbler.Children.Add(_drumRightBottom);
+            tumblersRow.Children.Add(rightTumbler);
+
+            cardStack.Children.Add(tumblersRow);
+
+            // --- SUB-INDICATOR (e.g. 💻 Code • Focus 1/4) ---
+            _drumSubIndicatorText = new TextBlock
+            {
+                Text = "💻 Code • Focus 1/4",
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = GetAccentBrush(),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 150
+            };
+            cardStack.Children.Add(_drumSubIndicatorText);
+
+            _drumCard.Child = cardStack;
+            return _drumCard;
+        }
+
+        private void AdjustTumblerLeft(int delta)
+        {
+            var s = TimerService.Instance;
+            switch (_currentMode)
+            {
+                case TimerMode.Pomodoro:
+                    s.AddPomoRemainingSeconds(delta * 60);
+                    if (!s.PomoIsRunning)
+                    {
+                        s.PomoWorkSeconds = Math.Clamp(s.PomoRemainingSeconds, 60, 180 * 60);
+                        s.SavePrefs();
+                    }
+                    break;
+                case TimerMode.Countdown:
+                    s.AdjustCountdownComponents(0, delta, 0);
+                    break;
+                case TimerMode.Alarm:
+                    s.AdjustDraftAlarmTime(delta, 0);
+                    break;
+                case TimerMode.Stopwatch:
+                    break;
+                case TimerMode.Water:
+                    if (delta > 0) s.AddWaterGlass(1);
+                    else s.RemoveWaterGlass();
+                    break;
+            }
+            UpdateVisuals();
+        }
+
+        private void AdjustTumblerRight(int delta)
+        {
+            var s = TimerService.Instance;
+            switch (_currentMode)
+            {
+                case TimerMode.Pomodoro:
+                    s.AddPomoRemainingSeconds(delta);
+                    if (!s.PomoIsRunning)
+                    {
+                        s.PomoWorkSeconds = Math.Clamp(s.PomoRemainingSeconds, 5, 180 * 60);
+                        s.SavePrefs();
+                    }
+                    break;
+                case TimerMode.Countdown:
+                    s.AdjustCountdownComponents(0, 0, delta);
+                    break;
+                case TimerMode.Alarm:
+                    s.AdjustDraftAlarmTime(0, delta);
+                    break;
+                case TimerMode.Stopwatch:
+                    break;
+                case TimerMode.Water:
+                    s.AdjustWaterTarget(delta);
+                    break;
+            }
+            UpdateVisuals();
         }
 
         private void ToggleCurrentModePrimaryAction()
@@ -402,6 +634,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
             }
         }
 
+        #endregion
+
         #region Panel Builders
 
         private Grid BuildPomodoroPanel()
@@ -410,15 +644,21 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var grid = new Grid { VerticalAlignment = VerticalAlignment.Center };
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
 
-            stack.Children.Add(BuildTitleInputBar(
-                LocalizationService.T("focus.pomo_title_placeholder", "Focus title (shown in Notch)..."),
+            // 1. Task Bar (Full-width bar with task title and chevron)
+            var taskBar = BuildTaskBar(
                 TimerService.Instance.PomoTitle,
                 out _pomoTitleBox,
-                text => TimerService.Instance.SetPomoTitle(text),
-                new[] { "💻 Code", "📚 Study", "🎯 Focus", "✍️ Write" }));
+                text => TimerService.Instance.SetPomoTitle(text));
+            stack.Children.Add(taskBar);
 
+            // 2. Preset Chips: [ 💻 Code ] [ 📖 Study ] [ 🎯 Focus ] [ ✍ Write ]
+            var presetChipsRow = BuildPomodoroPresetChips();
+            stack.Children.Add(presetChipsRow);
+
+            // 3. Header & Transport Controls Row
             var headerAndTransportDock = new DockPanel { Margin = new Thickness(0, 4, 0, 6) };
 
+            // Transport buttons on the right: [ ↺ ] [ ▶ ] [ ⏭ ]
             var transportRow = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -427,13 +667,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FlowDirection = FlowDirection.LeftToRight
             };
 
-            var resetBtn = CreateCircleIconButton("⏹", 28, "Stop & Reset", () => TimerService.Instance.ResetPomo());
+            var resetBtn = CreateCircleIconButton("↺", 34, "Stop & Reset", () => TimerService.Instance.ResetPomo());
             transportRow.Children.Add(resetBtn);
 
             _pomoPlayIcon = new TextBlock
             {
                 Text = "▶",
-                FontSize = 13,
+                FontSize = 16,
                 Foreground = CapsuleTheme.Brush(p.AccentFg),
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -441,13 +681,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             _pomoPlayBtn = new Border
             {
-                Width = 36,
-                Height = 36,
-                CornerRadius = new CornerRadius(18),
+                Width = 46,
+                Height = 46,
+                CornerRadius = new CornerRadius(23),
                 Background = GetAccentBrush(),
                 Cursor = Cursors.Hand,
                 ToolTip = "Start / Pause",
-                Margin = new Thickness(6, 0, 6, 0),
+                Margin = new Thickness(8, 0, 8, 0),
                 Child = _pomoPlayIcon
             };
             _pomoPlayBtn.MouseLeftButtonUp += (_, e) =>
@@ -457,18 +697,19 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             transportRow.Children.Add(_pomoPlayBtn);
 
-            var skipBtn = CreateCircleIconButton("⏭", 28, "Skip Phase", () => TimerService.Instance.SkipPomo());
+            var skipBtn = CreateCircleIconButton("⏭", 34, "Skip Phase", () => TimerService.Instance.SkipPomo());
             transportRow.Children.Add(skipBtn);
 
             DockPanel.SetDock(transportRow, Dock.Right);
             headerAndTransportDock.Children.Add(transportRow);
 
+            // Info on the left: "Focus 1 of 4" + Dots + "Break 05:00 next"
             var cycleInfoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var topCycleRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             _cycleHeaderText = new TextBlock
             {
                 Text = "Focus 1 of 4",
-                FontSize = 12.0,
+                FontSize = 13.0,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -492,7 +733,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             stack.Children.Add(headerAndTransportDock);
 
-            var steppersGrid = new UniformGrid { Columns = 2, Rows = 2, Margin = new Thickness(0, 2, 0, 6) };
+            // 4. 2x2 Steppers Grid: Focus 25m, Break 5m, Long 15m, Cycles 4
+            var steppersGrid = new UniformGrid { Columns = 2, Rows = 2, Margin = new Thickness(0, 4, 0, 6) };
             steppersGrid.Children.Add(CreateStepperPill("Focus 25m", out _focusMinsText,
                 () => TimerService.Instance.AdjustPomoWork(-5),
                 () => TimerService.Instance.AdjustPomoWork(+5)));
@@ -507,6 +749,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 () => TimerService.Instance.AdjustPomoCycles(+1)));
             stack.Children.Add(steppersGrid);
 
+            // 5. Bottom row: Auto-next toggle + "0 done (0m)"
             var bottomBar = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
             var autoToggle = CreateMiniToggle(
                 LocalizationService.T("focus.auto", "Auto-next"),
@@ -536,13 +779,112 @@ namespace WindowsBuddy.BuddyCapsule.UI
             return grid;
         }
 
+        private Border BuildTaskBar(string initialTitle, out TextBox tbOut, Action<string> onTitleChanged)
+        {
+            var p = CapsuleTheme.Current;
+            var border = new Border
+            {
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Height = 30,
+                Padding = new Thickness(8, 0, 8, 0),
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+
+            var dock = new DockPanel();
+
+            var chevron = new TextBlock
+            {
+                Text = "⌄",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, -3, 0, 0)
+            };
+            DockPanel.SetDock(chevron, Dock.Right);
+            dock.Children.Add(chevron);
+
+            var tb = new TextBox
+            {
+                Text = string.IsNullOrWhiteSpace(initialTitle) ? "💻 Code" : initialTitle,
+                FontSize = 12,
+                FontWeight = FontWeights.Medium,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                CaretBrush = CapsuleTheme.Brush(p.Text),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxLength = 34
+            };
+            tb.TextChanged += (_, _) =>
+            {
+                onTitleChanged(tb.Text);
+            };
+
+            dock.Children.Add(tb);
+            border.Child = dock;
+            tbOut = tb;
+            return border;
+        }
+
+        private StackPanel BuildPomodoroPresetChips()
+        {
+            var p = CapsuleTheme.Current;
+            var stack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+
+            for (int i = 0; i < PomoPresets.Length; i++)
+            {
+                int index = i;
+                string preset = PomoPresets[i];
+                var chip = new Border
+                {
+                    Background = CapsuleTheme.Brush(p.Surface),
+                    BorderBrush = CapsuleTheme.Brush(p.Border),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(5),
+                    Height = 26,
+                    Padding = new Thickness(10, 0, 10, 0),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    Cursor = Cursors.Hand
+                };
+                var tb = new TextBlock
+                {
+                    Text = preset,
+                    FontSize = 11,
+                    FontWeight = FontWeights.Medium,
+                    Foreground = CapsuleTheme.Brush(p.Text),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                chip.Child = tb;
+                chip.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    if (_pomoTitleBox != null) _pomoTitleBox.Text = preset;
+                    TimerService.Instance.SetPomoTitle(preset);
+                    UpdateVisuals();
+                };
+                _pomoPresetChips[index] = chip;
+                stack.Children.Add(chip);
+            }
+
+            return stack;
+        }
+
         private Grid BuildCountdownPanel()
         {
             var p = CapsuleTheme.Current;
             var grid = new Grid { VerticalAlignment = VerticalAlignment.Center };
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
 
-            // 1. Title Bar + Quick Tags
+            // 1. Task Bar
             stack.Children.Add(BuildTitleInputBar(
                 LocalizationService.T("focus.count_title_placeholder", "Timer label (e.g. Tea, Workout, Exam)..."),
                 TimerService.Instance.CountTitle,
@@ -550,7 +892,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 text => TimerService.Instance.SetCountdownTitle(text),
                 new[] { "☕ Coffee", "🍳 Cook", "💊 Pill", "🏋️ Gym", "🧘 Rest" }));
 
-            // 2. Direct Editable H : M : S + "Ring at HH:MM" + Transport Controls
+            // 2. Direct Controls + Transport Controls
             var mainControlRow = new DockPanel { Margin = new Thickness(0, 3, 0, 4) };
 
             var rightControls = new StackPanel
@@ -560,13 +902,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FlowDirection = FlowDirection.LeftToRight
             };
 
-            var stopBtn = CreateCircleIconButton("⏹", 28, "Stop & Reset", () => TimerService.Instance.ResetCountdown());
+            var stopBtn = CreateCircleIconButton("↺", 34, "Stop & Reset", () => TimerService.Instance.ResetCountdown());
             rightControls.Children.Add(stopBtn);
 
             _countPlayIcon = new TextBlock
             {
                 Text = "▶",
-                FontSize = 13,
+                FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.AccentFg),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -574,13 +916,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             _countPlayBtn = new Border
             {
-                Width = 34,
-                Height = 34,
-                CornerRadius = new CornerRadius(17),
+                Width = 46,
+                Height = 46,
+                CornerRadius = new CornerRadius(23),
                 Background = GetAccentBrush(),
                 Cursor = Cursors.Hand,
                 ToolTip = "Start / Pause Timer",
-                Margin = new Thickness(5, 0, 5, 0),
+                Margin = new Thickness(8, 0, 8, 0),
                 Child = _countPlayIcon
             };
             _countPlayBtn.MouseLeftButtonUp += (_, e) =>
@@ -591,13 +933,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             rightControls.Children.Add(_countPlayBtn);
 
-            _countLoopBtn = CreateCircleIconButton("🔁", 28, "Auto-Repeat (Loop)", () => TimerService.Instance.ToggleCountdownLoop());
+            _countLoopBtn = CreateCircleIconButton("🔁", 34, "Auto-Repeat (Loop)", () => TimerService.Instance.ToggleCountdownLoop());
             rightControls.Children.Add(_countLoopBtn);
 
             DockPanel.SetDock(rightControls, Dock.Right);
             mainControlRow.Children.Add(rightControls);
 
-            // Left: Editable H : M : S Boxes + Target Clock Time ("چه ساعتی زنگ بخوره")
+            // Left: Editable H : M : S Boxes
             var hmsRow = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -615,15 +957,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 delta => TimerService.Instance.AdjustCountdownComponents(0, 0, delta * 5),
                 CommitTypedCountdownIfEdited));
 
-            // "Ring at HH:MM" direct box ("چه ساعتی زنگ بخوره")
+            // "Ring at HH:MM" direct box
             var atTimeBorder = new Border
             {
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(5, 2, 5, 2),
-                Margin = new Thickness(3, 0, 0, 0),
+                Margin = new Thickness(4, 0, 0, 0),
                 ToolTip = "Type exact clock time (HH:MM) and press Enter to ring at that time!"
             };
             var atTimeStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
@@ -663,7 +1005,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             mainControlRow.Children.Add(hmsRow);
             stack.Children.Add(mainControlRow);
 
-            // 3. Preset Duration Chips + [+ Save Custom]
+            // 3. Preset Duration Chips
             var presetsHeaderRow = new DockPanel { Margin = new Thickness(0, 1, 0, 2) };
             _countTargetTimePreviewText = new TextBlock
             {
@@ -692,7 +1034,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             stack.Children.Add(_countPresetsWrap);
 
-            // 4. Sound & Ring Customization Bar + Active Ringing Controls
+            // 4. Sound & Ring Customization Bar
             var customRow = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
 
             var soundControls = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -740,7 +1082,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 text => TimerService.Instance.DraftAlarmTitle = text ?? "",
                 new[] { "⏰ Wake", "💼 Meet", "💊 Pill", "🍳 Food", "📞 Call" }));
 
-            // 2. Phone-style Time Picker ("چه ساعتی زنگ بخوره" HH:MM) + "چند دقیقه دیگه" (In X min)
+            // 2. Picker Row
             var pickerDock = new DockPanel { Margin = new Thickness(0, 3, 0, 4) };
 
             var rightAddActions = new StackPanel
@@ -765,11 +1107,11 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             _alarmAddBtn = new Border
             {
-                Height = 32,
-                CornerRadius = new CornerRadius(16),
+                Height = 34,
+                CornerRadius = new CornerRadius(17),
                 Background = GetAccentBrush(),
-                Padding = new Thickness(12, 0, 12, 0),
-                Margin = new Thickness(4, 0, 0, 0),
+                Padding = new Thickness(14, 0, 14, 0),
+                Margin = new Thickness(6, 0, 0, 0),
                 Cursor = Cursors.Hand,
                 ToolTip = "Set / Add Alarm",
                 Child = new TextBlock
@@ -816,13 +1158,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 delta => TimerService.Instance.AdjustDraftAlarmTime(0, delta),
                 SyncTypedDraftAlarmTime));
 
-            // Direct "In X mins" ("چند دقیقه دیگه زنگ بخوره") input box
             var inMinBorder = new Border
             {
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(6, 2, 6, 2),
                 Margin = new Thickness(5, 0, 0, 0),
                 ToolTip = "Type how many minutes from now and press Enter!"
@@ -863,7 +1204,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             pickerDock.Children.Add(leftPickers);
             stack.Children.Add(pickerDock);
 
-            // 3. Quick "Ring in X minutes" chips ("چند دقیقه دیگه زنگ بخوره")
+            // 3. Quick Chips
             var quickInRow = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -881,7 +1222,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             }
             stack.Children.Add(quickInRow);
 
-            // 4. Customization Row (Sound, Snooze, Repeat, Notch toggle)
+            // 4. Customization Row
             var customRow = new DockPanel { Margin = new Thickness(0, 1, 0, 4) };
             var customLeft = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
@@ -924,7 +1265,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Background = CapsuleTheme.Brush(p.Surface2),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(8, 5, 8, 5),
                 Height = 68
             };
@@ -985,10 +1326,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FlowDirection = FlowDirection.LeftToRight
             };
 
+            var resetSwBtn = CreateCircleIconButton("↺", 34, "Stop & Reset", () => TimerService.Instance.ResetStopwatch());
+            leftActions.Children.Add(resetSwBtn);
+
             _swPlayIcon = new TextBlock
             {
                 Text = "▶",
-                FontSize = 13,
+                FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.AccentFg),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -996,13 +1340,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             _swPlayBtn = new Border
             {
-                Width = 36,
-                Height = 36,
-                CornerRadius = new CornerRadius(18),
+                Width = 46,
+                Height = 46,
+                CornerRadius = new CornerRadius(23),
                 Background = GetAccentBrush(),
                 Cursor = Cursors.Hand,
                 ToolTip = "Start / Stop Stopwatch",
-                Margin = new Thickness(0, 0, 8, 0),
+                Margin = new Thickness(8, 0, 8, 0),
                 Child = _swPlayIcon
             };
             _swPlayBtn.MouseLeftButtonUp += (_, e) =>
@@ -1012,11 +1356,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             leftActions.Children.Add(_swPlayBtn);
 
-            _swLapBtn = CreateActionPill("🏁 Lap", out _, () => TimerService.Instance.RecordStopwatchLap());
+            _swLapBtn = CreateCircleIconButton("🏁", 34, "Record Lap", () => TimerService.Instance.RecordStopwatchLap());
             leftActions.Children.Add(_swLapBtn);
-
-            var resetSwBtn = CreateActionPill("⏹ Reset", out _, () => TimerService.Instance.ResetStopwatch());
-            leftActions.Children.Add(resetSwBtn);
 
             DockPanel.SetDock(leftActions, Dock.Left);
             controlsRow.Children.Add(leftActions);
@@ -1032,7 +1373,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Background = CapsuleTheme.Brush(p.Surface2),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(8, 6, 8, 6),
                 Height = 110
             };
@@ -1075,7 +1416,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(10, 8, 10, 8),
                 Margin = new Thickness(0, 0, 0, 6)
             };
@@ -1123,17 +1464,17 @@ namespace WindowsBuddy.BuddyCapsule.UI
             actionsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             actionsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            var minusGlassBtn = CreateActionPill("-1 Glass", out _, () => TimerService.Instance.RemoveWaterGlass());
+            var minusGlassBtn = CreateCircleIconButton("—", 34, "-1 Glass", () => TimerService.Instance.RemoveWaterGlass());
             Grid.SetColumn(minusGlassBtn, 0);
             actionsRow.Children.Add(minusGlassBtn);
 
             _waterAddGlassBtn = new Border
             {
-                Height = 30,
-                CornerRadius = new CornerRadius(15),
+                Height = 34,
+                CornerRadius = new CornerRadius(17),
                 Background = GetAccentBrush(),
-                Padding = new Thickness(12, 0, 12, 0),
-                Margin = new Thickness(6, 0, 6, 0),
+                Padding = new Thickness(14, 0, 14, 0),
+                Margin = new Thickness(8, 0, 8, 0),
                 Cursor = Cursors.Hand,
                 Child = new TextBlock
                 {
@@ -1164,7 +1505,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(10, 7, 10, 7)
             };
             var remStack = new StackPanel();
@@ -1291,7 +1632,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(8, 3, 6, 3)
             };
 
@@ -1360,10 +1701,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 string tVal = tag;
                 var chip = new Border
                 {
-                    Background = CapsuleTheme.Brush(p.Surface2),
+                    Background = CapsuleTheme.Brush(p.Surface),
                     BorderBrush = CapsuleTheme.Brush(p.Border),
                     BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(7),
+                    CornerRadius = new CornerRadius(5),
                     Padding = new Thickness(6, 1.5, 6, 1.5),
                     Margin = new Thickness(0, 0, 4, 0),
                     Cursor = Cursors.Hand,
@@ -1400,7 +1741,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(4, 2, 4, 2),
                 Margin = new Thickness(0, 0, 4, 0)
             };
@@ -1498,9 +1839,11 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var border = new Border
             {
                 Background = Brushes.Transparent,
-                CornerRadius = new CornerRadius(9),
+                CornerRadius = new CornerRadius(6),
+                BorderBrush = Brushes.Transparent,
+                BorderThickness = new Thickness(1),
                 Padding = new Thickness(8, 5, 8, 5),
-                Margin = new Thickness(0, 1, 0, 1),
+                Margin = new Thickness(0, 1.5, 0, 1.5),
                 Cursor = Cursors.Hand
             };
 
@@ -1508,10 +1851,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             var iconBorder = new Border
             {
-                Width = 24,
-                Height = 24,
-                CornerRadius = new CornerRadius(6),
-                Background = CapsuleTheme.Brush(p.Surface2),
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(4),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
                 Margin = new Thickness(0, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock
@@ -1541,7 +1886,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             textStack.Children.Add(new TextBlock
             {
                 Text = title,
-                FontSize = 11.5,
+                FontSize = 12.0,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = CapsuleTheme.Brush(p.Text)
             });
@@ -1551,7 +1896,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Text = subtitle,
                 FontSize = 9.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 1, 0, 0)
             };
             textStack.Children.Add(subBlockOut);
             dock.Children.Add(textStack);
@@ -1573,10 +1919,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Height = 27,
-                Margin = new Thickness(2),
-                Padding = new Thickness(6, 0, 6, 0)
+                CornerRadius = new CornerRadius(6),
+                Height = 30,
+                Margin = new Thickness(2.5),
+                Padding = new Thickness(8, 0, 8, 0)
             };
 
             var grid = new Grid();
@@ -1586,40 +1932,45 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             var minusBtn = new TextBlock
             {
-                Text = "−",
+                Text = "—",
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
-                Padding = new Thickness(4, 0, 4, 0),
+                Padding = new Thickness(6, 0, 6, 0),
                 Cursor = Cursors.Hand
             };
+            minusBtn.MouseEnter += (_, _) => minusBtn.Foreground = CapsuleTheme.Brush(p.Text);
+            minusBtn.MouseLeave += (_, _) => minusBtn.Foreground = CapsuleTheme.Brush(p.Text2);
             minusBtn.MouseLeftButtonUp += (_, e) => { e.Handled = true; onMinus(); };
             Grid.SetColumn(minusBtn, 0);
             grid.Children.Add(minusBtn);
 
-            labelOut = new TextBlock
+            var label = new TextBlock
             {
                 Text = initialLabel,
-                FontSize = 10.5,
+                FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(labelOut, 1);
-            grid.Children.Add(labelOut);
+            labelOut = label;
+            Grid.SetColumn(label, 1);
+            grid.Children.Add(label);
 
             var plusBtn = new TextBlock
             {
                 Text = "+",
-                FontSize = 13,
+                FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
-                Padding = new Thickness(4, 0, 4, 0),
+                Padding = new Thickness(6, 0, 6, 0),
                 Cursor = Cursors.Hand
             };
+            plusBtn.MouseEnter += (_, _) => plusBtn.Foreground = CapsuleTheme.Brush(p.Text);
+            plusBtn.MouseLeave += (_, _) => plusBtn.Foreground = CapsuleTheme.Brush(p.Text2);
             plusBtn.MouseLeftButtonUp += (_, e) => { e.Handled = true; onPlus(); };
             Grid.SetColumn(plusBtn, 2);
             grid.Children.Add(plusBtn);
@@ -1628,30 +1979,31 @@ namespace WindowsBuddy.BuddyCapsule.UI
             return pill;
         }
 
-        private static Border CreateCircleIconButton(string glyph, double size, string tooltip, Action onClick)
+        private static Border CreateCircleIconButton(string icon, double size, string toolTip, Action onClick)
         {
             var p = CapsuleTheme.Current;
             var btn = new Border
             {
                 Width = size,
                 Height = size,
-                CornerRadius = new CornerRadius(size / 2.0),
-                Background = CapsuleTheme.Brush(p.Surface2),
+                CornerRadius = new CornerRadius(size / 2),
+                Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 Cursor = Cursors.Hand,
-                ToolTip = tooltip,
+                ToolTip = toolTip,
                 Child = new TextBlock
                 {
-                    Text = glyph,
-                    FontSize = 11.5,
+                    Text = icon,
+                    FontSize = size > 30 ? 13 : 11,
+                    FontWeight = FontWeights.Bold,
                     Foreground = CapsuleTheme.Brush(p.Text),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
-            btn.MouseEnter += (_, _) => btn.Opacity = 0.82;
-            btn.MouseLeave += (_, _) => btn.Opacity = 1.0;
+            btn.MouseEnter += (_, _) => btn.Background = CapsuleTheme.Brush(p.Surface2);
+            btn.MouseLeave += (_, _) => btn.Background = CapsuleTheme.Brush(p.Surface);
             btn.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -1665,23 +2017,23 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var p = CapsuleTheme.Current;
             var chip = new Border
             {
-                Background = CapsuleTheme.Brush(p.Surface2),
+                Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(7, 2.5, 7, 2.5),
-                Margin = new Thickness(0, 1, 4, 2),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(7, 2, 7, 2),
+                Margin = new Thickness(0, 0, 4, 2),
                 Cursor = Cursors.Hand,
                 Child = new TextBlock
                 {
                     Text = label,
-                    FontSize = 10.0,
-                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 10,
+                    FontWeight = FontWeights.Medium,
                     Foreground = CapsuleTheme.Brush(p.Text),
                     VerticalAlignment = VerticalAlignment.Center
                 }
             };
-            chip.MouseEnter += (_, _) => chip.Opacity = 0.82;
+            chip.MouseEnter += (_, _) => chip.Opacity = 0.8;
             chip.MouseLeave += (_, _) => chip.Opacity = 1.0;
             chip.MouseLeftButtonUp += (_, e) =>
             {
@@ -1697,6 +2049,46 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 };
             }
             return chip;
+        }
+
+        private static Border CreateQuickActionButton(string label, Action onClick)
+        {
+            var p = CapsuleTheme.Current;
+            var btn = new Border
+            {
+                Width = 48,
+                Height = 28,
+                CornerRadius = new CornerRadius(5),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(3, 0, 3, 0),
+                Cursor = Cursors.Hand
+            };
+            var tb = new TextBlock
+            {
+                Text = label,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            btn.Child = tb;
+            btn.MouseEnter += (_, _) =>
+            {
+                btn.Background = CapsuleTheme.Brush(p.Surface2);
+            };
+            btn.MouseLeave += (_, _) =>
+            {
+                btn.Background = CapsuleTheme.Brush(p.Surface);
+            };
+            btn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                onClick();
+            };
+            return btn;
         }
 
         private static Border CreateActionPill(string label, out TextBlock textOut, Action onClick)
@@ -1715,8 +2107,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var pill = new Border
             {
                 Height = 26,
-                CornerRadius = new CornerRadius(13),
-                Background = CapsuleTheme.Brush(p.Surface2),
+                CornerRadius = new CornerRadius(5),
+                Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(8, 0, 8, 0),
@@ -1743,35 +2135,38 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand
             };
-            row.Children.Add(new TextBlock
+            if (!string.IsNullOrEmpty(label))
             {
-                Text = label,
-                FontSize = 10.0,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 5, 0)
-            });
+                row.Children.Add(new TextBlock
+                {
+                    Text = label,
+                    FontSize = 10.5,
+                    Foreground = CapsuleTheme.Brush(p.Text2),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 6, 0)
+                });
+            }
 
             trackOut = new Border
             {
-                Width = 28,
-                Height = 15,
-                CornerRadius = new CornerRadius(7.5),
+                Width = 32,
+                Height = 17,
+                CornerRadius = new CornerRadius(8.5),
                 Background = CapsuleTheme.Brush(p.Surface2),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 VerticalAlignment = VerticalAlignment.Center,
                 FlowDirection = FlowDirection.LeftToRight
             };
-            var canvas = new Canvas { Width = 28, Height = 15 };
+            var canvas = new Canvas { Width = 32, Height = 17 };
             thumbOut = new Ellipse
             {
-                Width = 11,
-                Height = 11,
+                Width = 13,
+                Height = 13,
                 Fill = CapsuleTheme.Brush(p.AccentFg)
             };
             Canvas.SetLeft(thumbOut, 2);
-            Canvas.SetTop(thumbOut, 2);
+            Canvas.SetTop(thumbOut, 1);
             canvas.Children.Add(thumbOut);
             trackOut.Child = canvas;
             row.Children.Add(trackOut);
@@ -1804,40 +2199,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         #region Mode Switching & Live Visual Updates
 
-        private void OnCenterRingMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            e.Handled = true;
-            int delta = e.Delta > 0 ? +1 : -1;
-            var s = TimerService.Instance;
-            switch (_currentMode)
-            {
-                case TimerMode.Pomodoro:
-                    s.AddPomoRemainingSeconds(delta * 60);
-                    break;
-                case TimerMode.Countdown:
-                    s.AdjustCountdownComponents(0, delta, 0);
-                    break;
-                case TimerMode.Alarm:
-                    s.AdjustDraftAlarmTime(0, delta * 5);
-                    break;
-                case TimerMode.Water:
-                    if (delta > 0) s.AddWaterGlass(1);
-                    else s.RemoveWaterGlass();
-                    break;
-            }
-        }
-
         public void SwitchMode(TimerMode mode)
         {
             _currentMode = mode;
             TimerService.Instance.LastActiveMode = mode;
 
-            var p = CapsuleTheme.Current;
-            _rowPomo.Background = mode == TimerMode.Pomodoro ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent;
-            _rowCountdown.Background = mode == TimerMode.Countdown ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent;
-            _rowAlarm.Background = mode == TimerMode.Alarm ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent;
-            _rowStopwatch.Background = mode == TimerMode.Stopwatch ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent;
-            _rowWater.Background = mode == TimerMode.Water ? CapsuleTheme.Brush(p.Surface2) : Brushes.Transparent;
+            SetRowActiveStyle(_rowPomo, mode == TimerMode.Pomodoro);
+            SetRowActiveStyle(_rowCountdown, mode == TimerMode.Countdown);
+            SetRowActiveStyle(_rowAlarm, mode == TimerMode.Alarm);
+            SetRowActiveStyle(_rowStopwatch, mode == TimerMode.Stopwatch);
+            SetRowActiveStyle(_rowWater, mode == TimerMode.Water);
 
             _pomoPanel.Visibility = mode == TimerMode.Pomodoro ? Visibility.Visible : Visibility.Collapsed;
             _countdownPanel.Visibility = mode == TimerMode.Countdown ? Visibility.Visible : Visibility.Collapsed;
@@ -1849,6 +2220,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
             UpdateVisuals();
         }
 
+        private static void SetRowActiveStyle(Border row, bool active)
+        {
+            if (row == null) return;
+            var p = CapsuleTheme.Current;
+            row.Background = active ? CapsuleTheme.Brush(p.Surface) : Brushes.Transparent;
+            row.BorderBrush = active ? CapsuleTheme.Brush(p.Border) : Brushes.Transparent;
+        }
+
         private void RebuildCenterQuickPills()
         {
             _centerQuickPillsPanel.Children.Clear();
@@ -1857,55 +2236,58 @@ namespace WindowsBuddy.BuddyCapsule.UI
             switch (_currentMode)
             {
                 case TimerMode.Pomodoro:
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("-1m", () => s.AddPomoRemainingSeconds(-60)));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+1m", () => s.AddPomoRemainingSeconds(+60)));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+5m", () => s.AddPomoRemainingSeconds(+300)));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("- 1m", () => { s.AddPomoRemainingSeconds(-60); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 1m", () => { s.AddPomoRemainingSeconds(+60); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 5m", () => { s.AddPomoRemainingSeconds(+300); UpdateVisuals(); }));
                     break;
                 case TimerMode.Countdown:
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+30s", () => s.AddCountdownRunningSeconds(+30)));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+1m", () => s.AddCountdownRunningSeconds(+60)));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+5m", () => s.AddCountdownRunningSeconds(+300)));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("- 1m", () => { s.AddCountdownRunningSeconds(-60); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 1m", () => { s.AddCountdownRunningSeconds(+60); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 5m", () => { s.AddCountdownRunningSeconds(+300); UpdateVisuals(); }));
                     break;
                 case TimerMode.Alarm:
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+10m", () => s.AddQuickAlarmInMinutes(10, _alarmTitleBox?.Text)));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+30m", () => s.AddQuickAlarmInMinutes(30, _alarmTitleBox?.Text)));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+1h", () => s.AddQuickAlarmInMinutes(60, _alarmTitleBox?.Text)));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("- 10m", () => { s.AdjustDraftAlarmTime(0, -10); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 15m", () => { s.AdjustDraftAlarmTime(0, +15); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 30m", () => { s.AdjustDraftAlarmTime(0, +30); UpdateVisuals(); }));
                     break;
                 case TimerMode.Stopwatch:
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("🏁 Lap", () => s.RecordStopwatchLap()));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("⏹ Reset", () => s.ResetStopwatch()));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("↺ Reset", () => { s.ResetStopwatch(); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("🏁 Lap", () => { s.RecordStopwatchLap(); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("📋 Copy", () => CopyStopwatchLapsToClipboard()));
                     break;
                 case TimerMode.Water:
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("-250ml", () => s.RemoveWaterGlass()));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickChip("+250ml", () => s.AddWaterGlass(1)));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("- 250ml", () => { s.RemoveWaterGlass(); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 250ml", () => { s.AddWaterGlass(1); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 500ml", () => { s.AddWaterGlass(2); UpdateVisuals(); }));
                     break;
             }
         }
 
         /// <summary>
-        /// High-frequency (40fps) lightweight update for silky-smooth progress ring and live digits without recreating UI trees.
+        /// High-frequency (40fps) lightweight update for live drum roller digits and active border styling.
         /// </summary>
         private void UpdateFastTickVisuals()
         {
             var s = TimerService.Instance;
             var accentBrush = GetAccentBrush();
-            _ringProgress.Stroke = accentBrush;
-            _centerPhaseText.Foreground = accentBrush;
+            _drumLeftActiveBox.BorderBrush = accentBrush;
+            _drumRightActiveBox.BorderBrush = accentBrush;
+            _drumSubIndicatorText.Foreground = accentBrush;
 
-            // 1. Update Sidebar Subtitles
+            // 1. Update Sidebar Subtitles with bullet •
             string pPhase = s.PomoIsWork
                 ? LocalizationService.T("focus.focus", "Focus")
                 : LocalizationService.T("focus.break", "Break");
-            string pSub = $"{TimerService.FormatDuration(s.PomoRemainingSeconds)} · {(!string.IsNullOrWhiteSpace(s.PomoTitle) ? s.PomoTitle : pPhase)}";
+            string pSub = $"{TimerService.FormatDuration(s.PomoRemainingSeconds)} • {(!string.IsNullOrWhiteSpace(s.PomoTitle) ? s.PomoTitle : pPhase)}";
             if (_subPomo.Text != pSub) _subPomo.Text = pSub;
 
             string cSub = TimerService.FormatDuration(s.CountRemainingSeconds);
-            if (!string.IsNullOrWhiteSpace(s.CountTitle)) cSub += $" · {s.CountTitle}";
+            if (!string.IsNullOrWhiteSpace(s.CountTitle)) cSub += $" • {s.CountTitle}";
             if (_subCountdown.Text != cSub) _subCountdown.Text = cSub;
 
-            var nearestAlarm = s.GetNearestEnabledAlarm(out TimeSpan alarmRem, out double alarmRatio);
+            var nearestAlarm = s.GetNearestEnabledAlarm(out TimeSpan alarmRem, out _);
             string aSub = nearestAlarm != null
-                ? $"🔔 {nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2} ({TimerService.FormatDuration((int)Math.Ceiling(alarmRem.TotalSeconds))})"
+                ? $"{nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2} • in {(int)alarmRem.TotalHours}h {alarmRem.Minutes}m"
                 : "No active alarm";
             if (_subAlarm.Text != aSub) _subAlarm.Text = aSub;
 
@@ -1915,79 +2297,108 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 : $"{sw.Minutes:D2}:{sw.Seconds:D2}.{sw.Milliseconds / 10:D2}";
             if (_subStopwatch.Text != swSub) _subStopwatch.Text = swSub;
 
-            // 2. Update Center Ring & Digits
+            string wSub = $"{s.WaterGlasses} / {s.WaterTarget} • {s.WaterGlasses * 250} ml";
+            if (_subWater.Text != wSub) _subWater.Text = wSub;
+
+            // 2. Update Drum Roller Tumblers
             switch (_currentMode)
             {
                 case TimerMode.Pomodoro:
                 {
-                    string tStr = TimerService.FormatDuration(s.PomoRemainingSeconds);
-                    if (_centerTimeText.Text != tStr) _centerTimeText.Text = tStr;
-                    _centerPhaseText.Text = !string.IsNullOrWhiteSpace(s.PomoTitle) ? s.PomoTitle : pPhase;
-                    _centerSubInfoText.Text = $"{pPhase} · {s.PomoCurrentCycle}/{s.PomoTargetCycles}";
-                    DrawCircularProgressArc(s.PomoIsRunning ? s.GetPomoRemainingRatio() : 0.0);
+                    int rem = s.PomoRemainingSeconds;
+                    int m = rem / 60;
+                    int sec = rem % 60;
+
+                    _drumLeftTop.Text = $"{((m - 1 + 100) % 100):D2}";
+                    _drumLeftActive.Text = $"{m:D2}";
+                    _drumLeftBottom.Text = $"{((m + 1) % 100):D2}";
+
+                    _drumRightTop.Text = $"{((sec - 1 + 60) % 60):D2}";
+                    _drumRightActive.Text = $"{sec:D2}";
+                    _drumRightBottom.Text = $"{((sec + 1) % 60):D2}";
+
+                    string tName = !string.IsNullOrWhiteSpace(s.PomoTitle) ? s.PomoTitle : "Code";
+                    if (!tName.StartsWith("💻") && !tName.StartsWith("📖") && !tName.StartsWith("🎯") && !tName.StartsWith("✍"))
+                    {
+                        tName = "💻 " + tName;
+                    }
+                    _drumSubIndicatorText.Text = $"{tName} • {pPhase} {s.PomoCurrentCycle}/{s.PomoTargetCycles}";
                     break;
                 }
                 case TimerMode.Countdown:
                 {
-                    string tStr = TimerService.FormatDuration(s.CountRemainingSeconds);
-                    if (_centerTimeText.Text != tStr) _centerTimeText.Text = tStr;
-                    _centerPhaseText.Text = !string.IsNullOrWhiteSpace(s.CountTitle) ? s.CountTitle : "Timer";
-                    var ringAt = DateTime.Now.AddSeconds(s.CountRemainingSeconds);
-                    _centerSubInfoText.Text = s.CountIsRunning
+                    int rem = s.CountRemainingSeconds;
+                    int m = rem / 60;
+                    int sec = rem % 60;
+
+                    _drumLeftTop.Text = $"{((m - 1 + 100) % 100):D2}";
+                    _drumLeftActive.Text = $"{m:D2}";
+                    _drumLeftBottom.Text = $"{((m + 1) % 100):D2}";
+
+                    _drumRightTop.Text = $"{((sec - 1 + 60) % 60):D2}";
+                    _drumRightActive.Text = $"{sec:D2}";
+                    _drumRightBottom.Text = $"{((sec + 1) % 60):D2}";
+
+                    var ringAt = DateTime.Now.AddSeconds(rem);
+                    string cTitle = !string.IsNullOrWhiteSpace(s.CountTitle) ? s.CountTitle : "Countdown";
+                    _drumSubIndicatorText.Text = s.CountIsRunning
                         ? $"🔔 Rings at {ringAt:HH:mm}"
-                        : $"Ready · {TimerService.FormatDuration(s.CountTotalSeconds)}";
-                    _countTargetTimePreviewText.Text = s.CountIsRunning
-                        ? $"🔔 Rings at {ringAt:HH:mm:ss}"
-                        : $"🔔 Will ring at {DateTime.Now.AddSeconds(s.CountTotalSeconds):HH:mm}";
-                    DrawCircularProgressArc(s.CountIsRunning ? s.GetCountdownRemainingRatio() : 0.0);
+                        : $"Ready • {cTitle}";
                     break;
                 }
                 case TimerMode.Alarm:
                 {
+                    int h = s.DraftAlarmHour;
+                    int m = s.DraftAlarmMinute;
+
+                    _drumLeftTop.Text = $"{((h - 1 + 24) % 24):D2}";
+                    _drumLeftActive.Text = $"{h:D2}";
+                    _drumLeftBottom.Text = $"{((h + 1) % 24):D2}";
+
+                    _drumRightTop.Text = $"{((m - 1 + 60) % 60):D2}";
+                    _drumRightActive.Text = $"{m:D2}";
+                    _drumRightBottom.Text = $"{((m + 1) % 60):D2}";
+
                     if (nearestAlarm != null)
                     {
-                        int remSec = Math.Max(0, (int)Math.Ceiling(alarmRem.TotalSeconds));
-                        string tStr = TimerService.FormatDuration(remSec);
-                        if (_centerTimeText.Text != tStr) _centerTimeText.Text = tStr;
-                        _centerPhaseText.Text = !string.IsNullOrWhiteSpace(nearestAlarm.Title)
-                            ? nearestAlarm.Title
-                            : $"🔔 {nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2}";
-                        _centerSubInfoText.Text = $"Rings at {nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2}";
-                        DrawCircularProgressArc(alarmRatio);
+                        _drumSubIndicatorText.Text = $"🔔 {nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2} • in {(int)alarmRem.TotalHours}h {alarmRem.Minutes}m";
                     }
                     else
                     {
-                        string draftStr = $"{s.DraftAlarmHour:D2}:{s.DraftAlarmMinute:D2}";
-                        if (_centerTimeText.Text != draftStr) _centerTimeText.Text = draftStr;
-                        _centerPhaseText.Text = "Alarm Clock";
-                        _centerSubInfoText.Text = "Ready to set";
-                        DrawCircularProgressArc(0.0);
+                        _drumSubIndicatorText.Text = "Alarm Clock • Ready";
                     }
                     break;
                 }
                 case TimerMode.Stopwatch:
                 {
-                    string tStr = sw.TotalHours >= 1.0
-                        ? $"{(int)sw.TotalHours:D2}:{sw.Minutes:D2}:{sw.Seconds:D2}"
-                        : $"{sw.Minutes:D2}:{sw.Seconds:D2}.{sw.Milliseconds / 10:D2}";
-                    if (_centerTimeText.Text != tStr) _centerTimeText.Text = tStr;
-                    _centerPhaseText.Text = !string.IsNullOrWhiteSpace(s.StopwatchTitle) ? s.StopwatchTitle : "Stopwatch";
-                    _centerSubInfoText.Text = s.Laps.Count > 0 ? $"Lap #{s.Laps.Count + 1}" : (s.StopwatchIsRunning ? "Running" : "Ready");
-                    // Progress bar from 0% to 100% when running, and 0% when stopped/reset
-                    double secRatio = s.StopwatchIsRunning ? Math.Clamp((sw.TotalSeconds % 60.0) / 60.0, 0.0, 1.0) : 0.0;
-                    DrawCircularProgressArc(secRatio);
+                    int m = sw.Minutes;
+                    int sec = sw.Seconds;
+
+                    _drumLeftTop.Text = $"{((m - 1 + 100) % 100):D2}";
+                    _drumLeftActive.Text = $"{m:D2}";
+                    _drumLeftBottom.Text = $"{((m + 1) % 100):D2}";
+
+                    _drumRightTop.Text = $"{((sec - 1 + 60) % 60):D2}";
+                    _drumRightActive.Text = $"{sec:D2}";
+                    _drumRightBottom.Text = $"{((sec + 1) % 60):D2}";
+
+                    _drumSubIndicatorText.Text = $"⏱ .{sw.Milliseconds / 10:D2} ms • {(s.Laps.Count > 0 ? $"Lap #{s.Laps.Count + 1}" : (s.StopwatchIsRunning ? "Running" : "Ready"))}";
                     break;
                 }
                 case TimerMode.Water:
                 {
-                    string tStr = $"{s.WaterGlasses} / {s.WaterTarget}";
-                    if (_centerTimeText.Text != tStr) _centerTimeText.Text = tStr;
-                    _centerPhaseText.Text = $"{s.WaterGlasses * 250} ml";
-                    _centerSubInfoText.Text = s.WaterReminderEnabled
-                        ? $"Next in {TimerService.FormatDuration(s.WaterReminderRemainingSeconds)}"
-                        : $"Goal: {s.WaterTarget * 250} ml";
-                    double waterRatio = s.WaterTarget > 0 ? Math.Clamp((double)s.WaterGlasses / s.WaterTarget, 0.0, 1.0) : 0.0;
-                    DrawCircularProgressArc(waterRatio);
+                    int g = s.WaterGlasses;
+                    int t = s.WaterTarget;
+
+                    _drumLeftTop.Text = $"{Math.Max(0, g - 1):D2}";
+                    _drumLeftActive.Text = $"{g:D2}";
+                    _drumLeftBottom.Text = $"{(g + 1):D2}";
+
+                    _drumRightTop.Text = $"{Math.Max(1, t - 1):D2}";
+                    _drumRightActive.Text = $"{t:D2}";
+                    _drumRightBottom.Text = $"{(t + 1):D2}";
+
+                    _drumSubIndicatorText.Text = $"💧 {g * 250} ml • Target {t * 250} ml";
                     break;
                 }
             }
@@ -1999,7 +2410,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var accentBrush = GetAccentBrush();
             Color accentColor = s.GetEffectiveAccentColor();
 
-            // Sync Accent Colors on Primary Action Buttons & Dots
+            // Sync Accent Colors on Action Buttons & Dots
             _pomoPlayBtn.Background = accentBrush;
             _countPlayBtn.Background = accentBrush;
             _alarmAddBtn.Background = accentBrush;
@@ -2017,7 +2428,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _dotStopwatch.Visibility = s.StopwatchIsRunning ? Visibility.Visible : Visibility.Collapsed;
             _dotWater.Visibility = s.WaterReminderEnabled ? Visibility.Visible : Visibility.Collapsed;
 
-            _subWater.Text = $"{s.WaterGlasses} / {s.WaterTarget} · {s.WaterGlasses * 250} ml";
+            _subWater.Text = $"{s.WaterGlasses} / {s.WaterTarget} • {s.WaterGlasses * 250} ml";
 
             UpdateFastTickVisuals();
 
@@ -2039,6 +2450,18 @@ namespace WindowsBuddy.BuddyCapsule.UI
             UpdateMiniToggleVisual(_autoToggleTrack, _autoToggleThumb, s.PomoAutoStartNext, accentColor);
             _completedText.Text = $"{s.PomoSessionsToday} done ({s.PomoFocusMinutesToday}m)";
 
+            // Update Pomo Presets Active Highlight
+            string curTitle = s.PomoTitle;
+            for (int i = 0; i < PomoPresets.Length; i++)
+            {
+                if (_pomoPresetChips[i] != null)
+                {
+                    bool isSelected = string.Equals(curTitle, PomoPresets[i], StringComparison.OrdinalIgnoreCase);
+                    _pomoPresetChips[i].BorderBrush = isSelected ? accentBrush : CapsuleTheme.Brush(CapsuleTheme.Current.Border);
+                    _pomoPresetChips[i].Background = isSelected ? CapsuleTheme.Brush(CapsuleTheme.Current.Surface2) : CapsuleTheme.Brush(CapsuleTheme.Current.Surface);
+                }
+            }
+
             // Countdown Controls
             int baseSec = s.CountIsRunning ? s.CountRemainingSeconds : s.CountTotalSeconds;
             int ch = baseSec / 3600;
@@ -2053,7 +2476,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 _countTargetTimeInput.Text = target.ToString("HH:mm");
             }
             _countPlayIcon.Text = s.CountIsRunning ? "⏸" : "▶";
-            _countLoopBtn.Background = s.CountLoop ? accentBrush : CapsuleTheme.Brush(CapsuleTheme.Current.Surface2);
+            _countLoopBtn.Background = s.CountLoop ? accentBrush : CapsuleTheme.Brush(CapsuleTheme.Current.Surface);
             _countSoundBtnText.Text = $"🔔 {s.SelectedSoundTone}";
             _countRepeatBtnText.Text = $"🔁 {s.RingRepeatCount}x";
             _countRingBanner.Visibility = s.IsRinging ? Visibility.Visible : Visibility.Collapsed;
@@ -2070,7 +2493,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var draftTarget = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, s.DraftAlarmHour, s.DraftAlarmMinute, 0);
             if (draftTarget <= DateTime.Now) draftTarget = draftTarget.AddDays(1);
             var spanUntilDraft = draftTarget - DateTime.Now;
-            _alarmRemainingPreviewText.Text = $"⏳ Selected time ({s.DraftAlarmHour:D2}:{s.DraftAlarmMinute:D2}) is in {(int)spanUntilDraft.TotalHours}h {spanUntilDraft.Minutes}m · Right-click presets to delete";
+            _alarmRemainingPreviewText.Text = $"⏳ Selected time ({s.DraftAlarmHour:D2}:{s.DraftAlarmMinute:D2}) is in {(int)spanUntilDraft.TotalHours}h {spanUntilDraft.Minutes}m";
             RebuildAlarmsList(accentColor);
 
             // Stopwatch Controls
@@ -2186,7 +2609,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 });
                 leftInfo.Children.Add(new TextBlock
                 {
-                    Text = !string.IsNullOrWhiteSpace(captured.Title) ? $"{captured.Title} · {remStr}" : remStr,
+                    Text = !string.IsNullOrWhiteSpace(captured.Title) ? $"{captured.Title} • {remStr}" : remStr,
                     FontSize = 10.5,
                     Foreground = CapsuleTheme.Brush(p.Text2),
                     VerticalAlignment = VerticalAlignment.Center
@@ -2201,7 +2624,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         {
             if (chip == null) return;
             var p = CapsuleTheme.Current;
-            chip.Background = active ? new SolidColorBrush(accentColor) : CapsuleTheme.Brush(p.Surface2);
+            chip.Background = active ? new SolidColorBrush(accentColor) : CapsuleTheme.Brush(p.Surface);
             if (chip.Child is TextBlock tb)
             {
                 tb.Foreground = active ? CapsuleTheme.Brush(p.AccentFg) : CapsuleTheme.Brush(p.Text);
@@ -2292,12 +2715,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _cycleDotsPanel.Children.Clear();
             for (int i = 1; i <= Math.Min(total, 8); i++)
             {
+                bool isCompletedOrActive = i <= current;
                 var dot = new Ellipse
                 {
                     Width = 6,
                     Height = 6,
-                    Margin = new Thickness(2.5, 0, 2.5, 0),
-                    Fill = i <= current ? new SolidColorBrush(activeColor) : CapsuleTheme.Brush(p.Border)
+                    Margin = new Thickness(3, 0, 3, 0),
+                    Fill = isCompletedOrActive ? new SolidColorBrush(activeColor) : Brushes.Transparent,
+                    Stroke = isCompletedOrActive ? new SolidColorBrush(activeColor) : CapsuleTheme.Brush(p.Border),
+                    StrokeThickness = 1.2
                 };
                 _cycleDotsPanel.Children.Add(dot);
             }
@@ -2308,79 +2734,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
             if (track == null || thumb == null) return;
             var p = CapsuleTheme.Current;
             track.Background = on ? new SolidColorBrush(activeColor) : CapsuleTheme.Brush(p.Surface2);
-            thumb.Fill = CapsuleTheme.Brush(p.AccentFg);
-            Canvas.SetLeft(thumb, on ? 15 : 2);
-        }
-
-        private void DrawCircularRingTrack()
-        {
-            var p = CapsuleTheme.Current;
-            double r = 64.0;
-            var center = new Point(74, 74);
-            var geo = new EllipseGeometry(center, r, r);
-            _ringTrack.Data = geo;
-            _ringTrack.Stroke = CapsuleTheme.Brush(p.Border);
-        }
-
-        private void DrawCircularProgressArc(double fraction)
-        {
-            fraction = Math.Clamp(fraction, 0.0, 1.0);
-            if (fraction <= 0.002)
-            {
-                _ringProgress.Data = null;
-                _ringProgress.Visibility = Visibility.Collapsed;
-                return;
-            }
-
-            if (_ringProgress.Visibility != Visibility.Visible)
-            {
-                _ringProgress.Visibility = Visibility.Visible;
-            }
-
-            double r = 64.0;
-            var center = new Point(74, 74);
-            double angle = Math.Min(fraction * 359.99, 359.94);
-            double startAngle = -90.0;
-            double endAngle = startAngle + angle;
-
-            Point startPt = PointOnCircle(center, r, startAngle);
-            Point endPt = PointOnCircle(center, r, endAngle);
-            bool isLargeArc = angle > 180.0;
-
-            if (_ringProgress.Data is PathGeometry existingPg &&
-                existingPg.Figures.Count == 1 &&
-                existingPg.Figures[0].Segments.Count == 1 &&
-                existingPg.Figures[0].Segments[0] is ArcSegment existingArc)
-            {
-                existingPg.Figures[0].StartPoint = startPt;
-                existingArc.Point = endPt;
-                existingArc.Size = new Size(r, r);
-                existingArc.IsLargeArc = isLargeArc;
-                return;
-            }
-
-            var fig = new PathFigure
-            {
-                StartPoint = startPt,
-                IsClosed = false
-            };
-            fig.Segments.Add(new ArcSegment(
-                endPt,
-                new Size(r, r),
-                0,
-                isLargeArc,
-                SweepDirection.Clockwise,
-                true));
-
-            _ringProgress.Data = new PathGeometry(new[] { fig });
-        }
-
-        private static Point PointOnCircle(Point center, double radius, double angleDegrees)
-        {
-            double rad = angleDegrees * Math.PI / 180.0;
-            return new Point(
-                center.X + radius * Math.Cos(rad),
-                center.Y + radius * Math.Sin(rad));
+            thumb.Fill = on ? CapsuleTheme.Brush(p.AccentFg) : CapsuleTheme.Brush(p.Text2);
+            Canvas.SetLeft(thumb, on ? 16 : 2);
         }
 
         #endregion

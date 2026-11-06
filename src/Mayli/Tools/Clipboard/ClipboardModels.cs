@@ -55,6 +55,33 @@ namespace WindowsBuddy.Tools.Clipboard
         public bool IsPinned { get; set; }
         public string SourceApp { get; set; } = "Windows";
         public string SourceAppExe { get; set; } = string.Empty;
+        public string ImageHash { get; set; } = string.Empty;
+
+        public string GetImageHash()
+        {
+            if (!string.IsNullOrEmpty(ImageHash)) return ImageHash;
+
+            byte[] bytes = RawBlobData;
+            if ((bytes == null || bytes.Length == 0) &&
+                !string.IsNullOrEmpty(StoredFilePath) &&
+                File.Exists(StoredFilePath))
+            {
+                try { bytes = File.ReadAllBytes(StoredFilePath); } catch { }
+            }
+
+            if (bytes != null && bytes.Length > 0)
+            {
+                ImageHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+                return ImageHash;
+            }
+
+            if (ImageWidth > 0 && ImageHeight > 0)
+            {
+                return $"dim_{ImageWidth}x{ImageHeight}_{FileSizeBytes}";
+            }
+
+            return string.Empty;
+        }
 
         public string GetFullText()
         {

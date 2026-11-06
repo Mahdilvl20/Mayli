@@ -146,6 +146,133 @@ namespace WindowsBuddy.Tools.FileShelf
             }
         }
 
+        public void RenameShelf(string shelfId, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(newName)) return;
+            lock (_lock)
+            {
+                var target = Shelves.FirstOrDefault(s => string.Equals(s.Id, shelfId, StringComparison.OrdinalIgnoreCase));
+                if (target != null)
+                {
+                    target.Name = newName.Trim();
+                    Save();
+                    ShelfChanged?.Invoke();
+                }
+            }
+        }
+
+        public void MoveFileToShelf(string fileId, string targetShelfId)
+        {
+            if (string.IsNullOrEmpty(fileId) || string.IsNullOrEmpty(targetShelfId)) return;
+            lock (_lock)
+            {
+                var targetShelf = Shelves.FirstOrDefault(s => string.Equals(s.Id, targetShelfId, StringComparison.OrdinalIgnoreCase));
+                if (targetShelf == null) return;
+
+                ParkedFile fileToMove = null;
+                foreach (var shelf in Shelves)
+                {
+                    var match = shelf.Files.FirstOrDefault(f => string.Equals(f.Id, fileId, StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
+                    {
+                        shelf.Files.Remove(match);
+                        fileToMove = match;
+                        break;
+                    }
+                }
+
+                if (fileToMove != null)
+                {
+                    if (!targetShelf.Files.Any(f => string.Equals(f.FilePath, fileToMove.FilePath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        targetShelf.Files.Insert(0, fileToMove);
+                    }
+                    Save();
+                    ShelfChanged?.Invoke();
+                }
+            }
+        }
+
+        public int RemoveMissingFiles()
+        {
+            int removed = 0;
+            lock (_lock)
+            {
+                if (ActiveShelf == null) return 0;
+                var missing = ActiveShelf.Files.Where(f => !File.Exists(f.FilePath) && !Directory.Exists(f.FilePath)).ToList();
+                foreach (var m in missing)
+                {
+                    ActiveShelf.Files.Remove(m);
+                    removed++;
+                }
+                if (removed > 0)
+                {
+                    Save();
+                    ShelfChanged?.Invoke();
+                }
+            }
+            return removed;
+        }
+
+        public bool PasteClipboardData()
+        {
+            try
+            {
+                if (System.Windows.Clipboard.ContainsFileDropList())
+                {
+                    var fileList = System.Windows.Clipboard.GetFileDropList();
+                    if (fileList != null && fileList.Count > 0)
+                    {
+                        AddFilesToActiveShelf(fileList.Cast<string>());
+                        return true;
+                    }
+                }
+                else if (System.Windows.Clipboard.ContainsImage())
+                {
+                    var bs = System.Windows.Clipboard.GetImage();
+                    if (bs != null)
+                    {
+                        string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mayli", "ShelfFiles");
+                        Directory.CreateDirectory(dir);
+                        string fileName = $"Pasted_Image_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+                        string destPath = Path.Combine(dir, fileName);
+
+                        using var fs = new FileStream(destPath, FileMode.Create, FileAccess.Write);
+                        var encoder = new PngBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(bs));
+                        encoder.Save(fs);
+
+                        AddFilesToActiveShelf(new[] { destPath });
+                        return true;
+                    }
+                }
+                else if (System.Windows.Clipboard.ContainsText())
+                {
+                    string txt = System.Windows.Clipboard.GetText()?.Trim();
+                    if (!string.IsNullOrEmpty(txt))
+                    {
+                        if (File.Exists(txt) || Directory.Exists(txt))
+                        {
+                            AddFilesToActiveShelf(new[] { txt });
+                            return true;
+                        }
+                        else if (txt.Length > 0)
+                        {
+                            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mayli", "ShelfFiles");
+                            Directory.CreateDirectory(dir);
+                            string fileName = $"Snippet_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+                            string destPath = Path.Combine(dir, fileName);
+                            File.WriteAllText(destPath, txt);
+                            AddFilesToActiveShelf(new[] { destPath });
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
         public void AddFilesToActiveShelf(IEnumerable<string> paths)
         {
             if (paths == null) return;

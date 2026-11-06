@@ -127,6 +127,51 @@ namespace WindowsBuddy.Tools.Notes
             NotesChanged?.Invoke();
         }
 
+        public NoteItem DuplicateNote(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            NoteItem newNote = null;
+            lock (_lock)
+            {
+                var existing = _notes.FirstOrDefault(n => n.Id == id);
+                if (existing != null)
+                {
+                    newNote = new NoteItem
+                    {
+                        Title = string.IsNullOrWhiteSpace(existing.Title) ? "Copy" : $"{existing.Title} (Copy)",
+                        Content = existing.Content,
+                        ColorTag = existing.ColorTag,
+                        IsPinned = false,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now
+                    };
+                    _notes.Insert(0, newNote);
+                    SaveNotes();
+                }
+            }
+            if (newNote != null)
+            {
+                NotesChanged?.Invoke();
+            }
+            return newNote;
+        }
+
+        public void SetNoteColorTag(string id, string colorTag)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+            lock (_lock)
+            {
+                var note = _notes.FirstOrDefault(n => n.Id == id);
+                if (note != null)
+                {
+                    note.ColorTag = colorTag ?? string.Empty;
+                    note.UpdatedAt = DateTime.Now;
+                    SaveNotes();
+                }
+            }
+            NotesChanged?.Invoke();
+        }
+
         public IEnumerable<NoteItem> Search(string query)
         {
             if (string.IsNullOrWhiteSpace(query)) return Notes;
