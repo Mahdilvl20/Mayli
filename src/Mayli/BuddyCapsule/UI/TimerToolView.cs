@@ -33,6 +33,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private Border _rowStopwatch;
         private Border _rowWater;
 
+        private Path _iconPomo;
+        private Path _iconCountdown;
+        private Path _iconAlarm;
+        private Path _iconStopwatch;
+        private Path _iconWater;
+
         private TextBlock _subPomo;
         private TextBlock _subCountdown;
         private TextBlock _subAlarm;
@@ -73,13 +79,20 @@ namespace WindowsBuddy.BuddyCapsule.UI
         // Pomodoro Controls
         private TextBox _pomoTitleBox;
         private readonly Border[] _pomoPresetChips = new Border[4];
-        private static readonly string[] PomoPresets = { "💻 Code", "📖 Study", "🎯 Focus", "✍ Write" };
+        private readonly Path[] _pomoPresetChipIcons = new Path[4];
+        private static readonly (string Label, Geometry Icon)[] PomoPresetsList = new[]
+        {
+            ("Code", TimerIcons.CodeGeometry),
+            ("Study", TimerIcons.BookGeometry),
+            ("Focus", TimerIcons.TargetGeometry),
+            ("Write", TimerIcons.PencilGeometry)
+        };
 
         private TextBlock _cycleHeaderText;
         private TextBlock _cycleSubText;
         private StackPanel _cycleDotsPanel;
         private Border _pomoPlayBtn;
-        private TextBlock _pomoPlayIcon;
+        private Path _pomoPlayIcon;
         private TextBlock _focusMinsText;
         private TextBlock _breakMinsText;
         private TextBlock _longMinsText;
@@ -96,7 +109,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private TextBox _countTargetTimeInput;
         private TextBlock _countTargetTimePreviewText;
         private Border _countPlayBtn;
-        private TextBlock _countPlayIcon;
+        private Path _countPlayIcon;
         private Border _countLoopBtn;
         private WrapPanel _countPresetsWrap;
         private TextBlock _countSoundBtnText;
@@ -122,7 +135,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         // Stopwatch Controls
         private TextBox _swTitleBox;
         private Border _swPlayBtn;
-        private TextBlock _swPlayIcon;
+        private Path _swPlayIcon;
         private Border _swLapBtn;
         private StackPanel _swLapsStack;
         private TextBlock _swEmptyLapsHint;
@@ -167,43 +180,48 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
 
             _rowPomo = BuildModeRow(
-                "🍅",
+                TimerIcons.PomodoroGeometry,
                 LocalizationService.T("focus.pomodoro", "Pomodoro"),
-                "25:00 • 💻 Code",
+                "25:00 • Code",
                 out _subPomo,
                 out _dotPomo,
+                out _iconPomo,
                 () => SwitchMode(TimerMode.Pomodoro));
 
             _rowCountdown = BuildModeRow(
-                "⏳",
+                TimerIcons.HourglassGeometry,
                 LocalizationService.T("focus.countdown", "Timer"),
                 "01:00",
                 out _subCountdown,
                 out _dotCountdown,
+                out _iconCountdown,
                 () => SwitchMode(TimerMode.Countdown));
 
             _rowAlarm = BuildModeRow(
-                "⏰",
+                TimerIcons.AlarmClockGeometry,
                 LocalizationService.T("focus.alarm", "Alarm Clock"),
                 "No active alarm",
                 out _subAlarm,
                 out _dotAlarm,
+                out _iconAlarm,
                 () => SwitchMode(TimerMode.Alarm));
 
             _rowStopwatch = BuildModeRow(
-                "⏱",
+                TimerIcons.StopwatchGeometry,
                 LocalizationService.T("focus.stopwatch", "Stopwatch"),
                 "00:00.00",
                 out _subStopwatch,
                 out _dotStopwatch,
+                out _iconStopwatch,
                 () => SwitchMode(TimerMode.Stopwatch));
 
             _rowWater = BuildModeRow(
-                "💧",
+                TimerIcons.WaterDropGeometry,
                 LocalizationService.T("focus.water", "Hydration"),
                 "0 / 8 • 0 ml",
                 out _subWater,
                 out _dotWater,
+                out _iconWater,
                 () => SwitchMode(TimerMode.Water));
 
             leftStack.Children.Add(_rowPomo);
@@ -515,11 +533,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             cardStack.Children.Add(tumblersRow);
 
-            // --- SUB-INDICATOR (e.g. 💻 Code • Focus 1/4) ---
+            // --- SUB-INDICATOR (e.g. Code • Focus 1/4) ---
             _drumSubIndicatorText = new TextBlock
             {
-                Text = "💻 Code • Focus 1/4",
-                FontSize = 10.5,
+                Text = "Code • Focus 1/4",
+                FontFamily = LocalizationService.CurrentFontFamily,
+                FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = GetAccentBrush(),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -667,15 +686,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FlowDirection = FlowDirection.LeftToRight
             };
 
-            var resetBtn = CreateCircleIconButton("↺", 34, "Stop & Reset", () => TimerService.Instance.ResetPomo());
+            var resetBtn = TimerIcons.CreateCircleButton(TimerIcons.ResetGeometry, 34, "Stop & Reset", () => TimerService.Instance.ResetPomo(), out _);
             transportRow.Children.Add(resetBtn);
 
-            _pomoPlayIcon = new TextBlock
+            _pomoPlayIcon = new Path
             {
-                Text = "▶",
-                FontSize = 16,
-                Foreground = CapsuleTheme.Brush(p.AccentFg),
-                FontWeight = FontWeights.Bold,
+                Data = TimerIcons.PlayGeometry,
+                Fill = CapsuleTheme.Brush(p.AccentFg),
+                Width = 15,
+                Height = 15,
+                Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -697,7 +717,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             transportRow.Children.Add(_pomoPlayBtn);
 
-            var skipBtn = CreateCircleIconButton("⏭", 34, "Skip Phase", () => TimerService.Instance.SkipPomo());
+            var skipBtn = TimerIcons.CreateCircleButton(TimerIcons.SkipGeometry, 34, "Skip Phase", () => TimerService.Instance.SkipPomo(), out _);
             transportRow.Children.Add(skipBtn);
 
             DockPanel.SetDock(transportRow, Dock.Right);
@@ -788,28 +808,54 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
-                Height = 30,
+                Height = 32,
                 Padding = new Thickness(8, 0, 8, 0),
                 Margin = new Thickness(0, 0, 0, 4)
             };
 
             var dock = new DockPanel();
 
-            var chevron = new TextBlock
+            var chevron = new Path
             {
-                Text = "⌄",
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Text2),
+                Data = TimerIcons.ChevronDownGeometry,
+                Stroke = CapsuleTheme.Brush(p.Text2),
+                StrokeThickness = 1.6,
+                StrokeLineJoin = PenLineJoin.Round,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Width = 10,
+                Height = 10,
+                Stretch = Stretch.Uniform,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, -3, 0, 0)
+                Margin = new Thickness(6, 0, 0, 0)
             };
             DockPanel.SetDock(chevron, Dock.Right);
             dock.Children.Add(chevron);
 
+            var editIcon = new Path
+            {
+                Data = TimerIcons.PencilGeometry,
+                Stroke = CapsuleTheme.Brush(p.Text2),
+                StrokeThickness = 1.5,
+                StrokeLineJoin = PenLineJoin.Round,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Width = 12,
+                Height = 12,
+                Stretch = Stretch.Uniform,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            DockPanel.SetDock(editIcon, Dock.Left);
+            dock.Children.Add(editIcon);
+
+            string cleanInit = TimerService.StripEmojis(initialTitle ?? "");
+            if (string.IsNullOrWhiteSpace(cleanInit)) cleanInit = "Code";
+
             var tb = new TextBox
             {
-                Text = string.IsNullOrWhiteSpace(initialTitle) ? "💻 Code" : initialTitle,
+                Text = cleanInit,
+                FontFamily = LocalizationService.CurrentFontFamily,
                 FontSize = 12,
                 FontWeight = FontWeights.Medium,
                 Foreground = CapsuleTheme.Brush(p.Text),
@@ -839,10 +885,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Margin = new Thickness(0, 0, 0, 4)
             };
 
-            for (int i = 0; i < PomoPresets.Length; i++)
+            for (int i = 0; i < PomoPresetsList.Length; i++)
             {
                 int index = i;
-                string preset = PomoPresets[i];
+                var preset = PomoPresetsList[i];
                 var chip = new Border
                 {
                     Background = CapsuleTheme.Brush(p.Surface),
@@ -850,25 +896,52 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(5),
                     Height = 26,
-                    Padding = new Thickness(10, 0, 10, 0),
+                    Padding = new Thickness(9, 0, 9, 0),
                     Margin = new Thickness(0, 0, 6, 0),
                     Cursor = Cursors.Hand
                 };
-                var tb = new TextBlock
+
+                var chipStack = new StackPanel
                 {
-                    Text = preset,
-                    FontSize = 11,
-                    FontWeight = FontWeights.Medium,
-                    Foreground = CapsuleTheme.Brush(p.Text),
+                    Orientation = Orientation.Horizontal,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
-                chip.Child = tb;
+
+                var iconPath = new Path
+                {
+                    Data = preset.Icon,
+                    Stroke = CapsuleTheme.Brush(p.Text2),
+                    StrokeThickness = 1.6,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    Width = 12,
+                    Height = 12,
+                    Stretch = Stretch.Uniform,
+                    Margin = new Thickness(0, 0, 5, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                _pomoPresetChipIcons[index] = iconPath;
+                chipStack.Children.Add(iconPath);
+
+                var tb = new TextBlock
+                {
+                    Text = preset.Label,
+                    FontFamily = LocalizationService.CurrentFontFamily,
+                    FontSize = 11,
+                    FontWeight = FontWeights.Medium,
+                    Foreground = CapsuleTheme.Brush(p.Text),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                chipStack.Children.Add(tb);
+
+                chip.Child = chipStack;
                 chip.MouseLeftButtonUp += (_, e) =>
                 {
                     e.Handled = true;
-                    if (_pomoTitleBox != null) _pomoTitleBox.Text = preset;
-                    TimerService.Instance.SetPomoTitle(preset);
+                    if (_pomoTitleBox != null) _pomoTitleBox.Text = preset.Label;
+                    TimerService.Instance.SetPomoTitle(preset.Label);
                     UpdateVisuals();
                 };
                 _pomoPresetChips[index] = chip;
@@ -890,7 +963,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 TimerService.Instance.CountTitle,
                 out _countTitleBox,
                 text => TimerService.Instance.SetCountdownTitle(text),
-                new[] { "☕ Coffee", "🍳 Cook", "💊 Pill", "🏋️ Gym", "🧘 Rest" }));
+                new[] { "Coffee", "Cook", "Pill", "Workout", "Rest" }));
 
             // 2. Direct Controls + Transport Controls
             var mainControlRow = new DockPanel { Margin = new Thickness(0, 3, 0, 4) };
@@ -902,15 +975,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FlowDirection = FlowDirection.LeftToRight
             };
 
-            var stopBtn = CreateCircleIconButton("↺", 34, "Stop & Reset", () => TimerService.Instance.ResetCountdown());
+            var stopBtn = TimerIcons.CreateCircleButton(TimerIcons.ResetGeometry, 34, "Stop & Reset", () => TimerService.Instance.ResetCountdown(), out _);
             rightControls.Children.Add(stopBtn);
 
-            _countPlayIcon = new TextBlock
+            _countPlayIcon = new Path
             {
-                Text = "▶",
-                FontSize = 16,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.AccentFg),
+                Data = TimerIcons.PlayGeometry,
+                Fill = CapsuleTheme.Brush(p.AccentFg),
+                Width = 15,
+                Height = 15,
+                Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -933,7 +1007,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             rightControls.Children.Add(_countPlayBtn);
 
-            _countLoopBtn = CreateCircleIconButton("🔁", 34, "Auto-Repeat (Loop)", () => TimerService.Instance.ToggleCountdownLoop());
+            _countLoopBtn = TimerIcons.CreateCircleButton(TimerIcons.LoopGeometry, 34, "Auto-Repeat (Loop)", () => TimerService.Instance.ToggleCountdownLoop(), out _);
             rightControls.Children.Add(_countLoopBtn);
 
             DockPanel.SetDock(rightControls, Dock.Right);
@@ -971,7 +1045,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var atTimeStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             atTimeStack.Children.Add(new TextBlock
             {
-                Text = "⏰ At HH:MM",
+                Text = "At HH:MM",
                 FontSize = 8.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Center
@@ -1009,7 +1083,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var presetsHeaderRow = new DockPanel { Margin = new Thickness(0, 1, 0, 2) };
             _countTargetTimePreviewText = new TextBlock
             {
-                Text = "🔔 Rings at --:--",
+                Text = "Rings at --:--",
                 FontSize = 10.0,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
@@ -1038,13 +1112,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var customRow = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
 
             var soundControls = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            var soundCycleBtn = CreateActionPill("🔔 Sound: Classic", out _countSoundBtnText, () => TimerService.Instance.CycleSoundTone());
+            var soundCycleBtn = CreateActionPill(TimerIcons.BellGeometry, "Sound: Classic", out _countSoundBtnText, () => TimerService.Instance.CycleSoundTone());
             soundControls.Children.Add(soundCycleBtn);
 
-            var testSoundBtn = CreateQuickChip("🔊 Test", () => TimerService.Instance.PlaySoundPreview());
+            var testSoundBtn = CreateQuickChip("Test", () => TimerService.Instance.PlaySoundPreview());
             soundControls.Children.Add(testSoundBtn);
 
-            var repeatCycleBtn = CreateActionPill("🔁 Ring: 2x", out _countRepeatBtnText, () => TimerService.Instance.CycleRingRepeatCount());
+            var repeatCycleBtn = CreateActionPill(TimerIcons.LoopGeometry, "Ring: 2x", out _countRepeatBtnText, () => TimerService.Instance.CycleRingRepeatCount());
             soundControls.Children.Add(repeatCycleBtn);
 
             DockPanel.SetDock(soundControls, Dock.Left);
@@ -1057,8 +1131,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 VerticalAlignment = VerticalAlignment.Center
             };
             var ringBtns = new StackPanel { Orientation = Orientation.Horizontal };
-            ringBtns.Children.Add(CreateQuickChip("💤 Snooze", () => TimerService.Instance.SnoozeLastRing()));
-            ringBtns.Children.Add(CreateQuickChip("✕ Stop", () => TimerService.Instance.StopRingingSound()));
+            ringBtns.Children.Add(CreateQuickChip("Snooze", () => TimerService.Instance.SnoozeLastRing()));
+            ringBtns.Children.Add(CreateQuickChip("Stop", () => TimerService.Instance.StopRingingSound()));
             _countRingBanner.Child = ringBtns;
             customRow.Children.Add(_countRingBanner);
 
@@ -1080,7 +1154,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 TimerService.Instance.DraftAlarmTitle,
                 out _alarmTitleBox,
                 text => TimerService.Instance.DraftAlarmTitle = text ?? "",
-                new[] { "⏰ Wake", "💼 Meet", "💊 Pill", "🍳 Food", "📞 Call" }));
+                new[] { "Wake up", "Meeting", "Pill", "Lunch", "Call" }));
 
             // 2. Picker Row
             var pickerDock = new DockPanel { Margin = new Thickness(0, 3, 0, 4) };
@@ -1094,13 +1168,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             TextBlock dailyBtnText = null;
             _alarmDailyBtn = CreateActionPill(
-                "🔁 Once",
+                TimerIcons.LoopGeometry,
+                "Once",
                 out dailyBtnText,
                 () =>
                 {
                     TimerService.Instance.DraftAlarmRepeatDaily = !TimerService.Instance.DraftAlarmRepeatDaily;
                     if (dailyBtnText != null)
-                        dailyBtnText.Text = TimerService.Instance.DraftAlarmRepeatDaily ? "🔁 Daily" : "🔁 Once";
+                        dailyBtnText.Text = TimerService.Instance.DraftAlarmRepeatDaily ? "Daily" : "Once";
                     UpdateVisuals();
                 });
             rightAddActions.Children.Add(_alarmDailyBtn);
@@ -1171,7 +1246,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var inMinStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             inMinStack.Children.Add(new TextBlock
             {
-                Text = "⏳ In +Min",
+                Text = "In +Min",
                 FontSize = 8.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 HorizontalAlignment = HorizontalAlignment.Center
@@ -1226,9 +1301,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var customRow = new DockPanel { Margin = new Thickness(0, 1, 0, 4) };
             var customLeft = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-            customLeft.Children.Add(CreateActionPill("🔔 Classic", out _alarmSoundBtnText, () => TimerService.Instance.CycleSoundTone()));
-            customLeft.Children.Add(CreateQuickChip("🔊", () => TimerService.Instance.PlaySoundPreview()));
-            customLeft.Children.Add(CreateActionPill("💤 5m", out _alarmSnoozeBtnText, () =>
+            customLeft.Children.Add(CreateActionPill(TimerIcons.BellGeometry, "Classic", out _alarmSoundBtnText, () => TimerService.Instance.CycleSoundTone()));
+            customLeft.Children.Add(CreateQuickChip("Test", () => TimerService.Instance.PlaySoundPreview()));
+            customLeft.Children.Add(CreateActionPill(TimerIcons.MoonGeometry, "5m", out _alarmSnoozeBtnText, () =>
             {
                 int nextSnooze = TimerService.Instance.DefaultSnoozeMinutes switch
                 {
@@ -1240,7 +1315,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 };
                 TimerService.Instance.SetSnoozeMinutes(nextSnooze);
             }));
-            customLeft.Children.Add(CreateActionPill("🔁 2x", out _alarmRepeatBtnText, () => TimerService.Instance.CycleRingRepeatCount()));
+            customLeft.Children.Add(CreateActionPill(TimerIcons.LoopGeometry, "2x", out _alarmRepeatBtnText, () => TimerService.Instance.CycleRingRepeatCount()));
 
             DockPanel.SetDock(customLeft, Dock.Left);
             customRow.Children.Add(customLeft);
@@ -1315,7 +1390,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 TimerService.Instance.StopwatchTitle,
                 out _swTitleBox,
                 text => TimerService.Instance.SetStopwatchTitle(text),
-                new[] { "🏃 Run", "⚡ Sprint", "🧩 Task", "🎮 Speedrun" }));
+                new[] { "Run", "Sprint", "Task", "Speedrun" }));
 
             var controlsRow = new DockPanel { Margin = new Thickness(0, 4, 0, 6) };
 
@@ -1326,15 +1401,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 FlowDirection = FlowDirection.LeftToRight
             };
 
-            var resetSwBtn = CreateCircleIconButton("↺", 34, "Stop & Reset", () => TimerService.Instance.ResetStopwatch());
+            var resetSwBtn = TimerIcons.CreateCircleButton(TimerIcons.ResetGeometry, 34, "Stop & Reset", () => TimerService.Instance.ResetStopwatch(), out _);
             leftActions.Children.Add(resetSwBtn);
 
-            _swPlayIcon = new TextBlock
+            _swPlayIcon = new Path
             {
-                Text = "▶",
-                FontSize = 16,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.AccentFg),
+                Data = TimerIcons.PlayGeometry,
+                Fill = CapsuleTheme.Brush(p.AccentFg),
+                Width = 15,
+                Height = 15,
+                Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1356,13 +1432,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             leftActions.Children.Add(_swPlayBtn);
 
-            _swLapBtn = CreateCircleIconButton("🏁", 34, "Record Lap", () => TimerService.Instance.RecordStopwatchLap());
+            _swLapBtn = TimerIcons.CreateCircleButton(TimerIcons.FlagGeometry, 34, "Record Lap", () => TimerService.Instance.RecordStopwatchLap(), out _);
             leftActions.Children.Add(_swLapBtn);
 
             DockPanel.SetDock(leftActions, Dock.Left);
             controlsRow.Children.Add(leftActions);
 
-            var copyLapsBtn = CreateActionPill("📋 Copy", out _, CopyStopwatchLapsToClipboard);
+            var copyLapsBtn = CreateActionPill(TimerIcons.CopyGeometry, "Copy Laps", out _, CopyStopwatchLapsToClipboard);
             copyLapsBtn.HorizontalAlignment = HorizontalAlignment.Right;
             controlsRow.Children.Add(copyLapsBtn);
 
@@ -1464,9 +1540,34 @@ namespace WindowsBuddy.BuddyCapsule.UI
             actionsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             actionsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            var minusGlassBtn = CreateCircleIconButton("—", 34, "-1 Glass", () => TimerService.Instance.RemoveWaterGlass());
+            var minusGlassBtn = TimerIcons.CreateCircleButton(TimerIcons.MinusGeometry, 34, "-1 Glass", () => TimerService.Instance.RemoveWaterGlass(), out _);
             Grid.SetColumn(minusGlassBtn, 0);
             actionsRow.Children.Add(minusGlassBtn);
+
+            var addStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var dropIcon = new Path
+            {
+                Data = TimerIcons.WaterDropGeometry,
+                Fill = CapsuleTheme.Brush(p.AccentFg),
+                Width = 13,
+                Height = 13,
+                Stretch = Stretch.Uniform,
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            addStack.Children.Add(dropIcon);
+            addStack.Children.Add(new TextBlock
+            {
+                Text = "+1 Glass (250ml)",
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.AccentFg),
+                VerticalAlignment = VerticalAlignment.Center
+            });
 
             _waterAddGlassBtn = new Border
             {
@@ -1476,14 +1577,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 Padding = new Thickness(14, 0, 14, 0),
                 Margin = new Thickness(8, 0, 8, 0),
                 Cursor = Cursors.Hand,
-                Child = new TextBlock
-                {
-                    Text = "💧 +1 Glass (250ml)",
-                    FontSize = 11.5,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = CapsuleTheme.Brush(p.AccentFg),
-                    VerticalAlignment = VerticalAlignment.Center
-                }
+                Child = addStack
             };
             _waterAddGlassBtn.MouseLeftButtonUp += (_, e) =>
             {
@@ -1638,15 +1732,28 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             var dock = new DockPanel();
 
-            var clearBtn = new TextBlock
+            var clearBtn = new Border
             {
-                Text = "✕",
-                FontSize = 10,
-                Foreground = CapsuleTheme.Brush(p.Text2),
+                Width = 16,
+                Height = 16,
+                Background = Brushes.Transparent,
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
                 Margin = new Thickness(6, 0, 0, 0),
-                ToolTip = "Clear title"
+                ToolTip = "Clear title",
+                Child = new Path
+                {
+                    Data = TimerIcons.CloseGeometry,
+                    Stroke = CapsuleTheme.Brush(p.Text2),
+                    StrokeThickness = 1.6,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    Width = 9,
+                    Height = 9,
+                    Stretch = Stretch.Uniform,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
             };
             DockPanel.SetDock(clearBtn, Dock.Right);
             dock.Children.Add(clearBtn);
@@ -1828,11 +1935,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
         }
 
         private static Border BuildModeRow(
-            string icon,
+            Geometry iconGeom,
             string title,
             string subtitle,
             out TextBlock subBlockOut,
             out Ellipse runningDotOut,
+            out Path iconPathOut,
             Action onClick)
         {
             var p = CapsuleTheme.Current;
@@ -1849,23 +1957,33 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             var dock = new DockPanel();
 
+            var iconPath = new Path
+            {
+                Data = iconGeom,
+                Stroke = CapsuleTheme.Brush(p.Text2),
+                StrokeThickness = 1.6,
+                StrokeLineJoin = PenLineJoin.Round,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Width = 14,
+                Height = 14,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            iconPathOut = iconPath;
+
             var iconBorder = new Border
             {
                 Width = 26,
                 Height = 26,
-                CornerRadius = new CornerRadius(4),
+                CornerRadius = new CornerRadius(5),
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 Margin = new Thickness(0, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = icon,
-                    FontSize = 11.5,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }
+                Child = iconPath
             };
             DockPanel.SetDock(iconBorder, Dock.Left);
             dock.Children.Add(iconBorder);
@@ -1979,39 +2097,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
             return pill;
         }
 
-        private static Border CreateCircleIconButton(string icon, double size, string toolTip, Action onClick)
-        {
-            var p = CapsuleTheme.Current;
-            var btn = new Border
-            {
-                Width = size,
-                Height = size,
-                CornerRadius = new CornerRadius(size / 2),
-                Background = CapsuleTheme.Brush(p.Surface),
-                BorderBrush = CapsuleTheme.Brush(p.Border),
-                BorderThickness = new Thickness(1),
-                Cursor = Cursors.Hand,
-                ToolTip = toolTip,
-                Child = new TextBlock
-                {
-                    Text = icon,
-                    FontSize = size > 30 ? 13 : 11,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = CapsuleTheme.Brush(p.Text),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }
-            };
-            btn.MouseEnter += (_, _) => btn.Background = CapsuleTheme.Brush(p.Surface2);
-            btn.MouseLeave += (_, _) => btn.Background = CapsuleTheme.Brush(p.Surface);
-            btn.MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                onClick();
-            };
-            return btn;
-        }
-
         private static Border CreateQuickChip(string label, Action onClick, Action onRightClick = null)
         {
             var p = CapsuleTheme.Current;
@@ -2091,9 +2176,46 @@ namespace WindowsBuddy.BuddyCapsule.UI
             return btn;
         }
 
-        private static Border CreateActionPill(string label, out TextBlock textOut, Action onClick)
+        private static Border CreateActionPill(Geometry iconGeom, string label, out TextBlock textOut, Action onClick)
         {
             var p = CapsuleTheme.Current;
+            var pill = new Border
+            {
+                Height = 26,
+                CornerRadius = new CornerRadius(5),
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(7, 0, 7, 0),
+                Margin = new Thickness(0, 0, 4, 0),
+                Cursor = Cursors.Hand
+            };
+
+            var stack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            if (iconGeom != null)
+            {
+                var iconPath = new Path
+                {
+                    Data = iconGeom,
+                    Stroke = CapsuleTheme.Brush(p.Text2),
+                    StrokeThickness = 1.6,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    Width = 11,
+                    Height = 11,
+                    Stretch = Stretch.Uniform,
+                    Margin = new Thickness(0, 0, 4, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                stack.Children.Add(iconPath);
+            }
+
             var tb = new TextBlock
             {
                 Text = label,
@@ -2103,27 +2225,22 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 VerticalAlignment = VerticalAlignment.Center
             };
             textOut = tb;
+            stack.Children.Add(tb);
 
-            var pill = new Border
-            {
-                Height = 26,
-                CornerRadius = new CornerRadius(5),
-                Background = CapsuleTheme.Brush(p.Surface),
-                BorderBrush = CapsuleTheme.Brush(p.Border),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(8, 0, 8, 0),
-                Margin = new Thickness(0, 0, 4, 0),
-                Cursor = Cursors.Hand,
-                Child = tb
-            };
-            pill.MouseEnter += (_, _) => pill.Opacity = 0.82;
-            pill.MouseLeave += (_, _) => pill.Opacity = 1.0;
+            pill.Child = stack;
+            pill.MouseEnter += (_, _) => pill.Background = CapsuleTheme.Brush(p.Surface2);
+            pill.MouseLeave += (_, _) => pill.Background = CapsuleTheme.Brush(p.Surface);
             pill.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
                 onClick();
             };
             return pill;
+        }
+
+        private static Border CreateActionPill(string label, out TextBlock textOut, Action onClick)
+        {
+            return CreateActionPill(null, label, out textOut, onClick);
         }
 
         private static StackPanel CreateMiniToggle(string label, out Border trackOut, out Ellipse thumbOut, Action onToggle)
@@ -2204,11 +2321,11 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _currentMode = mode;
             TimerService.Instance.LastActiveMode = mode;
 
-            SetRowActiveStyle(_rowPomo, mode == TimerMode.Pomodoro);
-            SetRowActiveStyle(_rowCountdown, mode == TimerMode.Countdown);
-            SetRowActiveStyle(_rowAlarm, mode == TimerMode.Alarm);
-            SetRowActiveStyle(_rowStopwatch, mode == TimerMode.Stopwatch);
-            SetRowActiveStyle(_rowWater, mode == TimerMode.Water);
+            SetRowActiveStyle(_rowPomo, _iconPomo, mode == TimerMode.Pomodoro);
+            SetRowActiveStyle(_rowCountdown, _iconCountdown, mode == TimerMode.Countdown);
+            SetRowActiveStyle(_rowAlarm, _iconAlarm, mode == TimerMode.Alarm);
+            SetRowActiveStyle(_rowStopwatch, _iconStopwatch, mode == TimerMode.Stopwatch);
+            SetRowActiveStyle(_rowWater, _iconWater, mode == TimerMode.Water);
 
             _pomoPanel.Visibility = mode == TimerMode.Pomodoro ? Visibility.Visible : Visibility.Collapsed;
             _countdownPanel.Visibility = mode == TimerMode.Countdown ? Visibility.Visible : Visibility.Collapsed;
@@ -2220,12 +2337,19 @@ namespace WindowsBuddy.BuddyCapsule.UI
             UpdateVisuals();
         }
 
-        private static void SetRowActiveStyle(Border row, bool active)
+        private void SetRowActiveStyle(Border row, Path iconPath, bool active)
         {
             if (row == null) return;
             var p = CapsuleTheme.Current;
+            var accentBrush = GetAccentBrush();
+
             row.Background = active ? CapsuleTheme.Brush(p.Surface) : Brushes.Transparent;
             row.BorderBrush = active ? CapsuleTheme.Brush(p.Border) : Brushes.Transparent;
+
+            if (iconPath != null)
+            {
+                iconPath.Stroke = active ? accentBrush : CapsuleTheme.Brush(p.Text2);
+            }
         }
 
         private void RebuildCenterQuickPills()
@@ -2251,9 +2375,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("+ 30m", () => { s.AdjustDraftAlarmTime(0, +30); UpdateVisuals(); }));
                     break;
                 case TimerMode.Stopwatch:
-                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("↺ Reset", () => { s.ResetStopwatch(); UpdateVisuals(); }));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("🏁 Lap", () => { s.RecordStopwatchLap(); UpdateVisuals(); }));
-                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("📋 Copy", () => CopyStopwatchLapsToClipboard()));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("Reset", () => { s.ResetStopwatch(); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("Lap", () => { s.RecordStopwatchLap(); UpdateVisuals(); }));
+                    _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("Copy", () => CopyStopwatchLapsToClipboard()));
                     break;
                 case TimerMode.Water:
                     _centerQuickPillsPanel.Children.Add(CreateQuickActionButton("- 250ml", () => { s.RemoveWaterGlass(); UpdateVisuals(); }));
@@ -2317,11 +2441,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     _drumRightActive.Text = $"{sec:D2}";
                     _drumRightBottom.Text = $"{((sec + 1) % 60):D2}";
 
-                    string tName = !string.IsNullOrWhiteSpace(s.PomoTitle) ? s.PomoTitle : "Code";
-                    if (!tName.StartsWith("💻") && !tName.StartsWith("📖") && !tName.StartsWith("🎯") && !tName.StartsWith("✍"))
-                    {
-                        tName = "💻 " + tName;
-                    }
+                    string tName = !string.IsNullOrWhiteSpace(s.PomoTitle) ? TimerService.StripEmojis(s.PomoTitle) : "Code";
+                    if (string.IsNullOrWhiteSpace(tName)) tName = "Code";
                     _drumSubIndicatorText.Text = $"{tName} • {pPhase} {s.PomoCurrentCycle}/{s.PomoTargetCycles}";
                     break;
                 }
@@ -2340,9 +2461,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     _drumRightBottom.Text = $"{((sec + 1) % 60):D2}";
 
                     var ringAt = DateTime.Now.AddSeconds(rem);
-                    string cTitle = !string.IsNullOrWhiteSpace(s.CountTitle) ? s.CountTitle : "Countdown";
+                    string cTitle = !string.IsNullOrWhiteSpace(s.CountTitle) ? TimerService.StripEmojis(s.CountTitle) : "Countdown";
                     _drumSubIndicatorText.Text = s.CountIsRunning
-                        ? $"🔔 Rings at {ringAt:HH:mm}"
+                        ? $"Rings at {ringAt:HH:mm}"
                         : $"Ready • {cTitle}";
                     break;
                 }
@@ -2361,7 +2482,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
                     if (nearestAlarm != null)
                     {
-                        _drumSubIndicatorText.Text = $"🔔 {nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2} • in {(int)alarmRem.TotalHours}h {alarmRem.Minutes}m";
+                        _drumSubIndicatorText.Text = $"{nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2} • in {(int)alarmRem.TotalHours}h {alarmRem.Minutes}m";
                     }
                     else
                     {
@@ -2382,7 +2503,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     _drumRightActive.Text = $"{sec:D2}";
                     _drumRightBottom.Text = $"{((sec + 1) % 60):D2}";
 
-                    _drumSubIndicatorText.Text = $"⏱ .{sw.Milliseconds / 10:D2} ms • {(s.Laps.Count > 0 ? $"Lap #{s.Laps.Count + 1}" : (s.StopwatchIsRunning ? "Running" : "Ready"))}";
+                    _drumSubIndicatorText.Text = $".{sw.Milliseconds / 10:D2} ms • {(s.Laps.Count > 0 ? $"Lap #{s.Laps.Count + 1}" : (s.StopwatchIsRunning ? "Running" : "Ready"))}";
                     break;
                 }
                 case TimerMode.Water:
@@ -2398,7 +2519,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     _drumRightActive.Text = $"{t:D2}";
                     _drumRightBottom.Text = $"{(t + 1):D2}";
 
-                    _drumSubIndicatorText.Text = $"💧 {g * 250} ml • Target {t * 250} ml";
+                    _drumSubIndicatorText.Text = $"{g * 250} ml • Target {t * 250} ml";
                     break;
                 }
             }
@@ -2442,7 +2563,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _cycleSubText.Text = string.Format(LocalizationService.T("focus.next_break_fmt", "Break {0} next"), $"{nextBreakMins:D2}:{nextBreakSecs:D2}");
             UpdateCycleDots(s.PomoCurrentCycle, s.PomoTargetCycles, accentColor);
 
-            _pomoPlayIcon.Text = s.PomoIsRunning ? "⏸" : "▶";
+            _pomoPlayIcon.Data = s.PomoIsRunning ? TimerIcons.PauseGeometry : TimerIcons.PlayGeometry;
             _focusMinsText.Text = $"Focus {s.PomoWorkSeconds / 60}m";
             _breakMinsText.Text = $"Break {s.PomoBreakSeconds / 60}m";
             _longMinsText.Text = $"Long {s.PomoLongBreakSeconds / 60}m";
@@ -2451,14 +2572,18 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _completedText.Text = $"{s.PomoSessionsToday} done ({s.PomoFocusMinutesToday}m)";
 
             // Update Pomo Presets Active Highlight
-            string curTitle = s.PomoTitle;
-            for (int i = 0; i < PomoPresets.Length; i++)
+            string curTitle = s.PomoTitle ?? "";
+            for (int i = 0; i < PomoPresetsList.Length; i++)
             {
                 if (_pomoPresetChips[i] != null)
                 {
-                    bool isSelected = string.Equals(curTitle, PomoPresets[i], StringComparison.OrdinalIgnoreCase);
+                    bool isSelected = string.Equals(curTitle, PomoPresetsList[i].Label, StringComparison.OrdinalIgnoreCase);
                     _pomoPresetChips[i].BorderBrush = isSelected ? accentBrush : CapsuleTheme.Brush(CapsuleTheme.Current.Border);
                     _pomoPresetChips[i].Background = isSelected ? CapsuleTheme.Brush(CapsuleTheme.Current.Surface2) : CapsuleTheme.Brush(CapsuleTheme.Current.Surface);
+                    if (_pomoPresetChipIcons[i] != null)
+                    {
+                        _pomoPresetChipIcons[i].Stroke = isSelected ? accentBrush : CapsuleTheme.Brush(CapsuleTheme.Current.Text2);
+                    }
                 }
             }
 
@@ -2475,29 +2600,29 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 var target = s.CountTargetClockTime ?? DateTime.Now.AddSeconds(baseSec);
                 _countTargetTimeInput.Text = target.ToString("HH:mm");
             }
-            _countPlayIcon.Text = s.CountIsRunning ? "⏸" : "▶";
+            _countPlayIcon.Data = s.CountIsRunning ? TimerIcons.PauseGeometry : TimerIcons.PlayGeometry;
             _countLoopBtn.Background = s.CountLoop ? accentBrush : CapsuleTheme.Brush(CapsuleTheme.Current.Surface);
-            _countSoundBtnText.Text = $"🔔 {s.SelectedSoundTone}";
-            _countRepeatBtnText.Text = $"🔁 {s.RingRepeatCount}x";
+            _countSoundBtnText.Text = $"Sound: {s.SelectedSoundTone}";
+            _countRepeatBtnText.Text = $"{s.RingRepeatCount}x";
             _countRingBanner.Visibility = s.IsRinging ? Visibility.Visible : Visibility.Collapsed;
             RebuildCountdownPresets();
 
             // Alarm Controls
             if (!_alarmHourInput.IsKeyboardFocused) _alarmHourInput.Text = $"{s.DraftAlarmHour:D2}";
             if (!_alarmMinInput.IsKeyboardFocused) _alarmMinInput.Text = $"{s.DraftAlarmMinute:D2}";
-            _alarmSoundBtnText.Text = $"🔔 {s.SelectedSoundTone}";
-            _alarmSnoozeBtnText.Text = s.DefaultSnoozeMinutes > 0 ? $"💤 {s.DefaultSnoozeMinutes}m" : "💤 Off";
-            _alarmRepeatBtnText.Text = $"🔁 {s.RingRepeatCount}x";
+            _alarmSoundBtnText.Text = $"Sound: {s.SelectedSoundTone}";
+            _alarmSnoozeBtnText.Text = s.DefaultSnoozeMinutes > 0 ? $"{s.DefaultSnoozeMinutes}m" : "Off";
+            _alarmRepeatBtnText.Text = s.DraftAlarmRepeatDaily ? "Daily" : "Once";
             UpdateMiniToggleVisual(_alarmNotchToggleTrack, _alarmNotchToggleThumb, s.ShowAlarmInNotch, accentColor);
 
             var draftTarget = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, s.DraftAlarmHour, s.DraftAlarmMinute, 0);
             if (draftTarget <= DateTime.Now) draftTarget = draftTarget.AddDays(1);
             var spanUntilDraft = draftTarget - DateTime.Now;
-            _alarmRemainingPreviewText.Text = $"⏳ Selected time ({s.DraftAlarmHour:D2}:{s.DraftAlarmMinute:D2}) is in {(int)spanUntilDraft.TotalHours}h {spanUntilDraft.Minutes}m";
+            _alarmRemainingPreviewText.Text = $"Selected time ({s.DraftAlarmHour:D2}:{s.DraftAlarmMinute:D2}) is in {(int)spanUntilDraft.TotalHours}h {spanUntilDraft.Minutes}m";
             RebuildAlarmsList(accentColor);
 
             // Stopwatch Controls
-            _swPlayIcon.Text = s.StopwatchIsRunning ? "⏸" : "▶";
+            _swPlayIcon.Data = s.StopwatchIsRunning ? TimerIcons.PauseGeometry : TimerIcons.PlayGeometry;
             RebuildStopwatchLapsList();
 
             // Water Controls
@@ -2511,20 +2636,27 @@ namespace WindowsBuddy.BuddyCapsule.UI
             int maxDrops = Math.Min(s.WaterTarget, 14);
             for (int i = 1; i <= maxDrops; i++)
             {
-                _waterDropsVisualPanel.Children.Add(new TextBlock
+                bool isDrank = i <= s.WaterGlasses;
+                var drop = new Path
                 {
-                    Text = "💧",
-                    FontSize = 11,
-                    Opacity = i <= s.WaterGlasses ? 1.0 : 0.22,
-                    Margin = new Thickness(1.5, 0, 1.5, 0)
-                });
+                    Data = TimerIcons.WaterDropGeometry,
+                    Fill = isDrank ? accentBrush : Brushes.Transparent,
+                    Stroke = isDrank ? Brushes.Transparent : CapsuleTheme.Brush(CapsuleTheme.Current.Text2),
+                    StrokeThickness = isDrank ? 0 : 1.4,
+                    Width = 12,
+                    Height = 12,
+                    Stretch = Stretch.Uniform,
+                    Opacity = isDrank ? 1.0 : 0.35,
+                    Margin = new Thickness(2, 0, 2, 0)
+                };
+                _waterDropsVisualPanel.Children.Add(drop);
             }
 
             UpdateMiniToggleVisual(_waterReminderToggleTrack, _waterReminderToggleThumb, s.WaterReminderEnabled, accentColor);
             UpdateMiniToggleVisual(_waterNotchToggleTrack, _waterNotchToggleThumb, s.ShowWaterInNotch, accentColor);
             _waterReminderStatusText.Foreground = accentBrush;
             _waterReminderStatusText.Text = s.WaterReminderEnabled
-                ? $"⏱ {TimerService.FormatDuration(s.WaterReminderRemainingSeconds)}"
+                ? TimerService.FormatDuration(s.WaterReminderRemainingSeconds)
                 : "Off";
 
             HighlightIntervalChip(_waterInt30Btn, s.WaterReminderIntervalMinutes == 30, accentColor);
@@ -2569,15 +2701,36 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 var captured = al;
                 var row = new DockPanel { Margin = new Thickness(2, 2, 2, 2) };
 
-                var delBtn = new TextBlock
+                var delBtn = new Border
                 {
-                    Text = "✕",
-                    FontSize = 10,
-                    Foreground = CapsuleTheme.Brush(p.Text2),
+                    Width = 18,
+                    Height = 18,
+                    Background = Brushes.Transparent,
                     VerticalAlignment = VerticalAlignment.Center,
                     Cursor = Cursors.Hand,
                     Margin = new Thickness(6, 0, 0, 0),
-                    ToolTip = "Delete alarm"
+                    ToolTip = "Delete alarm",
+                    Child = new Path
+                    {
+                        Data = TimerIcons.CloseGeometry,
+                        Stroke = CapsuleTheme.Brush(p.Text2),
+                        StrokeThickness = 1.6,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round,
+                        Width = 9,
+                        Height = 9,
+                        Stretch = Stretch.Uniform,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                };
+                delBtn.MouseEnter += (_, _) =>
+                {
+                    if (delBtn.Child is Path path) path.Stroke = CapsuleTheme.Brush(p.Text);
+                };
+                delBtn.MouseLeave += (_, _) =>
+                {
+                    if (delBtn.Child is Path path) path.Stroke = CapsuleTheme.Brush(p.Text2);
                 };
                 delBtn.MouseLeftButtonUp += (_, e) =>
                 {
@@ -2659,12 +2812,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 if (lap.LapNumber == fastestLapNum)
                 {
                     rowBrush = new SolidColorBrush(Color.FromRgb(48, 209, 88));
-                    badge = " ⚡";
+                    badge = " (Best)";
                 }
                 else if (lap.LapNumber == slowestLapNum)
                 {
                     rowBrush = new SolidColorBrush(Color.FromRgb(255, 69, 58));
-                    badge = " 🐢";
+                    badge = " (Slow)";
                 }
 
                 var numBlock = new TextBlock

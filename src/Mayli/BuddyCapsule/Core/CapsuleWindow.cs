@@ -60,6 +60,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly Grid _expandedContent;
         private readonly Border _viewportHost;
         private readonly Border _navDockBorder;
+        private readonly ScrollViewer _navScrollViewer;
         private readonly StackPanel _navTabsPanel;
         private readonly Dictionary<string, FrameworkElement> _dockButtons = new();
 
@@ -106,6 +107,9 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth, Windows Notifications)
         private readonly Grid _collapsedBannerView;
+        private readonly TranslateTransform _bannerTranslate = new(0, 0);
+        private readonly ScaleTransform _bannerScale = new(1, 1);
+        private int _bannerSequenceId = 0;
         private readonly AnimateIcon _bannerAnimateIcon;
         private readonly Border _bannerAppIconBorder;
         private readonly Image _bannerAppImage;
@@ -113,6 +117,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly TextBlock _bannerIcon;
         private readonly TextBlock _bannerTitle;
         private readonly TextBlock _bannerSubtitle;
+        private readonly StackPanel _bannerTextStack;
 
         // 4. Collapsed Message Banner View (Flashed from Message tool)
         private readonly Grid _collapsedMessageView;
@@ -197,8 +202,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private bool _isTucked = false;
         private bool _isTuckCompletedHidden = false;
+        private bool _isSmartPeekHovered = false;
         private readonly TranslateTransform _capsuleCardTranslate = new(0, 0);
         private readonly DispatcherTimer _mediaSettleExitTimer;
+        private readonly DispatcherTimer _dynamicVisibilityTimer;
 
         public bool IsTucked => _isTucked;
 
@@ -703,95 +710,108 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _collapsedContent.Children.Add(_collapsedMediaWideView);
 
-            // View 3: Dynamic Banner View (Copied, Screenshot saved, AirPods Connected, Windows Notifications)
-            _collapsedBannerView = new Grid { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center };
-            var bannerDock = new DockPanel();
+            // View 3: Dynamic Banner View (Copied, Cut, Screenshot saved, AirPods Connected, Windows Notifications)
+            _collapsedBannerView = new Grid
+            {
+                Visibility = Visibility.Collapsed,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransformOrigin = new Point(0.5, 0.5)
+            };
+            var bannerGroup = new TransformGroup();
+            bannerGroup.Children.Add(_bannerTranslate);
+            bannerGroup.Children.Add(_bannerScale);
+            _collapsedBannerView.RenderTransform = bannerGroup;
+            var bannerContainer = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
 
             _bannerAnimateIcon = new AnimateIcon(AnimateIconType.CopyCheck, size: 16, brush: Brushes.White)
             {
-                Margin = new Thickness(0, 0, 8, 0),
+                Margin = new Thickness(0, 0, 7, 0),
                 VerticalAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Collapsed,
                 AutoAnimateOnHover = false
             };
-            DockPanel.SetDock(_bannerAnimateIcon, Dock.Left);
-            bannerDock.Children.Add(_bannerAnimateIcon);
+            bannerContainer.Children.Add(_bannerAnimateIcon);
 
             _bannerAppIconBorder = new Border
             {
-                Width = 26,
-                Height = 26,
-                CornerRadius = new CornerRadius(7),
+                Width = 24,
+                Height = 24,
+                CornerRadius = new CornerRadius(6),
                 ClipToBounds = true,
-                Margin = new Thickness(0, 0, 8, 0),
+                Margin = new Thickness(0, 0, 7, 0),
                 VerticalAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Collapsed,
                 Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255))
             };
             _bannerAppImage = new Image
             {
-                Width = 26,
-                Height = 26,
+                Width = 24,
+                Height = 24,
                 Stretch = Stretch.UniformToFill
             };
             _bannerAppIconBorder.Child = _bannerAppImage;
-            DockPanel.SetDock(_bannerAppIconBorder, Dock.Left);
-            bannerDock.Children.Add(_bannerAppIconBorder);
+            bannerContainer.Children.Add(_bannerAppIconBorder);
 
             _bannerIcon = new TextBlock
             {
                 Text = "📋",
                 FontSize = 13.5,
-                Margin = new Thickness(0, 0, 8, 0),
+                Margin = new Thickness(0, 0, 7, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            DockPanel.SetDock(_bannerIcon, Dock.Left);
-            bannerDock.Children.Add(_bannerIcon);
+            bannerContainer.Children.Add(_bannerIcon);
 
-            var bannerTextStack = new StackPanel
+            _bannerTextStack = new StackPanel
             {
-                Orientation = Orientation.Vertical,
+                Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 260
+                MaxWidth = 270
             };
 
-            var topRow = new StackPanel { Orientation = Orientation.Horizontal };
             _bannerAppName = new TextBlock
             {
                 Text = "",
-                FontSize = 11.0,
+                FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(152, 152, 160)),
-                Margin = new Thickness(0, 0, 6, 0),
-                Visibility = Visibility.Collapsed
+                Margin = new Thickness(0, 0, 5, 0),
+                Visibility = Visibility.Collapsed,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            topRow.Children.Add(_bannerAppName);
+            _bannerTextStack.Children.Add(_bannerAppName);
 
             _bannerTitle = new TextBlock
             {
                 Text = "Copied",
                 FontSize = 12.0,
-                FontWeight = FontWeights.Bold,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 220
+                MaxWidth = 200
             };
-            topRow.Children.Add(_bannerTitle);
-            bannerTextStack.Children.Add(topRow);
+            _bannerTextStack.Children.Add(_bannerTitle);
 
             _bannerSubtitle = new TextBlock
             {
                 Text = " · Image",
-                FontSize = 11.5,
+                FontSize = 12.0,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 250,
-                TextTrimming = TextTrimming.CharacterEllipsis
+                MaxWidth = 220,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 0, 0, 0)
             };
-            bannerTextStack.Children.Add(_bannerSubtitle);
-            bannerDock.Children.Add(bannerTextStack);
-            _collapsedBannerView.Children.Add(bannerDock);
+            _bannerTextStack.Children.Add(_bannerSubtitle);
+
+            bannerContainer.Children.Add(_bannerTextStack);
+            _collapsedBannerView.Children.Add(bannerContainer);
             _collapsedContent.Children.Add(_collapsedBannerView);
 
             // View 4: Collapsed Message Banner View (Flashed from Message tool)
@@ -948,6 +968,29 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _expandedContent.Children.Add(_viewportHost);
 
             // Bottom Navigation Dock Bar
+            _navTabsPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            _navScrollViewer = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                PanningMode = PanningMode.HorizontalOnly,
+                Focusable = false,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Content = _navTabsPanel
+            };
+
+            // Enable mouse-wheel and trackpad horizontal scrolling
+            _navScrollViewer.PreviewMouseWheel += (s, e) =>
+            {
+                if (e.Delta != 0)
+                {
+                    double targetOffset = _navScrollViewer.HorizontalOffset - (e.Delta * 0.6);
+                    _navScrollViewer.ScrollToHorizontalOffset(targetOffset);
+                    e.Handled = true;
+                }
+            };
+
             _navDockBorder = new Border
             {
                 Background = CapsuleTheme.Brush(p.DockPill),
@@ -955,11 +998,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(17),
                 Padding = new Thickness(6, 4, 6, 4),
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                MaxWidth = 660,
+                Child = _navScrollViewer
             };
-            _navTabsPanel = new StackPanel { Orientation = Orientation.Horizontal };
             RebuildNavTabs();
-            _navDockBorder.Child = _navTabsPanel;
             Grid.SetRow(_navDockBorder, 2);
             _expandedContent.Children.Add(_navDockBorder);
 
@@ -1188,6 +1231,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 if (next == NotchPhase.Opening || next == NotchPhase.Open)
                 {
+                    if (_viewportHost.Child == null)
+                    {
+                        NavigateToTool(_activeToolId);
+                    }
                     _targetProgress = 1.0;
                     _expandedContent.Visibility = Visibility.Visible;
                     _edgeLight.TriggerBurst(4.5);
@@ -1221,6 +1268,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _isMinimalPeekHovered = false;
                     EvaluateDynamicVisibility();
                 }
+                if (_isSmartPeekHovered)
+                {
+                    _isSmartPeekHovered = false;
+                    EvaluateDynamicVisibility();
+                }
                 _machine.PointerMoved(false, "mouse-leave");
             };
             _capsuleCard.MouseLeftButtonUp += (_, _) =>
@@ -1251,6 +1303,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
             };
             _clockTimer.Start();
+
+            // Snappy 120ms dynamic visibility evaluation for intelligent app obstruction detection and top-edge hover
+            _dynamicVisibilityTimer = new DispatcherTimer(DispatcherPriority.Background)
+            {
+                Interval = TimeSpan.FromMilliseconds(120)
+            };
+            _dynamicVisibilityTimer.Tick += (_, _) => EvaluateDynamicVisibility();
+            _dynamicVisibilityTimer.Start();
 
             // 30fps Real-time Spectrum & Equalizer Animation Timer (active during playback and smooth decay when stopped)
             _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
@@ -1316,14 +1376,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _bannerDismissTimer.Tick += (_, _) =>
             {
                 _bannerDismissTimer.Stop();
-                _isBannerActive = false;
-                _musicSatelliteTarget = 0.0;
-                if (_isMessagePinned)
-                {
-                    _isMessageActive = true;
-                }
-                UpdateCollapsedViewState();
-                _morphTimer.Start();
+                AnimateBannerExit();
             };
 
             // Message Banner Dismissal Timer
@@ -1345,6 +1398,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
             winNotifService.NotificationReceived += OnWindowsNotificationReceived;
             Loaded += async (_, _) =>
             {
+                _ = Dispatcher.InvokeAsync(() =>
+                {
+                    if (_viewportHost.Child == null)
+                    {
+                        NavigateToTool(_activeToolId);
+                    }
+                }, DispatcherPriority.Background);
+
                 try
                 {
                     await winNotifService.StartAsync();
@@ -1357,9 +1418,26 @@ namespace WindowsBuddy.BuddyCapsule.Core
             timerService.Tick += () => Dispatcher.InvokeAsync(OnTimerServiceUpdated);
             timerService.StateChanged += () => Dispatcher.InvokeAsync(OnTimerServiceUpdated);
 
-            CapsuleTheme.ThemeChanged += RequestApplyThemeAndGeometry;
+            CapsuleTheme.ThemeChanged += () => Dispatcher.InvokeAsync(() =>
+            {
+                RequestApplyThemeAndGeometry();
+                RebuildNavTabs();
+                if (_machine.Phase == NotchPhase.Open)
+                {
+                    NavigateToTool(_activeToolId);
+                }
+            });
             AppPreferences.Instance.Changed += RequestApplyThemeAndGeometry;
-            LocalizationService.LanguageChanged += () => Dispatcher.InvokeAsync(RequestApplyThemeAndGeometry);
+            LocalizationService.LanguageChanged += () => Dispatcher.InvokeAsync(() =>
+            {
+                RequestApplyThemeAndGeometry();
+                RebuildNavTabs();
+                UpdateToolHeaderActions(_activeToolId);
+                if (_machine.Phase == NotchPhase.Open)
+                {
+                    NavigateToTool(_activeToolId);
+                }
+            });
 
             // Alt+1 .. Alt+0, Alt+M, Alt+S Navigation Shortcuts
             PreviewKeyDown += (_, e) =>
@@ -1376,8 +1454,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         Key.D6 => "fileshelf",
                         Key.D7 => "weather",
                         Key.D8 => "clock",
-                        Key.D9 => "units",
-                        Key.D0 => "links",
+                        Key.D9 => "calendar",
+                        Key.D0 => "units",
+                        Key.C => "calendar",
+                        Key.U => "units",
+                        Key.L => "links",
                         Key.M => "message",
                         Key.S => "screentime",
                         _ => null
@@ -1436,7 +1517,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 if (payload.Icon == "🔊" && !AppPreferences.Instance.VolumeActivity)
                     return;
 
-                if ((payload.Icon == "📋" || payload.Icon == "📁") && !AppPreferences.Instance.ClipboardCopiedActivity)
+                if ((payload.Icon == "📋" || payload.Icon == "📁" || payload.Icon == "✂️") && !AppPreferences.Instance.ClipboardCopiedActivity)
                     return;
 
                 if (payload.Icon == "⏱" && !AppPreferences.Instance.TimerFinishAlerts && !AppPreferences.Instance.RunningTimersActivity)
@@ -1451,13 +1532,27 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 if (!string.IsNullOrWhiteSpace(payload.AppName))
                 {
-                    _bannerAppName.Text = payload.AppName;
+                    _bannerAppName.Text = payload.AppName + " · ";
                     _bannerAppName.Visibility = Visibility.Visible;
                 }
                 else
                 {
                     _bannerAppName.Visibility = Visibility.Collapsed;
                 }
+
+                // Ensure collapsed content root is fully visible and opaque
+                _collapsedContent.Visibility = Visibility.Visible;
+                _collapsedContent.Opacity = 1.0;
+
+                // Display banner view before icon play so elements are in the visual presentation tree
+                _collapsedMinimalView.Visibility = Visibility.Collapsed;
+                _collapsedNormalView.Visibility = Visibility.Collapsed;
+                _collapsedTimerView.Visibility = Visibility.Collapsed;
+                _collapsedMediaView.Visibility = Visibility.Collapsed;
+                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
+                _collapsedMessageView.Visibility = Visibility.Collapsed;
+                _collapsedBannerView.Visibility = Visibility.Visible;
+                AnimateBannerEntrance();
 
                 if (payload.AppIcon != null)
                 {
@@ -1466,37 +1561,45 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _bannerAnimateIcon.Visibility = Visibility.Collapsed;
                     _bannerIcon.Visibility = Visibility.Collapsed;
                 }
-                else if (payload.Title == "Copied" || payload.Icon == "📋" || payload.Icon == "📎")
+                else if (payload.Title == "Cut" || payload.Icon == "✂️")
                 {
                     _bannerAppIconBorder.Visibility = Visibility.Collapsed;
-                    _bannerAnimateIcon.IconType = AnimateIconType.CopyCheck;
-                    _bannerAnimateIcon.Visibility = Visibility.Visible;
                     _bannerIcon.Visibility = Visibility.Collapsed;
-                    _bannerAnimateIcon.Play();
+                    _bannerAnimateIcon.IconType = AnimateIconType.CutScissors;
+                    _bannerAnimateIcon.Visibility = Visibility.Visible;
+                    _bannerAnimateIcon.Play(forceRestart: true);
+                }
+                else if (payload.Title == "Copied" || payload.Icon == "📋" || payload.Icon == "📎" || payload.Icon == "📁")
+                {
+                    _bannerAppIconBorder.Visibility = Visibility.Collapsed;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
+                    _bannerAnimateIcon.IconType = (payload.Title == "Cut") ? AnimateIconType.CutScissors : AnimateIconType.CopyCheck;
+                    _bannerAnimateIcon.Visibility = Visibility.Visible;
+                    _bannerAnimateIcon.Play(forceRestart: true);
                 }
                 else if (payload.Icon == "🎧" || (payload.Title != null && payload.Title.Contains("Connected", StringComparison.OrdinalIgnoreCase)))
                 {
                     _bannerAppIconBorder.Visibility = Visibility.Collapsed;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.IconType = AnimateIconType.Bluetooth;
                     _bannerAnimateIcon.Visibility = Visibility.Visible;
-                    _bannerIcon.Visibility = Visibility.Collapsed;
-                    _bannerAnimateIcon.Play();
+                    _bannerAnimateIcon.Play(forceRestart: true);
                 }
                 else if (payload.Icon == "🔊" || payload.Icon == "🔈")
                 {
                     _bannerAppIconBorder.Visibility = Visibility.Collapsed;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.IconType = AnimateIconType.Volume;
                     _bannerAnimateIcon.Visibility = Visibility.Visible;
-                    _bannerIcon.Visibility = Visibility.Collapsed;
-                    _bannerAnimateIcon.Play();
+                    _bannerAnimateIcon.Play(forceRestart: true);
                 }
                 else if (payload.Icon == "⏱" || payload.Icon == "⏰")
                 {
                     _bannerAppIconBorder.Visibility = Visibility.Collapsed;
+                    _bannerIcon.Visibility = Visibility.Collapsed;
                     _bannerAnimateIcon.IconType = AnimateIconType.Timer;
                     _bannerAnimateIcon.Visibility = Visibility.Visible;
-                    _bannerIcon.Visibility = Visibility.Collapsed;
-                    _bannerAnimateIcon.Play();
+                    _bannerAnimateIcon.Play(forceRestart: true);
                 }
                 else
                 {
@@ -1532,17 +1635,21 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _splitIslandsTarget = 0.0;
                 }
 
-                // Display banner view
-                _collapsedMinimalView.Visibility = Visibility.Collapsed;
-                _collapsedNormalView.Visibility = Visibility.Collapsed;
-                _collapsedTimerView.Visibility = Visibility.Collapsed;
-                _collapsedMediaView.Visibility = Visibility.Collapsed;
-                _collapsedMediaWideView.Visibility = Visibility.Collapsed;
-                _collapsedBannerView.Visibility = Visibility.Visible;
-
-                bool hasRichNotif = payload.AppIcon != null || !string.IsNullOrWhiteSpace(payload.AppName);
-                _currentBaseCollapsedWidth = hasRichNotif ? 340.0 : BannerCollapsedWidth;
-                _currentBaseCollapsedHeight = hasRichNotif ? 44.0 : BannerCollapsedHeight;
+                bool isCopyOrCut = payload.Title == "Copied" || payload.Title == "Cut" || payload.Icon == "📋" || payload.Icon == "✂️" || payload.Icon == "📁";
+                if (isCopyOrCut)
+                {
+                    GetConfiguredRestingDimensions(out double rw, out double rh);
+                    _currentBaseCollapsedWidth = rw;
+                    _currentBaseCollapsedHeight = rh;
+                    _bannerSubtitle.MaxWidth = Math.Max(60.0, rw - 110.0);
+                }
+                else
+                {
+                    bool hasRichNotif = payload.AppIcon != null || !string.IsNullOrWhiteSpace(payload.AppName);
+                    _currentBaseCollapsedWidth = hasRichNotif ? 340.0 : BannerCollapsedWidth;
+                    _currentBaseCollapsedHeight = hasRichNotif ? 44.0 : BannerCollapsedHeight;
+                    _bannerSubtitle.MaxWidth = 220.0;
+                }
 
                 _edgeLight.TriggerBurst(4.2);
                 EvaluateDynamicVisibility();
@@ -1550,6 +1657,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 if (_morphProgress <= 0.1)
                 {
                     _targetProgress = 0.0;
+                    _lastMorphTickTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
                     _morphTimer.Start();
                 }
 
@@ -1784,6 +1892,80 @@ namespace WindowsBuddy.BuddyCapsule.Core
             view.BeginAnimation(OpacityProperty, fadeAnim);
         }
 
+        private void AnimateBannerEntrance()
+        {
+            _bannerSequenceId++;
+            _bannerTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+            _bannerScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            _bannerScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            _collapsedBannerView.BeginAnimation(OpacityProperty, null);
+
+            var cubicEase = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var backEase = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.25 };
+
+            var slideAnim = new DoubleAnimation(-8.0, 0.0, TimeSpan.FromMilliseconds(260)) { EasingFunction = cubicEase };
+            var scaleAnim = new DoubleAnimation(0.92, 1.0, TimeSpan.FromMilliseconds(280)) { EasingFunction = backEase };
+            var fadeAnim = new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(200)) { EasingFunction = cubicEase };
+
+            _bannerTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _bannerScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+            _bannerScale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+            _collapsedBannerView.BeginAnimation(OpacityProperty, fadeAnim);
+        }
+
+        private void AnimateBannerExit()
+        {
+            if (!_isBannerActive) return;
+
+            int currentSeq = _bannerSequenceId;
+            var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+
+            var slideAnim = new DoubleAnimation(0.0, -7.0, TimeSpan.FromMilliseconds(190)) { EasingFunction = ease };
+            var scaleAnim = new DoubleAnimation(1.0, 0.93, TimeSpan.FromMilliseconds(190)) { EasingFunction = ease };
+            var fadeAnim = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(170)) { EasingFunction = ease };
+
+            fadeAnim.Completed += (_, _) =>
+            {
+                if (_bannerSequenceId == currentSeq && _isBannerActive)
+                {
+                    _isBannerActive = false;
+                    _musicSatelliteTarget = 0.0;
+                    if (_isMessagePinned) _isMessageActive = true;
+
+                    _bannerTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+                    _bannerScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                    _bannerScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                    _collapsedBannerView.BeginAnimation(OpacityProperty, null);
+                    _bannerTranslate.Y = 0;
+                    _bannerScale.ScaleX = 1.0;
+                    _bannerScale.ScaleY = 1.0;
+                    _collapsedBannerView.Opacity = 1.0;
+
+                    UpdateCollapsedViewState();
+
+                    if (_collapsedNormalView.Visibility == Visibility.Visible)
+                    {
+                        AnimateViewEntrance(_collapsedNormalView, 5.0);
+                    }
+                    else if (_collapsedMediaView.Visibility == Visibility.Visible)
+                    {
+                        AnimateViewEntrance(_collapsedMediaView, 5.0);
+                    }
+                    else if (_collapsedTimerView.Visibility == Visibility.Visible)
+                    {
+                        AnimateViewEntrance(_collapsedTimerView, 5.0);
+                    }
+
+                    _morphTimer.Start();
+                }
+            };
+
+            _bannerTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _bannerScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+            _bannerScale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+            _collapsedBannerView.BeginAnimation(OpacityProperty, fadeAnim);
+        }
+
         private Color GetEffectiveTimerColor()
         {
             bool syncWithMusic = AppPreferences.Instance.EdgeLightSyncWithMusic ||
@@ -1871,7 +2053,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _rightIslandTimeText.Foreground = _cachedTimerAccentBrush;
             }
 
-            string displayDigits = snap.IsRunning ? snap.DisplayTime : $"⏸ {snap.DisplayTime}";
+            string displayDigits = snap.IsRunning ? snap.DisplayTime : $"❚❚ {snap.DisplayTime}";
             double ratio = snap.IsRunning ? snap.RemainingRatio : 0.0;
 
             // 1. Update Standalone Notch Timer View (when NO music is playing)
@@ -1986,9 +2168,21 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Visible;
-                bool hasRich = _bannerAppIconBorder.Visibility == Visibility.Visible || _bannerAppName.Visibility == Visibility.Visible;
-                _currentBaseCollapsedWidth = hasRich ? 340.0 : BannerCollapsedWidth;
-                _currentBaseCollapsedHeight = hasRich ? 44.0 : BannerCollapsedHeight;
+                bool isCopyOrCut = _bannerTitle.Text == "Copied" || _bannerTitle.Text == "Cut";
+                if (isCopyOrCut)
+                {
+                    GetConfiguredRestingDimensions(out double rw, out double rh);
+                    _currentBaseCollapsedWidth = rw;
+                    _currentBaseCollapsedHeight = rh;
+                    _bannerSubtitle.MaxWidth = Math.Max(60.0, rw - 110.0);
+                }
+                else
+                {
+                    bool hasRich = _bannerAppIconBorder.Visibility == Visibility.Visible || _bannerAppName.Visibility == Visibility.Visible;
+                    _currentBaseCollapsedWidth = hasRich ? 340.0 : BannerCollapsedWidth;
+                    _currentBaseCollapsedHeight = hasRich ? 44.0 : BannerCollapsedHeight;
+                    _bannerSubtitle.MaxWidth = 220.0;
+                }
                 if (showMedia)
                 {
                     UpdateMusicSatelliteArtwork();
@@ -2220,7 +2414,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             bool hasLiveEvent = _isBannerActive || _isMessageActive || (_isMusicActive && _isMediaWideActive);
             bool eventOverridesTuck = prefs.ShowEventsOverApps && hasLiveEvent;
 
-            InspectForegroundWindowOnNotchDisplay(out bool isFgFullscreen, out bool isFgMaximized);
+            InspectWindowUnderNotch(out bool isFgFullscreen, out bool isOccupiedByApp, out bool isFgMaximized);
 
             // 1. Hide in fullscreen (unless open or event overrides tuck)
             if (prefs.HideOnFullscreen && isFgFullscreen && !isOpenOrOpening && !eventOverridesTuck)
@@ -2238,17 +2432,51 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 return;
             }
 
-            SetAutoHidden(false);
+            // 3. Smart mode: Detect if important UI (tabs, title bar, address bar, buttons) is underneath
+            var targetScreen = GetTargetScreen();
+            if (targetScreen != null)
+            {
+                var b = targetScreen.Bounds;
+                double notchW = Math.Max(220.0, _displayedCollapsedWidth + 24.0);
+                int notchLeft = b.Left + (int)((b.Width - notchW) / 2.0);
+                int notchRight = notchLeft + (int)notchW;
 
-            // 3. Minimal or Smart mode
+                if (NativeMethods.GetCursorPos(out var curPt))
+                {
+                    // If mouse cursor reaches top 4px above the notch, trigger peek reveal
+                    if (curPt.Y <= b.Top + 4 && curPt.X >= notchLeft - 30 && curPt.X <= notchRight + 30)
+                    {
+                        _isSmartPeekHovered = true;
+                    }
+                    else if (_isSmartPeekHovered && (curPt.Y > b.Top + Math.Max(80.0, _displayedCollapsedHeight + 25.0) || curPt.X < notchLeft - 60 || curPt.X > notchRight + 60))
+                    {
+                        _isSmartPeekHovered = false;
+                    }
+                }
+            }
+
+            if (string.Equals(visMode, "Smart", StringComparison.OrdinalIgnoreCase))
+            {
+                // When an application window with important UI is underneath the notch:
+                // Auto-hide the notch so tabs/titlebar/search are completely unobstructed,
+                // UNLESS the user is hovering at the top edge, or the notch is expanded, or an active event is showing
+                bool shouldHideInSmart = isOccupiedByApp && !isOpenOrOpening && !eventOverridesTuck && !_isSmartPeekHovered && !_capsuleCard.IsMouseOver;
+                SetAutoHidden(shouldHideInSmart);
+                if (shouldHideInSmart)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                SetAutoHidden(false);
+            }
+
+            // 4. Minimal mode
             bool wantMinimal = false;
             if (!isOpenOrOpening && !eventOverridesTuck && !_isMinimalPeekHovered)
             {
                 if (string.Equals(visMode, "Minimal", StringComparison.OrdinalIgnoreCase))
-                {
-                    wantMinimal = true;
-                }
-                else if (string.Equals(visMode, "Smart", StringComparison.OrdinalIgnoreCase) && isFgMaximized)
                 {
                     wantMinimal = true;
                 }
@@ -2270,76 +2498,152 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _isAutoHiddenByVisibility = hidden;
             if (_isTucked) return; // Manual tuck takes precedence
 
+            double targetY = hidden ? -Math.Max(_displayedCollapsedHeight, 40.0) - 20.0 : 0.0;
+            double targetOpacity = hidden ? 0.0 : 1.0;
+            var duration = TimeSpan.FromMilliseconds(220);
+            IEasingFunction ease = hidden
+                ? new CubicEase { EasingMode = EasingMode.EaseIn }
+                : new CubicEase { EasingMode = EasingMode.EaseOut };
+
+            var slideAnim = new DoubleAnimation { To = targetY, Duration = duration, EasingFunction = ease };
+            var fadeAnim = new DoubleAnimation { To = targetOpacity, Duration = duration, EasingFunction = ease };
+
             if (hidden)
             {
                 _capsuleCard.IsHitTestVisible = false;
-                _capsuleCard.Visibility = Visibility.Collapsed;
+                slideAnim.Completed += (_, _) =>
+                {
+                    if (_isAutoHiddenByVisibility)
+                    {
+                        _capsuleCard.Visibility = Visibility.Collapsed;
+                        _leftTimerIsland.Visibility = Visibility.Collapsed;
+                        _rightTimerIsland.Visibility = Visibility.Collapsed;
+                        _musicSatelliteIsland.Visibility = Visibility.Collapsed;
+                    }
+                };
             }
             else
             {
                 _capsuleCard.Visibility = Visibility.Visible;
                 _capsuleCard.IsHitTestVisible = true;
                 EnsureTopmost();
+                UpdateMorphVisuals(_morphProgress);
             }
 
-            UpdateMorphVisuals(_morphProgress);
+            _capsuleCardTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _capsuleCard.BeginAnimation(OpacityProperty, fadeAnim);
+            _leftIslandTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _rightIslandTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _musicSatelliteTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
         }
 
-        private void InspectForegroundWindowOnNotchDisplay(out bool isFullscreen, out bool isMaximized)
+        private void InspectWindowUnderNotch(out bool isFullscreen, out bool isOccupiedByApp, out bool isMaximized)
         {
             isFullscreen = false;
+            isOccupiedByApp = false;
             isMaximized = false;
             try
             {
-                IntPtr fg = NativeMethods.GetForegroundWindow();
-                if (fg == IntPtr.Zero || !NativeMethods.IsWindowVisible(fg) || NativeMethods.IsIconic(fg))
-                    return;
-
-                var myHwnd = new WindowInteropHelper(this).Handle;
-                if (fg == myHwnd) return;
-
-                NativeMethods.GetWindowThreadProcessId(fg, out uint fgPid);
-                if (fgPid == (uint)Environment.ProcessId) return;
-
-                var sbClass = new System.Text.StringBuilder(64);
-                NativeMethods.GetClassName(fg, sbClass, sbClass.Capacity);
-                string cls = sbClass.ToString();
-                if (string.Equals(cls, "Progman", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(cls, "WorkerW", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(cls, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(cls, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-
-                if (!NativeMethods.GetWindowRect(fg, out var rect))
-                    return;
-
                 var targetScreen = GetTargetScreen();
                 if (targetScreen == null) return;
                 var b = targetScreen.Bounds;
 
-                // Check if window center is on the notch's display
-                int cx = (rect.Left + rect.Right) / 2;
-                int cy = (rect.Top + rect.Bottom) / 2;
-                if (!b.Contains(cx, cy))
-                    return;
+                double notchW = Math.Max(220.0, _displayedCollapsedWidth + 24.0);
+                double notchH = Math.Max(36.0, _displayedCollapsedHeight + 12.0);
+                int notchLeft = b.Left + (int)((b.Width - notchW) / 2.0);
+                int notchRight = notchLeft + (int)notchW;
+                int notchTop = b.Top;
+                int notchBottom = b.Top + (int)notchH;
 
-                int winW = rect.Right - rect.Left;
-                int winH = rect.Bottom - rect.Top;
+                var myHwnd = new WindowInteropHelper(this).Handle;
 
-                // Fullscreen check: covers entire monitor bounds (including taskbar area)
-                if (rect.Left <= b.Left + 2 && rect.Top <= b.Top + 2 &&
-                    winW >= b.Width - 4 && winH >= b.Height - 4)
+                // 1. Inspect Foreground Window
+                IntPtr fg = NativeMethods.GetForegroundWindow();
+                if (fg != IntPtr.Zero && NativeMethods.IsWindowVisible(fg) && !NativeMethods.IsIconic(fg) && fg != myHwnd)
                 {
-                    isFullscreen = true;
-                    isMaximized = true;
-                    return;
+                    NativeMethods.GetWindowThreadProcessId(fg, out uint fgPid);
+                    if (fgPid != (uint)Environment.ProcessId)
+                    {
+                        var sbClass = new System.Text.StringBuilder(64);
+                        NativeMethods.GetClassName(fg, sbClass, sbClass.Capacity);
+                        string cls = sbClass.ToString();
+
+                        bool isDesktop = string.Equals(cls, "Progman", StringComparison.OrdinalIgnoreCase) ||
+                                         string.Equals(cls, "WorkerW", StringComparison.OrdinalIgnoreCase) ||
+                                         string.Equals(cls, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
+                                         string.Equals(cls, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase);
+
+                        if (!isDesktop && NativeMethods.GetWindowRect(fg, out var rect))
+                        {
+                            int winW = rect.Right - rect.Left;
+                            int winH = rect.Bottom - rect.Top;
+
+                            // Fullscreen check: covers entire monitor bounds (games, full-screen video, PPT)
+                            if (rect.Left <= b.Left + 2 && rect.Top <= b.Top + 2 &&
+                                winW >= b.Width - 4 && winH >= b.Height - 4)
+                            {
+                                isFullscreen = true;
+                                isMaximized = true;
+                                isOccupiedByApp = true;
+                                return;
+                            }
+
+                            // Window is on notch display
+                            int cx = (rect.Left + rect.Right) / 2;
+                            int cy = (rect.Top + rect.Bottom) / 2;
+                            if (b.Contains(cx, cy) || b.Contains(rect.Left + 10, rect.Top + 10))
+                            {
+                                // Maximized window: top edge touches the top of screen
+                                if (NativeMethods.IsZoomed(fg) || (rect.Left <= b.Left + 4 && rect.Top <= b.Top + 4 && winW >= b.Width - 10))
+                                {
+                                    isMaximized = true;
+                                    isOccupiedByApp = true;
+                                    return;
+                                }
+
+                                // Floating / snapped window intersecting the notch region at the top
+                                if (rect.Top <= notchBottom + 16 && rect.Bottom > notchTop &&
+                                    rect.Left < notchRight && rect.Right > notchLeft)
+                                {
+                                    isOccupiedByApp = true;
+                                    return;
+                                }
+                            }
+                        }
+                    }
                 }
 
-                if (NativeMethods.IsZoomed(fg))
+                // 2. Point hit-test directly under the notch to detect any background application covering top center
+                var testPt = new NativeMethods.POINT
                 {
-                    isMaximized = true;
+                    X = (notchLeft + notchRight) / 2,
+                    Y = notchTop + 16
+                };
+                IntPtr wndUnder = NativeMethods.WindowFromPoint(testPt);
+                if (wndUnder != IntPtr.Zero && wndUnder != myHwnd)
+                {
+                    IntPtr rootUnder = NativeMethods.GetAncestor(wndUnder, NativeMethods.GA_ROOT);
+                    if (rootUnder == IntPtr.Zero) rootUnder = wndUnder;
+
+                    if (rootUnder != myHwnd)
+                    {
+                        NativeMethods.GetWindowThreadProcessId(rootUnder, out uint uPid);
+                        if (uPid != (uint)Environment.ProcessId)
+                        {
+                            var sbUnder = new System.Text.StringBuilder(64);
+                            NativeMethods.GetClassName(rootUnder, sbUnder, sbUnder.Capacity);
+                            string clsUnder = sbUnder.ToString();
+                            bool isDesktopUnder = string.Equals(clsUnder, "Progman", StringComparison.OrdinalIgnoreCase) ||
+                                                 string.Equals(clsUnder, "WorkerW", StringComparison.OrdinalIgnoreCase) ||
+                                                 string.Equals(clsUnder, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
+                                                 string.Equals(clsUnder, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase);
+
+                            if (!isDesktopUnder && NativeMethods.IsWindowVisible(rootUnder))
+                            {
+                                isOccupiedByApp = true;
+                            }
+                        }
+                    }
                 }
             }
             catch { }
@@ -2676,7 +2980,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (msg == NativeMethods.WM_CLIPBOARDUPDATE && AppPreferences.Instance.Raw.ClipboardRecording)
+            const int WM_MOUSEHWHEEL = 0x020E;
+            if (msg == WM_MOUSEHWHEEL && _navScrollViewer != null && _navScrollViewer.IsVisible)
+            {
+                short delta = (short)((wParam.ToInt64() >> 16) & 0xffff);
+                if (delta != 0)
+                {
+                    _navScrollViewer.ScrollToHorizontalOffset(_navScrollViewer.HorizontalOffset + (delta * 0.5));
+                    handled = true;
+                }
+            }
+            else if (msg == NativeMethods.WM_CLIPBOARDUPDATE && AppPreferences.Instance.Raw.ClipboardRecording)
             {
                 RealtimeNotchActionService.Instance.HandleClipboardUpdate();
                 ClipboardTool.CaptureCurrentClipboard();
@@ -2765,8 +3079,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             var p = CapsuleTheme.Current;
 
             // If current tool was disabled, fallback to home
-            string activeCheckId = _activeToolId == "drop" || _activeToolId == "transfer" ? "maylidrop" : _activeToolId;
-            if (!AppPreferences.Instance.IsModuleEnabled(activeCheckId, true) && !string.Equals(_activeToolId, "home", StringComparison.OrdinalIgnoreCase))
+            if (!AppPreferences.Instance.IsModuleEnabled(_activeToolId, true) && !string.Equals(_activeToolId, "home", StringComparison.OrdinalIgnoreCase))
             {
                 _activeToolId = "home";
                 _viewportHost.Child = ToolRegistry.GetById("home").BuildView();
@@ -2775,8 +3088,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             foreach (var tool in ToolRegistry.All)
             {
                 string id = tool.Id;
-                string checkId = id == "drop" || id == "transfer" ? "maylidrop" : id;
-                if (!AppPreferences.Instance.IsModuleEnabled(checkId, true))
+                if (!AppPreferences.Instance.IsModuleEnabled(id, true))
                     continue;
 
                 bool isActive = string.Equals(id, _activeToolId, StringComparison.OrdinalIgnoreCase);
@@ -2810,6 +3122,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     "fileshelf" => AnimateIconType.FileShelf,
                     "weather" => AnimateIconType.Weather,
                     "clock" => AnimateIconType.Clock,
+                    "calendar" => AnimateIconType.Calendar,
                     "links" => AnimateIconType.Links,
                     "message" => AnimateIconType.Message,
                     "screentime" => AnimateIconType.Activity,
@@ -2930,6 +3243,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 "system" => LocalizationService.T("sub.system", "Power · Network · Audio"),
                 "weather" => WindowsBuddy.Tools.Weather.WeatherService.Instance.Prefs.City,
                 "clock" => LocalizationService.T("sub.clock", "Local Time & Date"),
+                "calendar" => LocalizationService.T("sub.calendar", "Solar & Gregorian · Holidays & Events"),
                 "units" => LocalizationService.T("sub.units", "Conversion"),
                 "fileshelf" => LocalizationService.T("sub.fileshelf", "Parked files"),
                 "links" => LocalizationService.T("sub.links", "Quick Bookmarks"),
@@ -2943,6 +3257,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             UpdateToolHeaderActions(tool.Id);
             RebuildNavTabs();
+
+            if (_dockButtons.TryGetValue(tool.Id, out var activeBtn))
+            {
+                activeBtn.BringIntoView();
+            }
 
             var newView = tool.BuildView();
             _viewportHost.Child = newView;
@@ -3188,13 +3507,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
             double curW = baseW + (ExpandedWidth - baseW) * ease;
             double curH = baseH + (ExpandedHeight - baseH) * ease;
 
-            _capsuleCard.Width = curW;
-            _capsuleCard.Height = curH;
-            _capsuleCard.Cursor = t > 0.5 ? Cursors.Arrow : Cursors.Hand;
-
             string notchStyle = AppPreferences.Instance.NotchStyle ?? "Notch";
             bool isIsland = string.Equals(notchStyle, "Island", StringComparison.OrdinalIgnoreCase);
             bool isLine = string.Equals(notchStyle, "Line", StringComparison.OrdinalIgnoreCase);
+            double islandGap = isIsland ? NotchGeometryBuilder.IslandGap : 0.0;
+
+            _capsuleCard.Width = curW;
+            _capsuleCard.Height = curH + islandGap;
+            _capsuleCard.Cursor = t > 0.5 ? Cursors.Arrow : Cursors.Hand;
 
             string geoStyle = isIsland ? "Island" : (isLine ? "Line" : (AppPreferences.Instance.NotchShape ?? "Shouldered"));
             double bottomRadius = 15.0 + (24.0 - 15.0) * ease;
@@ -3212,9 +3532,15 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedContent.IsHitTestVisible = t < 0.25;
 
             // Pin collapsed content width to resting width and center it so resting items don't stretch or shift horizontally during morph
-            double collapsedInnerWidth = Math.Max(40.0, baseW - (EarUnitW + 10) * 2);
+            double earOffset = (isIsland || isLine) ? 0.0 : EarUnitW;
+            double collapsedInnerWidth = _isBannerActive
+                ? Math.Max(40.0, baseW - ((isIsland || isLine) ? 12.0 : 32.0))
+                : Math.Max(40.0, baseW - (earOffset + 10) * 2);
             _collapsedContent.Width = collapsedInnerWidth;
             _collapsedContent.HorizontalAlignment = HorizontalAlignment.Center;
+            _collapsedContent.Margin = new Thickness(0, islandGap, 0, 0);
+            _collapsedMessageView.Margin = new Thickness(0, islandGap, 0, 0);
+            _expandedContent.Margin = new Thickness(0, 10 + islandGap * ease, 0, 12);
 
             _expandedContent.Visibility = t > 0.02 ? Visibility.Visible : Visibility.Collapsed;
             _expandedContent.Opacity = Math.Clamp((t - 0.25) / 0.75, 0.0, 1.0);
@@ -3487,9 +3813,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
 
             UpdateCollapsedViewState();
-            WindowsBuddy.Tools.ToolRegistry.InvalidateAllViews();
-            RebuildNavTabs();
-            NavigateToTool(_activeToolId);
             UpdateMorphVisuals(_morphProgress);
         }
 

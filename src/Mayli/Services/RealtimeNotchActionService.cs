@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -104,6 +105,7 @@ namespace WindowsBuddy.Services
             _pollTimer.Start();
 
             InitScreenshotWatchers();
+            InitKeyboardHook();
             Task.Run(InitKnownBluetoothDevices);
         }
 
@@ -118,6 +120,169 @@ namespace WindowsBuddy.Services
 
         #region 1. Clipboard & Screenshot Detection (WM_CLIPBOARDUPDATE)
 
+        private static DateTime _lastCutTimestamp = DateTime.MinValue;
+        private static DateTime _lastCopyTimestamp = DateTime.MinValue;
+        private static DateTime _lastCopiedTextTime = DateTime.MinValue;
+        private static volatile bool _isCtrlDown = false;
+        private static volatile bool _isShiftDown = false;
+        private static NativeMethods.LowLevelKeyboardProc _llKeyboardProc;
+        private static IntPtr _llKeyboardHook = IntPtr.Zero;
+
+        private static void LogNotif(string msg)
+        {
+            try
+            {
+                string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mayli", "logs");
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "notifications.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ActionService] {msg}\r\n");
+            }
+            catch { }
+        }
+
+        private void InitKeyboardHook()
+        {
+            try
+            {
+                _llKeyboardProc = LowLevelKeyboardHandler;
+                IntPtr modHandle = NativeMethods.GetModuleHandle(null);
+                _llKeyboardHook = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, _llKeyboardProc, modHandle, 0);
+                int err = Marshal.GetLastWin32Error();
+                LogNotif($"InitKeyboardHook: hook={_llKeyboardHook}, err={err}");
+            }
+            catch (Exception ex)
+            {
+                LogNotif($"InitKeyboardHook error: {ex}");
+            }
+        }
+
+        private static IntPtr LowLevelKeyboardHandler(int nCode, IntPtr wParam, IntPtr lParam)
+        {
+            if (nCode >= 0)
+            {
+                int msg = (int)wParam;
+                int vkCode = Marshal.ReadInt32(lParam);
+
+                if (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN)
+                {
+                    if (vkCode == NativeMethods.VK_CONTROL || vkCode == NativeMethods.VK_LCONTROL || vkCode == NativeMethods.VK_RCONTROL)
+                    {
+                        _isCtrlDown = true;
+                    }
+                    else if (vkCode == NativeMethods.VK_SHIFT || vkCode == 0xA0 || vkCode == 0xA1)
+                    {
+                        _isShiftDown = true;
+                    }
+
+                    bool ctrl = _isCtrlDown ||
+                                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) & 0x8000) != 0 ||
+                                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LCONTROL) & 0x8000) != 0 ||
+                                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RCONTROL) & 0x8000) != 0;
+                    bool shift = _isShiftDown || (NativeMethods.GetAsyncKeyState(NativeMethods.VK_SHIFT) & 0x8000) != 0;
+
+                    // Sync state if physically released
+                    if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) & 0x8000) == 0 &&
+                        (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LCONTROL) & 0x8000) == 0 &&
+                        (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RCONTROL) & 0x8000) == 0)
+                    {
+                        _isCtrlDown = false;
+                        ctrl = false;
+                    }
+
+                    if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_SHIFT) & 0x8000) == 0)
+                    {
+                        _isShiftDown = false;
+                        shift = false;
+                    }
+
+                    if (vkCode == NativeMethods.VK_X && ctrl)
+                    {
+                        _lastCutTimestamp = DateTime.UtcNow;
+                        LogNotif("LowLevelKeyboard: Ctrl+X detected");
+                    }
+                    else if (vkCode == NativeMethods.VK_DELETE && shift)
+                    {
+                        _lastCutTimestamp = DateTime.UtcNow;
+                        LogNotif("LowLevelKeyboard: Shift+Delete detected");
+                    }
+                    else if (vkCode == NativeMethods.VK_C && ctrl)
+                    {
+                        _lastCopyTimestamp = DateTime.UtcNow;
+                        LogNotif("LowLevelKeyboard: Ctrl+C detected");
+                    }
+                    else if (vkCode == NativeMethods.VK_INSERT && ctrl)
+                    {
+                        _lastCopyTimestamp = DateTime.UtcNow;
+                        LogNotif("LowLevelKeyboard: Ctrl+Insert detected");
+                    }
+                }
+                else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
+                {
+                    if (vkCode == NativeMethods.VK_CONTROL || vkCode == NativeMethods.VK_LCONTROL || vkCode == NativeMethods.VK_RCONTROL)
+                    {
+                        _isCtrlDown = false;
+                    }
+                    else if (vkCode == NativeMethods.VK_SHIFT || vkCode == 0xA0 || vkCode == 0xA1)
+                    {
+                        _isShiftDown = false;
+                    }
+                }
+            }
+
+            return NativeMethods.CallNextHookEx(_llKeyboardHook, nCode, wParam, lParam);
+        }
+
+        private bool CheckIfCutOperation(IDataObject data)
+        {
+            try
+            {
+                // 1. Check if Ctrl+X or Shift+Delete was recorded recently (within 2000ms)
+                if ((DateTime.UtcNow - _lastCutTimestamp).TotalMilliseconds < 2000)
+                {
+                    _lastCutTimestamp = DateTime.MinValue;
+                    return true;
+                }
+
+                // 2. Check Preferred DropEffect on clipboard (for files/folders in File Explorer)
+                if (data != null && data.GetDataPresent("Preferred DropEffect"))
+                {
+                    var stream = data.GetData("Preferred DropEffect") as Stream;
+                    if (stream != null && stream.Length >= 4)
+                    {
+                        byte[] bytes = new byte[4];
+                        stream.Position = 0;
+                        int bytesRead = stream.Read(bytes, 0, 4);
+                        if (bytesRead == 4)
+                        {
+                            int dropEffect = BitConverter.ToInt32(bytes, 0);
+                            // DROPEFFECT_MOVE = 2 (Cut / Move)
+                            if ((dropEffect & 2) != 0)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // 3. Fallback: check live GetAsyncKeyState
+                bool isCtrl = (NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) & 0x8000) != 0 ||
+                              (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LCONTROL) & 0x8000) != 0 ||
+                              (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RCONTROL) & 0x8000) != 0;
+                bool isX = (NativeMethods.GetAsyncKeyState(NativeMethods.VK_X) & 0x8000) != 0;
+                bool isShift = (NativeMethods.GetAsyncKeyState(NativeMethods.VK_SHIFT) & 0x8000) != 0;
+                bool isDel = (NativeMethods.GetAsyncKeyState(NativeMethods.VK_DELETE) & 0x8000) != 0;
+
+                if ((isCtrl && isX) || (isShift && isDel))
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        private DispatcherTimer _clipboardDebounceTimer;
+
         public void HandleClipboardUpdate()
         {
             try
@@ -125,10 +290,38 @@ namespace WindowsBuddy.Services
                 if (!AppPreferences.Instance.ClipboardCopiedActivity)
                     return;
 
-                if ((DateTime.UtcNow - _lastClipboardTrigger).TotalMilliseconds < 350)
+                Application.Current?.Dispatcher?.InvokeAsync(() =>
+                {
+                    _clipboardDebounceTimer?.Stop();
+                    _clipboardDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+                    _clipboardDebounceTimer.Tick += (s, e) =>
+                    {
+                        _clipboardDebounceTimer?.Stop();
+                        _clipboardDebounceTimer = null;
+                        ProcessClipboardContent();
+                    };
+                    _clipboardDebounceTimer.Start();
+                });
+            }
+            catch (Exception ex)
+            {
+                LogNotif($"HandleClipboardUpdate error: {ex}");
+            }
+        }
+
+        private void ProcessClipboardContent()
+        {
+            try
+            {
+                if (!AppPreferences.Instance.ClipboardCopiedActivity)
                     return;
 
-                _lastClipboardTrigger = DateTime.UtcNow;
+                var data = Clipboard.GetDataObject();
+                if (data == null) return;
+
+                bool isCut = CheckIfCutOperation(data);
+                string actionTitle = isCut ? "Cut" : "Copied";
+                string actionIcon = isCut ? "✂️" : "📋";
 
                 int durationMs = AppPreferences.Instance.LiveActivityEventDuration switch
                 {
@@ -137,68 +330,67 @@ namespace WindowsBuddy.Services
                     _ => 3000
                 };
 
-                Application.Current?.Dispatcher?.InvokeAsync(() =>
+                LogNotif($"ProcessClipboardContent: isCut={isCut}, actionTitle={actionTitle}");
+
+                if (Clipboard.ContainsImage() || data.GetDataPresent(DataFormats.Bitmap))
                 {
-                    try
+                    NotificationRequested?.Invoke(new NotchNotificationPayload
                     {
-                        var data = Clipboard.GetDataObject();
-                        if (data == null) return;
+                        Icon = actionIcon,
+                        Title = actionTitle,
+                        Subtitle = AppPreferences.Instance.HideCopiedText ? " · Image" : " · Image",
+                        DurationMs = durationMs
+                    });
+                    return;
+                }
 
-                        if (Clipboard.ContainsImage() || data.GetDataPresent(DataFormats.Bitmap))
+                if (Clipboard.ContainsFileDropList())
+                {
+                    var files = Clipboard.GetFileDropList();
+                    if (files.Count > 0)
+                    {
+                        string desc = files.Count == 1 ? Path.GetFileName(files[0]) : $"{files.Count} files";
+                        NotificationRequested?.Invoke(new NotchNotificationPayload
                         {
-                            NotificationRequested?.Invoke(new NotchNotificationPayload
-                            {
-                                Icon = "📋",
-                                Title = "Copied",
-                                Subtitle = AppPreferences.Instance.HideCopiedText ? " · Image" : " · Image",
-                                DurationMs = durationMs
-                            });
-                            return;
-                        }
-
-                        if (Clipboard.ContainsFileDropList())
-                        {
-                            var files = Clipboard.GetFileDropList();
-                            if (files.Count > 0)
-                            {
-                                string desc = files.Count == 1 ? Path.GetFileName(files[0]) : $"{files.Count} files";
-                                NotificationRequested?.Invoke(new NotchNotificationPayload
-                                {
-                                    Icon = "📁",
-                                    Title = "Copied",
-                                    Subtitle = AppPreferences.Instance.HideCopiedText ? " · File" : $" · {desc}",
-                                    DurationMs = durationMs
-                                });
-                                return;
-                            }
-                        }
-
-                        if (Clipboard.ContainsText())
-                        {
-                            string text = Clipboard.GetText()?.Trim();
-                            if (!string.IsNullOrEmpty(text) && text != _lastCopiedText)
-                            {
-                                _lastCopiedText = text;
-                                string display = AppPreferences.Instance.HideCopiedText
-                                    ? " · Text"
-                                    : (text.Length > 20
-                                        ? $" · \"{text.Substring(0, 18).Replace("\r", " ").Replace("\n", " ")}...\""
-                                        : $" · \"{text.Replace("\r", " ").Replace("\n", " ")}\"");
-
-                                NotificationRequested?.Invoke(new NotchNotificationPayload
-                                {
-                                    Icon = "📋",
-                                    Title = "Copied",
-                                    Subtitle = display,
-                                    DurationMs = durationMs
-                                });
-                            }
-                        }
+                            Icon = isCut ? "✂️" : "📁",
+                            Title = actionTitle,
+                            Subtitle = AppPreferences.Instance.HideCopiedText ? " · File" : $" · {desc}",
+                            DurationMs = durationMs
+                        });
+                        return;
                     }
-                    catch { }
-                });
+                }
+
+                if (Clipboard.ContainsText())
+                {
+                    string text = Clipboard.GetText()?.Trim();
+                    bool isSameTextAsLast = !string.IsNullOrEmpty(text) && text == _lastCopiedText;
+                    bool isRapidDuplicate = isSameTextAsLast && (DateTime.UtcNow - _lastCopiedTextTime).TotalMilliseconds < 1500;
+
+                    if (!string.IsNullOrEmpty(text) && (!isRapidDuplicate || isCut))
+                    {
+                        _lastCopiedText = text;
+                        _lastCopiedTextTime = DateTime.UtcNow;
+                        string display = AppPreferences.Instance.HideCopiedText
+                            ? " · Text"
+                            : (text.Length > 20
+                                ? $" · \"{text.Substring(0, 18).Replace("\r", " ").Replace("\n", " ")}...\""
+                                : $" · \"{text.Replace("\r", " ").Replace("\n", " ")}\"");
+
+                        NotificationRequested?.Invoke(new NotchNotificationPayload
+                        {
+                            Icon = actionIcon,
+                            Title = actionTitle,
+                            Subtitle = display,
+                            DurationMs = durationMs
+                        });
+                    }
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogNotif($"ProcessClipboardContent error: {ex}");
+            }
         }
 
         private void InitScreenshotWatchers()

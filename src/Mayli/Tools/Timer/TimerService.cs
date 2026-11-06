@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Media;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
@@ -201,6 +202,24 @@ namespace WindowsBuddy.Tools.Timer
             _clock.Start();
         }
 
+        public static string StripEmojis(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return "";
+            var sb = new StringBuilder();
+            for (int i = 0; i < input.Length; i++)
+            {
+                char c = input[i];
+                if (char.IsHighSurrogate(c) && i + 1 < input.Length && char.IsLowSurrogate(input[i + 1]))
+                {
+                    i++;
+                    continue;
+                }
+                if (c >= 0x2000 && c <= 0x32FF) continue;
+                sb.Append(c);
+            }
+            return sb.ToString().Trim();
+        }
+
         private void LoadPrefs()
         {
             try
@@ -213,7 +232,7 @@ namespace WindowsBuddy.Tools.Timer
                     PomoLongBreakSeconds = Math.Clamp(p.PomoLongBreakSeconds, 60, 90 * 60);
                     PomoTargetCycles = Math.Clamp(p.PomoTargetCycles, 1, 12);
                     PomoAutoStartNext = p.PomoAutoStartNext;
-                    PomoTitle = p.PomoTitle ?? "";
+                    PomoTitle = StripEmojis(p.PomoTitle ?? "");
 
                     string today = DateTime.Now.ToString("yyyy-MM-dd");
                     if (string.Equals(p.LastStatsDate, today, StringComparison.Ordinal))
@@ -224,7 +243,7 @@ namespace WindowsBuddy.Tools.Timer
                     }
 
                     CountTotalSeconds = Math.Clamp(p.CountTotalSeconds, 5, 24 * 3600);
-                    CountTitle = p.CountTitle ?? "";
+                    CountTitle = StripEmojis(p.CountTitle ?? "");
                     CountLoop = p.CountLoop;
                     if (p.CustomCountdownPresetsSeconds != null && p.CustomCountdownPresetsSeconds.Count > 0)
                     {
@@ -245,7 +264,7 @@ namespace WindowsBuddy.Tools.Timer
                     }
                     ShowAlarmInNotch = p.ShowAlarmInNotch;
 
-                    StopwatchTitle = p.StopwatchTitle ?? "";
+                    StopwatchTitle = StripEmojis(p.StopwatchTitle ?? "");
 
                     WaterTarget = Math.Clamp(p.WaterTarget, 4, 20);
                     WaterReminderEnabled = p.WaterReminderEnabled;
@@ -614,7 +633,7 @@ namespace WindowsBuddy.Tools.Timer
         {
             int mins = customMinutes ?? (DefaultSnoozeMinutes > 0 ? DefaultSnoozeMinutes : 5);
             StopRingingSound();
-            StartCountdownInMinutes(mins, string.IsNullOrWhiteSpace(CountTitle) ? "💤 Snooze" : CountTitle);
+            StartCountdownInMinutes(mins, string.IsNullOrWhiteSpace(CountTitle) ? "Snooze" : CountTitle);
         }
 
         private void PlaySynthesizedTone(string tone, int repeats)
@@ -890,7 +909,7 @@ namespace WindowsBuddy.Tools.Timer
                     int remSec = Math.Max(0, (int)Math.Ceiling(alarmRem.TotalSeconds));
                     string alarmTitle = !string.IsNullOrWhiteSpace(nearestAlarm.Title)
                         ? $"{nearestAlarm.Title.Trim()} ({nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2})"
-                        : $"🔔 {nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2}";
+                        : $"{nearestAlarm.Hour:D2}:{nearestAlarm.Minute:D2}";
                     return new NotchTimerSnapshot
                     {
                         IsActive = true,
@@ -931,7 +950,7 @@ namespace WindowsBuddy.Tools.Timer
                         IsRunning = WaterReminderEnabled,
                         Mode = TimerMode.Water,
                         DisplayTime = FormatDuration(WaterReminderRemainingSeconds),
-                        Title = $"💧 {WaterGlasses}/{WaterTarget}",
+                        Title = $"{WaterGlasses}/{WaterTarget} glasses",
                         RemainingRatio = WaterReminderEnabled ? Math.Clamp(_waterPreciseRemaining / total, 0.0, 1.0) : 0.0,
                         AccentColor = effectiveColor
                     };
@@ -1063,7 +1082,7 @@ namespace WindowsBuddy.Tools.Timer
 
         public void SetPomoTitle(string title)
         {
-            PomoTitle = title ?? "";
+            PomoTitle = StripEmojis(title ?? "");
             SavePrefs();
             StateChanged?.Invoke();
         }
@@ -1223,7 +1242,7 @@ namespace WindowsBuddy.Tools.Timer
 
         public void SetCountdownTitle(string title)
         {
-            CountTitle = title ?? "";
+            CountTitle = StripEmojis(title ?? "");
             SavePrefs();
             StateChanged?.Invoke();
         }
@@ -1419,7 +1438,7 @@ namespace WindowsBuddy.Tools.Timer
 
         public void SetStopwatchTitle(string title)
         {
-            StopwatchTitle = title ?? "";
+            StopwatchTitle = StripEmojis(title ?? "");
             SavePrefs();
             StateChanged?.Invoke();
         }

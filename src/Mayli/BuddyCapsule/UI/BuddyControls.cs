@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using WindowsBuddy.BuddyCapsule.Renderer;
 using WindowsBuddy.BuddyCapsule.Theme;
 
 namespace WindowsBuddy.BuddyCapsule.UI
@@ -643,6 +644,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private double _lastW = -1;
         private double _lastH = -1;
+        private string _lastStyle = "";
         private double _totalLength = 276.0;
         private double _cyclePhase; // 0.0 .. 1.0
         private Color _lightColor = Colors.White;
@@ -783,7 +785,18 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             if (rebuild)
             {
+                double prevW = _lastW;
+                double prevH = _lastH;
                 _lastW = -1;
+                _lastStyle = "";
+                if (prevW > 0 && prevH > 0 && !_isMorphing)
+                {
+                    bool isExp = prevH > 90.0;
+                    _lastW = prevW;
+                    _lastH = prevH;
+                    _lastStyle = _notchStyle;
+                    RebuildCometPaths(prevW, prevH, isExp ? 22.0 : 14.0, isExp ? 1.5 : 1.3);
+                }
             }
         }
 
@@ -800,11 +813,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public void UpdateGeometry(Geometry geometry, bool isExpanded, double width = 228.0, double height = 35.0)
         {
             if (_isMorphing) return;
-            if (Math.Abs(width - _lastW) < 0.5 && Math.Abs(height - _lastH) < 0.5)
+            if (Math.Abs(width - _lastW) < 0.5 && Math.Abs(height - _lastH) < 0.5 && string.Equals(_notchStyle, _lastStyle, StringComparison.OrdinalIgnoreCase))
                 return;
 
             _lastW = width;
             _lastH = height;
+            _lastStyle = _notchStyle;
 
             RebuildCometPaths(width, height, isExpanded ? 22.0 : 14.0, isExpanded ? 1.5 : 1.3);
         }
@@ -820,8 +834,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
             }
             else
             {
-                // Fade top 9px so shoulder tops blend seamlessly into the top screen bezel
-                double fadeStop = Math.Clamp(9.0 / Math.Max(1.0, height), 0.08, 0.45);
+                // Fade top 9px (or 4px for Line) so shoulder tops blend seamlessly into the top screen bezel
+                double fadePx = isLine ? 4.0 : 9.0;
+                double fadeStop = Math.Clamp(fadePx / Math.Max(1.0, height), 0.06, 0.45);
                 var mask = new LinearGradientBrush
                 {
                     StartPoint = new Point(0, 0),
@@ -835,11 +850,22 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 OpacityMask = mask;
             }
 
-            double earW = (isLine || isIsland) ? 0.0 : 12.0;
-            double earH = (isLine || isIsland) ? 0.0 : 10.0;
-            double r = isLine ? Math.Min(8.0, cornerRadius) : cornerRadius;
-
-            Point[] pts = BuildOpenNotchOutlinePoints(width, height, earW, earH, r, out double totalLen);
+            Point[] pts;
+            double totalLen;
+            if (isIsland)
+            {
+                pts = BuildIslandOutlinePoints(width, height, NotchGeometryBuilder.IslandGap, out totalLen);
+            }
+            else if (isLine)
+            {
+                pts = BuildLineOutlinePoints(width, height, cornerRadius, out totalLen);
+            }
+            else
+            {
+                double earW = 12.0;
+                double earH = Math.Min(10.0, height * 0.35);
+                pts = BuildOpenNotchOutlinePoints(width, height, earW, earH, cornerRadius, out totalLen);
+            }
             _totalLength = Math.Max(10.0, totalLen);
 
             Geometry geoForward = BuildPolylineGeometry(pts, reverse: false);
@@ -1013,6 +1039,127 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 if (entry.Thickness <= 0 || entry.PathElement.Visibility != Visibility.Visible) continue;
                 entry.PathElement.StrokeDashOffset = (entry.SegFrac - pTwin) * (_totalLength / entry.Thickness);
             }
+        }
+
+        private static Point[] BuildIslandOutlinePoints(double w, double h, double gap, out double length)
+        {
+            double r = Math.Min(h / 2.0, 22.0);
+            var pts = new List<Point>(80);
+
+            double topY = gap;
+            double botY = gap + h;
+            double cxL = r;
+            double cxR = Math.Max(cxL, w - r);
+            double midX = w / 2.0;
+
+            // Start at Top Center, move left along top edge to top-left arc
+            pts.Add(new Point(midX, topY));
+            pts.Add(new Point(cxL, topY));
+
+            int arcSteps = 10;
+            // Top-left arc: from (cxL, topY) to (0, topY + r)
+            for (int i = 1; i <= arcSteps; i++)
+            {
+                double ang = -0.5 * Math.PI - (0.5 * Math.PI) * ((double)i / arcSteps);
+                pts.Add(new Point(cxL + r * Math.Cos(ang), (topY + r) + r * Math.Sin(ang)));
+            }
+
+            // Left vertical edge down to bottom-left arc start
+            pts.Add(new Point(0, botY - r));
+
+            // Bottom-left arc: from (0, botY - r) to (cxL, botY)
+            for (int i = 1; i <= arcSteps; i++)
+            {
+                double ang = Math.PI - (0.5 * Math.PI) * ((double)i / arcSteps);
+                pts.Add(new Point(cxL + r * Math.Cos(ang), (botY - r) + r * Math.Sin(ang)));
+            }
+
+            // Bottom edge left half: to Bottom Center (exact 50% perimeter marker)
+            pts.Add(new Point(midX, botY));
+
+            // Bottom edge right half: to (cxR, botY)
+            pts.Add(new Point(cxR, botY));
+
+            // Bottom-right arc: from (cxR, botY) to (w, botY - r)
+            for (int i = 1; i <= arcSteps; i++)
+            {
+                double ang = 0.5 * Math.PI - (0.5 * Math.PI) * ((double)i / arcSteps);
+                pts.Add(new Point(cxR + r * Math.Cos(ang), (botY - r) + r * Math.Sin(ang)));
+            }
+
+            // Right vertical edge up to top-right arc start
+            pts.Add(new Point(w, topY + r));
+
+            // Top-right arc: from (w, topY + r) to (cxR, topY)
+            for (int i = 1; i <= arcSteps; i++)
+            {
+                double ang = -(0.5 * Math.PI) * ((double)i / arcSteps);
+                pts.Add(new Point(cxR + r * Math.Cos(ang), (topY + r) + r * Math.Sin(ang)));
+            }
+
+            // Top edge right half back to Top Center
+            pts.Add(new Point(midX, topY));
+
+            length = 0.0;
+            for (int i = 1; i < pts.Count; i++)
+            {
+                double dx = pts[i].X - pts[i - 1].X;
+                double dy = pts[i].Y - pts[i - 1].Y;
+                length += Math.Sqrt(dx * dx + dy * dy);
+            }
+
+            return pts.ToArray();
+        }
+
+        private static Point[] BuildLineOutlinePoints(double w, double h, double cornerRadius, out double length)
+        {
+            double r = Math.Clamp(cornerRadius * 0.55, 4.0, Math.Max(4.0, h * 0.45));
+            var pts = new List<Point>(50);
+
+            double cxL = r;
+            double cxR = Math.Max(cxL, w - r);
+            double cyB = h - r;
+            double midX = w / 2.0;
+
+            // Start at top-left screen bezel (0, 0)
+            pts.Add(new Point(0, 0));
+
+            // Down left vertical edge to corner
+            pts.Add(new Point(0, cyB));
+
+            // Bottom-left rounded corner
+            int arcSteps = 10;
+            for (int i = 1; i <= arcSteps; i++)
+            {
+                double ang = Math.PI - (0.5 * Math.PI) * ((double)i / arcSteps);
+                pts.Add(new Point(cxL + r * Math.Cos(ang), cyB + r * Math.Sin(ang)));
+            }
+
+            // Flat bottom edge to center (exact 50% perimeter marker)
+            pts.Add(new Point(midX, h));
+
+            // Flat bottom edge from center to right corner
+            pts.Add(new Point(cxR, h));
+
+            // Bottom-right rounded corner
+            for (int i = 1; i <= arcSteps; i++)
+            {
+                double ang = 0.5 * Math.PI - (0.5 * Math.PI) * ((double)i / arcSteps);
+                pts.Add(new Point(cxR + r * Math.Cos(ang), cyB + r * Math.Sin(ang)));
+            }
+
+            // Up right vertical edge to top-right screen bezel (w, 0)
+            pts.Add(new Point(w, 0));
+
+            length = 0.0;
+            for (int i = 1; i < pts.Count; i++)
+            {
+                double dx = pts[i].X - pts[i - 1].X;
+                double dy = pts[i].Y - pts[i - 1].Y;
+                length += Math.Sqrt(dx * dx + dy * dy);
+            }
+
+            return pts.ToArray();
         }
 
         private static Point[] BuildOpenNotchOutlinePoints(double w, double h, double earW, double earH, double br, out double length)

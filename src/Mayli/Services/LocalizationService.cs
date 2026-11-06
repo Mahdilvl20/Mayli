@@ -17,11 +17,11 @@ namespace WindowsBuddy.Services
                     try
                     {
                         string dummy = System.IO.Packaging.PackUriHelper.UriSchemePack;
-                        _persianFont = new FontFamily("pack://application:,,,/Resources/#Vazirmatn, Vazirmatn, Vazir, Segoe UI");
+                        _persianFont = new FontFamily("pack://application:,,,/Resources/#Vazirmatn, Vazirmatn, Vazir, Segoe UI Emoji, Segoe UI Symbol, Segoe UI");
                     }
                     catch
                     {
-                        _persianFont = new FontFamily("Vazirmatn, Vazir, Segoe UI");
+                        _persianFont = new FontFamily("Vazirmatn, Vazir, Segoe UI Emoji, Segoe UI Symbol, Segoe UI");
                     }
                 }
                 return _persianFont;
@@ -38,11 +38,11 @@ namespace WindowsBuddy.Services
                     try
                     {
                         string dummy = System.IO.Packaging.PackUriHelper.UriSchemePack;
-                        _latinFont = new FontFamily("pack://application:,,,/Resources/#Inter, Segoe UI, sans-serif");
+                        _latinFont = new FontFamily("pack://application:,,,/Resources/#Inter, Inter, Segoe UI Emoji, Segoe UI Symbol, Segoe UI, sans-serif");
                     }
                     catch
                     {
-                        _latinFont = new FontFamily("Segoe UI, Inter, sans-serif");
+                        _latinFont = new FontFamily("Inter, Segoe UI Emoji, Segoe UI Symbol, Segoe UI, sans-serif");
                     }
                 }
                 return _latinFont;
@@ -120,11 +120,51 @@ namespace WindowsBuddy.Services
             ["tool.weather"] = "آب‌وهوا",
             ["tool.clock"] = "ساعت",
             ["tool.calendar"] = "تقویم",
+            ["dock.calendar"] = "تقویم",
+            ["sub.calendar"] = "تقویم شمسی و میلادی · مناسبت‌ها و تعطیلات",
+            ["cal.shamsi"] = "شمسی",
+            ["cal.gregorian"] = "میلادی",
+            ["cal.today"] = "امروز",
+            ["cal.holiday"] = "تعطیل رسمی",
+            ["cal.working_day"] = "روز کاری",
+            ["cal.events_title"] = "مناسبت‌ها و رویدادها",
+            ["cal.no_events"] = "مناسبت خاصی برای این روز ثبت نشده است",
+            ["cal.copy_date"] = "کپی تاریخ",
+            ["cal.copied_hint"] = "تاریخ کپی شد",
+            ["cal.source_api"] = "holidayapi.ir",
+            ["cal.source_builtin"] = "پایگاه داده داخلی",
             ["tool.maylidrop"] = "انتقال فایل",
             ["tool.units"] = "تبدیل واحدها",
             ["tool.links"] = "پیوندها",
             ["tool.message"] = "پیام ناچ",
             ["tool.screentime"] = "مدت استفاده (اسکرین تایم)",
+            ["tool.nowplaying"] = "در حال پخش",
+            ["tool.water"] = "نوشیدن آب",
+            ["tool.stopwatch"] = "کرونومتر",
+
+            // Modules Page
+            ["modules.title"] = "ماژول‌ها",
+            ["modules.subtitle"] = "انتخاب ابزارهای فعال در ناچ و مرتب‌سازی آنها",
+            ["modules.dock.header"] = "نوار ابزار (DOCK)",
+            ["modules.sec.essentials"] = "ابزارهای اصلی",
+            ["modules.sec.productivity"] = "بهره‌وری و کارایی",
+            ["modules.sec.insights"] = "گزارش‌ها و بینش‌ها",
+            ["modules.sec.homewidgets"] = "ویجت‌های صفحه اصلی",
+            ["modules.reset_order"] = "بازنشانی ترتیب",
+            ["modules.tip"] = "نکته: با تغییر وضعیت هر ماژول، آیکون آن بلافاصله در ناچ اعمال می‌شود.",
+            ["modules.home.desc"] = "در حال پخش، رویداد بعدی و آمار سریع",
+            ["modules.system.desc"] = "پردازنده، رم، حافظه دیسک و باتری",
+            ["modules.focus.desc"] = "پومودورو، شمارش معکوس، کرونومتر و نوشیدن آب",
+            ["modules.weather.desc"] = "وضعیت فعلی، پیش‌بینی ساعتی و ۵ روزه",
+            ["modules.clock.desc"] = "ساعت‌های جهانی، دیجیتال یا آنالوگ",
+            ["modules.calendar.desc"] = "برنامه روزانه، مناسبت‌ها و یادآورها",
+            ["modules.clipboard.desc"] = "تاریخچه موارد کپی‌شده با جستجوی سریع",
+            ["modules.notes.desc"] = "یادداشت‌های سریع با ذخیره‌سازی خودکار",
+            ["modules.fileshelf.desc"] = "طاقچه فایل برای جابه‌جایی و درگ فایل‌ها",
+            ["modules.units.desc"] = "طول، وزن، دما، ارز و موارد دیگر",
+            ["modules.links.desc"] = "نشانک‌ها و جستجوی سریع در وب",
+            ["modules.message.desc"] = "نمایش متن و پیام‌های دلخواه روی ناچ",
+            ["modules.screentime.desc"] = "گزارش زمان صرف‌شده روی برنامه‌ها",
 
             // Tool Subtitles
             ["sub.system"] = "باتری · شبکه · صدا · عملکرد",
@@ -452,11 +492,51 @@ namespace WindowsBuddy.Services
             ["tool.weather"] = "Weather",
             ["tool.clock"] = "Clock",
             ["tool.calendar"] = "Calendar",
+            ["dock.calendar"] = "Calendar",
+            ["sub.calendar"] = "Solar & Gregorian · Holidays & Events",
+            ["cal.shamsi"] = "Solar (Jalali)",
+            ["cal.gregorian"] = "Gregorian",
+            ["cal.today"] = "Today",
+            ["cal.holiday"] = "Official Holiday",
+            ["cal.working_day"] = "Working Day",
+            ["cal.events_title"] = "Events & Holidays",
+            ["cal.no_events"] = "No special events for this day",
+            ["cal.copy_date"] = "Copy Date",
+            ["cal.copied_hint"] = "Date copied",
+            ["cal.source_api"] = "holidayapi.ir",
+            ["cal.source_builtin"] = "Built-in Database",
             ["tool.maylidrop"] = "Mayli Drop",
             ["tool.units"] = "Units",
             ["tool.links"] = "Links",
             ["tool.message"] = "Message",
             ["tool.screentime"] = "Screen Time",
+            ["tool.nowplaying"] = "Now Playing",
+            ["tool.water"] = "Water",
+            ["tool.stopwatch"] = "Stopwatch",
+
+            // Modules Page
+            ["modules.title"] = "Modules",
+            ["modules.subtitle"] = "Choose what lives in your notch. Drag to reorder.",
+            ["modules.dock.header"] = "DOCK",
+            ["modules.sec.essentials"] = "ESSENTIALS",
+            ["modules.sec.productivity"] = "PRODUCTIVITY",
+            ["modules.sec.insights"] = "INSIGHTS",
+            ["modules.sec.homewidgets"] = "HOME WIDGETS",
+            ["modules.reset_order"] = "Reset order",
+            ["modules.tip"] = "Tip: changes show in the dock right away.",
+            ["modules.home.desc"] = "Now playing, your next event and quick stats",
+            ["modules.system.desc"] = "CPU, memory, disk and battery",
+            ["modules.focus.desc"] = "Pomodoro, countdown, stopwatch and water",
+            ["modules.weather.desc"] = "Now, hourly and five-day forecast",
+            ["modules.clock.desc"] = "World clocks, digital or analog",
+            ["modules.calendar.desc"] = "Agenda, festivals and reminders",
+            ["modules.clipboard.desc"] = "Everything you copied, searchable",
+            ["modules.notes.desc"] = "Quick notes that stay with the notch",
+            ["modules.fileshelf.desc"] = "Park files and drag them anywhere",
+            ["modules.units.desc"] = "Length, weight, temperature and more",
+            ["modules.links.desc"] = "Bookmarks and quick web searches",
+            ["modules.message.desc"] = "Flash your own text on the notch",
+            ["modules.screentime.desc"] = "Where your day went, app by app",
 
             // Tool Subtitles
             ["sub.system"] = "Power · Network · Audio",

@@ -25,6 +25,39 @@ namespace WindowsBuddy.Core
         public const int WM_DPICHANGED = 0x02E0;
         public const int WM_DISPLAYCHANGE = 0x007E;
 
+        public const int WH_KEYBOARD_LL = 13;
+        public const int WM_KEYDOWN = 0x0100;
+        public const int WM_KEYUP = 0x0101;
+        public const int WM_SYSKEYDOWN = 0x0104;
+        public const int WM_SYSKEYUP = 0x0105;
+
+        public const int VK_CONTROL = 0x11;
+        public const int VK_LCONTROL = 0xA2;
+        public const int VK_RCONTROL = 0xA3;
+        public const int VK_SHIFT = 0x10;
+        public const int VK_DELETE = 0x2E;
+        public const int VK_X = 0x58;
+        public const int VK_C = 0x43;
+        public const int VK_INSERT = 0x2D;
+
+        public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        [DllImport("user32.dll")]
+        public static extern short GetAsyncKeyState(int vKey);
+
         public const uint EVENT_SYSTEM_FOREGROUND = 3;
         public const uint WINEVENT_OUTOFCONTEXT = 0;
 
@@ -214,5 +247,19 @@ namespace WindowsBuddy.Core
             int dwFlags,
             StringBuilder lpExeName,
             ref int lpdwSize);
+
+        public const uint GA_ROOT = 2;
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr WindowFromPoint(POINT Point);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetShellWindow();
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetDesktopWindow();
     }
 }

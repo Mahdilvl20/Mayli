@@ -98,6 +98,18 @@ namespace WindowsBuddy.UI.Settings
 
         public event Action<string> SelectionChanged;
 
+        public int SelectedIndex
+        {
+            get => _options.FindIndex(o => string.Equals(o, _selectedValue, StringComparison.OrdinalIgnoreCase));
+            set
+            {
+                if (value >= 0 && value < _options.Count)
+                {
+                    SelectedValue = _options[value];
+                }
+            }
+        }
+
         public string SelectedValue
         {
             get => _selectedValue;
@@ -143,6 +155,12 @@ namespace WindowsBuddy.UI.Settings
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
                 btn.Child = txt;
+
+                btn.PreviewMouseLeftButtonDown += (_, e) =>
+                {
+                    e.Handled = true;
+                    SelectedValue = captured;
+                };
 
                 btn.MouseLeftButtonUp += (_, e) =>
                 {
@@ -422,6 +440,7 @@ namespace WindowsBuddy.UI.Settings
         public string Key { get; }
         public string Title { get; }
         private bool _isSelected;
+        private readonly Border _illusBox;
 
         public event Action<string> Selected;
 
@@ -433,6 +452,16 @@ namespace WindowsBuddy.UI.Settings
                 _isSelected = value;
                 UpdateCardBorder();
             }
+        }
+
+        public void SetIllustration(FrameworkElement illustration)
+        {
+            if (illustration != null)
+            {
+                illustration.HorizontalAlignment = HorizontalAlignment.Center;
+                illustration.VerticalAlignment = VerticalAlignment.Center;
+            }
+            _illusBox.Child = illustration;
         }
 
         public MayliVisualCard(string key, string title, string description, FrameworkElement illustration, bool isSelected = false)
@@ -452,7 +481,7 @@ namespace WindowsBuddy.UI.Settings
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             // 1. Top Illustration Area
-            var illusBox = new Border
+            _illusBox = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(26, 26, 30)),
                 CornerRadius = new CornerRadius(9, 9, 0, 0),
@@ -462,10 +491,10 @@ namespace WindowsBuddy.UI.Settings
             {
                 illustration.HorizontalAlignment = HorizontalAlignment.Center;
                 illustration.VerticalAlignment = VerticalAlignment.Center;
-                illusBox.Child = illustration;
+                _illusBox.Child = illustration;
             }
-            Grid.SetRow(illusBox, 0);
-            grid.Children.Add(illusBox);
+            Grid.SetRow(_illusBox, 0);
+            grid.Children.Add(_illusBox);
 
             // 2. Bottom Text Area
             var textStack = new StackPanel { Margin = new Thickness(12, 10, 12, 12) };

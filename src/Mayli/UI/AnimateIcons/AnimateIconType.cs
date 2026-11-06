@@ -3,6 +3,7 @@ namespace WindowsBuddy.UI.AnimateIcons
     public enum AnimateIconType
     {
         CopyCheck,
+        CutScissors,
         Settings,
         Palette,
         Close,
@@ -18,6 +19,7 @@ namespace WindowsBuddy.UI.AnimateIcons
         Notes,
         FileShelf,
         Links,
-        Weather
+        Weather,
+        Calendar
     }
 }

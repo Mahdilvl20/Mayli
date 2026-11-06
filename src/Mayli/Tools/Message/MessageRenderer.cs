@@ -85,11 +85,21 @@ namespace WindowsBuddy.Tools.Message
 
             // Reset transforms & effects
             element.BeginAnimation(UIElement.OpacityProperty, null);
-            if (element.RenderTransform is Animatable animatable)
+            if (element.RenderTransform is Animatable animatable && !animatable.IsFrozen)
             {
-                animatable.BeginAnimation(TranslateTransform.XProperty, null);
-                animatable.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-                animatable.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                try
+                {
+                    if (animatable is TranslateTransform)
+                    {
+                        animatable.BeginAnimation(TranslateTransform.XProperty, null);
+                    }
+                    else if (animatable is ScaleTransform)
+                    {
+                        animatable.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                        animatable.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                    }
+                }
+                catch { }
             }
             element.RenderTransform = null;
             element.Effect = null;

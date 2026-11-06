@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Theme;
 using WindowsBuddy.Services;
 
@@ -72,24 +73,50 @@ namespace WindowsBuddy.Tools.Clock
         private TextBox _citySearchInput;
         private WrapPanel _citiesWrapPanel;
 
+        private bool _isSubscribed;
+
         public ClockToolView()
         {
             FlowDirection = LocalizationService.CurrentFlowDirection;
             BuildUI();
 
-            _service.SecondTick += OnSecondTick;
-            _service.SettingsChanged += OnSettingsChanged;
+            SubscribeEvents();
 
             Loaded += (_, _) =>
             {
-                UpdateDisplay();
+                SubscribeEvents();
                 UpdateSettingsUI();
+                RebuildWorldClockRows();
+                UpdateDisplay();
             };
             Unloaded += (_, _) =>
             {
-                _service.SecondTick -= OnSecondTick;
-                _service.SettingsChanged -= OnSettingsChanged;
+                UnsubscribeEvents();
             };
+        }
+
+        public void OnActivated()
+        {
+            SubscribeEvents();
+            UpdateSettingsUI();
+            RebuildWorldClockRows();
+            UpdateDisplay();
+        }
+
+        private void SubscribeEvents()
+        {
+            if (_isSubscribed) return;
+            _service.SecondTick += OnSecondTick;
+            _service.SettingsChanged += OnSettingsChanged;
+            _isSubscribed = true;
+        }
+
+        private void UnsubscribeEvents()
+        {
+            if (!_isSubscribed) return;
+            _service.SecondTick -= OnSecondTick;
+            _service.SettingsChanged -= OnSettingsChanged;
+            _isSubscribed = false;
         }
 
         private void BuildUI()
@@ -280,7 +307,12 @@ namespace WindowsBuddy.Tools.Clock
                 Margin = new Thickness(0, 2, 0, 4)
             };
 
-            var timeRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+            var timeRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                FlowDirection = FlowDirection.LeftToRight
+            };
             _localTimeText = new TextBlock
             {
                 Text = "10:25",
@@ -464,7 +496,13 @@ namespace WindowsBuddy.Tools.Clock
             };
             btn.Child = txt;
 
-            btn.MouseLeftButtonUp += (_, _) => onClick?.Invoke();
+            btn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                onClick?.Invoke();
+                UpdateSettingsUI();
+                UpdateDisplay();
+            };
             return btn;
         }
 
@@ -493,7 +531,13 @@ namespace WindowsBuddy.Tools.Clock
             canvas.Children.Add(thumb);
             sw.Child = canvas;
 
-            sw.MouseLeftButtonUp += (_, _) => onToggle?.Invoke();
+            sw.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                onToggle?.Invoke();
+                UpdateSettingsUI();
+                UpdateDisplay();
+            };
             return sw;
         }
         #endregion
@@ -567,7 +611,11 @@ namespace WindowsBuddy.Tools.Clock
                 Foreground = CapsuleTheme.Brush(p.Text2)
             };
             _converterToggleBtn.Child = _converterToggleText;
-            _converterToggleBtn.MouseLeftButtonUp += (_, _) => ToggleConverterPanel();
+            _converterToggleBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                ToggleConverterPanel();
+            };
             topActions.Children.Add(_converterToggleBtn);
 
             // Add City Button
@@ -587,7 +635,11 @@ namespace WindowsBuddy.Tools.Clock
                 Foreground = CapsuleTheme.Brush(p.AccentFg)
             };
             addCityBtn.Child = addCityTxt;
-            addCityBtn.MouseLeftButtonUp += (_, _) => ShowCityPickerOverlay();
+            addCityBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                ShowCityPickerOverlay();
+            };
             topActions.Children.Add(addCityBtn);
 
             DockPanel.SetDock(topActions, Dock.Right);
@@ -649,8 +701,9 @@ namespace WindowsBuddy.Tools.Clock
                 Margin = new Thickness(0, 0, 6, 0)
             };
             resetNowBtn.Child = new TextBlock { Text = "Now", FontSize = 9.5, Foreground = CapsuleTheme.Brush(p.Text), FontWeight = FontWeights.Bold };
-            resetNowBtn.MouseLeftButtonUp += (_, _) =>
+            resetNowBtn.MouseLeftButtonUp += (_, e) =>
             {
+                e.Handled = true;
                 DateTime now = DateTime.Now;
                 _timeSlider.Value = now.Hour * 60 + now.Minute;
                 _simulatedTime = null;
@@ -847,7 +900,12 @@ namespace WindowsBuddy.Tools.Clock
 
             btn.MouseEnter += (_, _) => btn.Background = CapsuleTheme.Brush(p.BorderStrong);
             btn.MouseLeave += (_, _) => btn.Background = CapsuleTheme.Brush(p.Surface3);
-            btn.MouseLeftButtonUp += (_, _) => onClick?.Invoke();
+            btn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                onClick?.Invoke();
+                RebuildWorldClockRows();
+            };
             return btn;
         }
         #endregion
@@ -889,7 +947,11 @@ namespace WindowsBuddy.Tools.Clock
                 VerticalAlignment = VerticalAlignment.Center,
                 Padding = new Thickness(4)
             };
-            closeBtn.MouseLeftButtonUp += (_, _) => _cityPickerOverlay.Visibility = Visibility.Collapsed;
+            closeBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                _cityPickerOverlay.Visibility = Visibility.Collapsed;
+            };
             DockPanel.SetDock(closeBtn, Dock.Right);
             top.Children.Add(closeBtn);
 
@@ -1010,10 +1072,12 @@ namespace WindowsBuddy.Tools.Clock
                 pill.MouseLeave += (_, _) => pill.Background = CapsuleTheme.Brush(p.Surface2);
 
                 var captured = city;
-                pill.MouseLeftButtonUp += (_, _) =>
+                pill.MouseLeftButtonUp += (_, e) =>
                 {
+                    e.Handled = true;
                     _service.AddWorldClock(captured);
                     _cityPickerOverlay.Visibility = Visibility.Collapsed;
+                    RebuildWorldClockRows();
                 };
 
                 _citiesWrapPanel.Children.Add(pill);
@@ -1025,17 +1089,24 @@ namespace WindowsBuddy.Tools.Clock
         private void OnSecondTick()
         {
             if (!IsVisible || !IsLoaded) return;
-            Dispatcher.Invoke(UpdateDisplay);
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.InvokeAsync(UpdateDisplay, DispatcherPriority.Render);
+                return;
+            }
+            UpdateDisplay();
         }
 
         private void OnSettingsChanged()
         {
-            Dispatcher.Invoke(() =>
+            if (!Dispatcher.CheckAccess())
             {
-                UpdateSettingsUI();
-                RebuildWorldClockRows();
-                UpdateDisplay();
-            });
+                Dispatcher.InvokeAsync(OnSettingsChanged, DispatcherPriority.Input);
+                return;
+            }
+            UpdateSettingsUI();
+            RebuildWorldClockRows();
+            UpdateDisplay();
         }
 
         private string _lastWorldClocksSig;

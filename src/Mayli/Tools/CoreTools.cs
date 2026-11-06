@@ -60,7 +60,8 @@ namespace WindowsBuddy.Tools
             _tools.Add(new FileShelfTool());     // 6. File Shelf
             _tools.Add(new WeatherTool());       // 7. Weather
             _tools.Add(new ClockTool());         // 8. Clock
-            _tools.Add(new QuickToolsTool());    // 9. Units
+            _tools.Add(new CalendarTool());      // 9. Calendar
+            _tools.Add(new QuickToolsTool());    // 10. Units
             _tools.Add(new LinksTool());         // 10. Links
             _tools.Add(new MessageBannerTool()); // 11. Message
             _tools.Add(new ScreenTimeTool());    // 12. Screen Time
@@ -1299,7 +1300,10 @@ namespace WindowsBuddy.Tools
             ToolViewLifecycleHelper.DetachFromParent(_view);
             return _view;
         }
-        public void OnActivated() { }
+        public void OnActivated()
+        {
+            _view?.OnActivated();
+        }
         public void InvalidateView() => _view = null;
     }
 
@@ -1308,18 +1312,18 @@ namespace WindowsBuddy.Tools
         public string Id => "calendar";
         public string Title => LocalizationService.T("tool.calendar", "Calendar");
         public string IconGlyph => "📅";
+        private WindowsBuddy.Tools.Calendar.CalendarToolView _view;
         public FrameworkElement BuildView()
         {
-            var p = CapsuleTheme.Current;
-            var card = new BuddyCard { Margin = new Thickness(4) };
-            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-            stack.Children.Add(new TextBlock { Text = DateTime.Now.ToString("dddd, MMMM d, yyyy"), FontSize = 18, FontWeight = FontWeights.Bold, Foreground = CapsuleTheme.Brush(p.Text), HorizontalAlignment = HorizontalAlignment.Center });
-            stack.Children.Add(new TextBlock { Text = "No upcoming events today. Your calendar is clear!", FontSize = 12, Foreground = CapsuleTheme.Brush(p.Text2), Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Center });
-            card.Child = stack;
-            return card;
+            _view ??= new WindowsBuddy.Tools.Calendar.CalendarToolView();
+            ToolViewLifecycleHelper.DetachFromParent(_view);
+            return _view;
         }
-        public void OnActivated() { }
-        public void InvalidateView() { }
+        public void OnActivated()
+        {
+            _view?.OnActivated();
+        }
+        public void InvalidateView() => _view = null;
     }
 
     public sealed class TransferTool : IBuddyTool

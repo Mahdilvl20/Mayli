@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 using WindowsBuddy.Core;
 
@@ -84,6 +85,25 @@ namespace WindowsBuddy.Services
             return Current;
         }
 
+        private static void EnsureDiskCounterAsync()
+        {
+            if (_diskCounterInitialized) return;
+            _diskCounterInitialized = true;
+            Task.Run(() =>
+            {
+                try
+                {
+                    var pc = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
+                    pc.NextValue();
+                    _diskCounter = pc;
+                }
+                catch
+                {
+                    _diskCounter = null;
+                }
+            });
+        }
+
         private static SystemTelemetryData SampleTelemetryInternal(bool forceCpuSample)
         {
             var now = DateTime.UtcNow;
@@ -150,16 +170,7 @@ namespace WindowsBuddy.Services
             data.DiskTotalGb = _cachedDiskTotalGb;
 
             int liveDiskActivity = 0;
-            if (!_diskCounterInitialized)
-            {
-                _diskCounterInitialized = true;
-                try
-                {
-                    _diskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
-                    _diskCounter.NextValue();
-                }
-                catch { _diskCounter = null; }
-            }
+            EnsureDiskCounterAsync();
 
             if (_diskCounter != null)
             {

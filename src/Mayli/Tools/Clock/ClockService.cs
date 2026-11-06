@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -406,17 +407,22 @@ namespace WindowsBuddy.Tools.Clock
             };
         }
 
+        private static readonly ConcurrentDictionary<string, TimeZoneInfo> _tzCache = new();
+
         public TimeZoneInfo ResolveTimeZone(string tzId)
         {
             if (string.IsNullOrWhiteSpace(tzId)) return TimeZoneInfo.Local;
-            try
+            return _tzCache.GetOrAdd(tzId, id =>
             {
-                return TimeZoneInfo.FindSystemTimeZoneById(tzId);
-            }
-            catch
-            {
-                return TimeZoneInfo.Local;
-            }
+                try
+                {
+                    return TimeZoneInfo.FindSystemTimeZoneById(id);
+                }
+                catch
+                {
+                    return TimeZoneInfo.Local;
+                }
+            });
         }
 
         public (DateTime time, string subtext, bool isDay) GetCityInfo(WorldClockCity city, DateTime? simulatedLocalTime = null)

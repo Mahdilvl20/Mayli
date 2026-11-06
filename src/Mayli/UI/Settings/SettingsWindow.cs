@@ -873,7 +873,7 @@ namespace WindowsBuddy.UI.Settings
             // 2. Interactive Live Preview Card (Resting / Hover switch)
             var previewBox = new Border
             {
-                Height = 148,
+                Height = 152,
                 CornerRadius = new CornerRadius(10),
                 Background = new SolidColorBrush(Color.FromRgb(20, 20, 22)),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(38, 38, 44)),
@@ -881,6 +881,8 @@ namespace WindowsBuddy.UI.Settings
                 Margin = new Thickness(0, 0, 0, 22),
                 ClipToBounds = true
             };
+
+            var previewRoot = new Grid();
 
             var previewGrid = new Grid
             {
@@ -900,7 +902,8 @@ namespace WindowsBuddy.UI.Settings
             var notchContainer = new Grid
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Top
+                VerticalAlignment = VerticalAlignment.Top,
+                Cursor = Cursors.Hand
             };
 
             bool currentPreviewHover = false;
@@ -925,7 +928,7 @@ namespace WindowsBuddy.UI.Settings
                     var host = new Grid
                     {
                         Width = expW,
-                        Height = expH + (isIsland ? 6 : 0)
+                        Height = expH + (isIsland ? WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder.IslandGap : 0)
                     };
 
                     host.Children.Add(new WpfPath
@@ -1054,7 +1057,7 @@ namespace WindowsBuddy.UI.Settings
                     var host = new Grid
                     {
                         Width = w,
-                        Height = h + (isIsland ? 6 : 0)
+                        Height = h + (isIsland ? WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder.IslandGap : 0)
                     };
 
                     host.Children.Add(new WpfPath
@@ -1085,9 +1088,10 @@ namespace WindowsBuddy.UI.Settings
                     bool shouldShowBattery = prefs.ShowClosedBattery && DeviceService.ShouldShowBatteryIndicators;
                     bool hasRightContent = prefs.ShowClosedBluetooth || shouldShowBattery;
                     bool isCenter = string.Equals(prefs.NotchRestingLayout, "Center", StringComparison.OrdinalIgnoreCase) || !hasRightContent;
+                    double earPreviewOffset = (isIsland || isLine) ? 0.0 : earW * previewScale;
                     var restGrid = new Grid
                     {
-                        Margin = new Thickness(earW * previewScale + 10, isIsland ? 5 : 0, earW * previewScale + 10, 0),
+                        Margin = new Thickness(earPreviewOffset + 10, isIsland ? WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder.IslandGap : 0, earPreviewOffset + 10, 0),
                         VerticalAlignment = VerticalAlignment.Center,
                         HorizontalAlignment = isCenter ? HorizontalAlignment.Center : HorizontalAlignment.Stretch
                     };
@@ -1170,20 +1174,40 @@ namespace WindowsBuddy.UI.Settings
 
             UpdateLivePreview(false);
             previewGrid.Children.Add(notchContainer);
+            previewRoot.Children.Add(previewGrid);
 
-            // Preview switcher on top right
+            // Preview switcher on top edge
             string restLabel = LocalizationService.T("notch.preview.resting", "Resting");
             string hoverLabel = LocalizationService.T("notch.preview.hover", "Hover");
             var previewModeSwitch = new MayliSegmentedControl(new[] { restLabel, hoverLabel }, restLabel)
             {
-                HorizontalAlignment = HorizontalAlignment.Right,
+                HorizontalAlignment = LocalizationService.IsRtl(restLabel) ? HorizontalAlignment.Left : HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 12, 12, 0)
+                Margin = new Thickness(12, 12, 12, 0)
             };
-            previewModeSwitch.SelectionChanged += mode => UpdateLivePreview(mode == hoverLabel || mode == "Hover");
-            previewGrid.Children.Add(previewModeSwitch);
+            Panel.SetZIndex(previewModeSwitch, 50);
 
-            previewBox.Child = previewGrid;
+            previewModeSwitch.SelectionChanged += mode =>
+            {
+                bool isHover = (previewModeSwitch.SelectedIndex == 1) ||
+                               string.Equals(mode, hoverLabel, StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(mode, "Hover", StringComparison.OrdinalIgnoreCase);
+                UpdateLivePreview(isHover);
+            };
+
+            // Interactive hover over the notch preview in the card
+            notchContainer.MouseEnter += (_, _) =>
+            {
+                UpdateLivePreview(true);
+            };
+            notchContainer.MouseLeave += (_, _) =>
+            {
+                bool shouldStayHover = (previewModeSwitch.SelectedIndex == 1);
+                UpdateLivePreview(shouldStayHover);
+            };
+
+            previewRoot.Children.Add(previewModeSwitch);
+            previewBox.Child = previewRoot;
             stack.Children.Add(previewBox);
 
             // -------------------------------------------------------------
@@ -1233,6 +1257,24 @@ namespace WindowsBuddy.UI.Settings
             styleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             var styleCards = new List<MayliVisualCard>();
+            var edgeCards = new List<MayliVisualCard>();
+
+            void RefreshEdgeIllustrations(string currentStyle)
+            {
+                foreach (var ec in edgeCards)
+                {
+                    string patternKey = ec.Key switch
+                    {
+                        "Comet" => "comet",
+                        "Twin comets" => "twin",
+                        "Breathe" => "breathe",
+                        _ => ec.Key.ToLowerInvariant()
+                    };
+                    ec.SetIllustration(CreateEdgeIllustration(patternKey, currentStyle));
+                }
+            }
+
+            MayliSettingRow shapeRow = null;
 
             void AddStyleCard(string key, string title, string desc, FrameworkElement illus, int col)
             {
@@ -1243,6 +1285,11 @@ namespace WindowsBuddy.UI.Settings
                     AppPreferences.Instance.NotchStyle = selectedKey;
                     AppPreferences.Instance.NotchSilhouette = selectedKey == "Island" ? "Island" : (selectedKey == "Line" ? "Line" : "Shouldered");
                     foreach (var c in styleCards) c.IsSelected = (c.Key == selectedKey);
+                    if (shapeRow != null)
+                    {
+                        shapeRow.Visibility = string.Equals(selectedKey, "Notch", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                    RefreshEdgeIllustrations(selectedKey);
                     UpdateLivePreview(currentPreviewHover);
                 };
                 styleCards.Add(card);
@@ -1263,11 +1310,13 @@ namespace WindowsBuddy.UI.Settings
                 AppPreferences.Instance.NotchShape = s;
                 UpdateLivePreview(currentPreviewHover);
             };
-            stack.Children.Add(new MayliSettingRow(
+            shapeRow = new MayliSettingRow(
                 LocalizationService.T("notch.shape.title", "Notch shape"),
                 LocalizationService.T("notch.shape.desc", "Fine-tune the Notch style's silhouette"),
                 shapeDropdown
-            ));
+            );
+            shapeRow.Visibility = string.Equals(AppPreferences.Instance.NotchStyle, "Notch", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+            stack.Children.Add(shapeRow);
 
             // Size
             var sizeSlider = new MayliSliderRow(60, 140, AppPreferences.Instance.NotchScalePercent, "%");
@@ -1403,8 +1452,6 @@ namespace WindowsBuddy.UI.Settings
             edgeCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             edgeCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            var edgeCards = new List<MayliVisualCard>();
-
             void AddEdgeCard(string key, string title, string desc, FrameworkElement illus, int col)
             {
                 bool isSel = string.Equals(AppPreferences.Instance.EdgeLightPattern, key, StringComparison.OrdinalIgnoreCase);
@@ -1420,9 +1467,9 @@ namespace WindowsBuddy.UI.Settings
                 edgeCardsGrid.Children.Add(card);
             }
 
-            AddEdgeCard("Comet", LocalizationService.T("notch.edge.comet.title", "Comet"), LocalizationService.T("notch.edge.comet.desc", "One light travels along the outline"), CreateEdgeIllustration("comet"), 0);
-            AddEdgeCard("Twin comets", LocalizationService.T("notch.edge.twin.title", "Twin comets"), LocalizationService.T("notch.edge.twin.desc", "Two lights meet at the bottom, then return"), CreateEdgeIllustration("twin"), 1);
-            AddEdgeCard("Breathe", LocalizationService.T("notch.edge.breathe.title", "Breathe"), LocalizationService.T("notch.edge.breathe.desc", "The whole outline glows softly"), CreateEdgeIllustration("breathe"), 2);
+            AddEdgeCard("Comet", LocalizationService.T("notch.edge.comet.title", "Comet"), LocalizationService.T("notch.edge.comet.desc", "One light travels along the outline"), CreateEdgeIllustration("comet", AppPreferences.Instance.NotchStyle), 0);
+            AddEdgeCard("Twin comets", LocalizationService.T("notch.edge.twin.title", "Twin comets"), LocalizationService.T("notch.edge.twin.desc", "Two lights meet at the bottom, then return"), CreateEdgeIllustration("twin", AppPreferences.Instance.NotchStyle), 1);
+            AddEdgeCard("Breathe", LocalizationService.T("notch.edge.breathe.title", "Breathe"), LocalizationService.T("notch.edge.breathe.desc", "The whole outline glows softly"), CreateEdgeIllustration("breathe", AppPreferences.Instance.NotchStyle), 2);
 
             stack.Children.Add(edgeCardsGrid);
 
@@ -2108,7 +2155,7 @@ namespace WindowsBuddy.UI.Settings
             return canvas;
         }
 
-        private static FrameworkElement CreateEdgeIllustration(string pattern)
+        private static FrameworkElement CreateEdgeIllustration(string pattern, string style = null)
         {
             var canvas = new Canvas { Width = 110, Height = 48, ClipToBounds = true };
 
@@ -2123,61 +2170,197 @@ namespace WindowsBuddy.UI.Settings
             };
             canvas.Children.Add(topEdge);
 
-            // Base black notch
-            var basePath = new WpfPath
-            {
-                Data = Geometry.Parse("M 22 8 Q 30 8 34 14 Q 38 28 50 28 L 60 28 Q 72 28 76 14 Q 80 8 88 8 Z"),
-                Fill = Brushes.Black,
-                Stroke = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
-                StrokeThickness = 1
-            };
-            canvas.Children.Add(basePath);
+            string s = (style ?? AppPreferences.Instance.NotchStyle ?? "Notch").ToLowerInvariant();
+            string p = (pattern ?? "comet").ToLowerInvariant();
 
-            if (pattern == "comet")
+            if (s == "island")
             {
-                // Single comet beam on right/bottom outline heading left
-                var comet = new WpfPath
+                // Detached floating pill island (width 54, height 14, at Left 28, Top 14)
+                var pill = new Border
                 {
-                    Data = Geometry.Parse("M 84 10 Q 78 10 75 15 Q 72 28 60 28"),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 2,
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round
+                    Width = 54,
+                    Height = 14,
+                    CornerRadius = new CornerRadius(7),
+                    Background = Brushes.Black,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
+                    BorderThickness = new Thickness(1)
                 };
-                canvas.Children.Add(comet);
+                Canvas.SetLeft(pill, 28);
+                Canvas.SetTop(pill, 14);
+                canvas.Children.Add(pill);
+
+                if (p == "comet")
+                {
+                    // Single comet beam curving along top and right of the pill
+                    var comet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 42 14 L 75 14 Q 82 14 82 21 Q 82 28 75 28"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    canvas.Children.Add(comet);
+                }
+                else if (p == "twin")
+                {
+                    // Two symmetrical comets meeting at bottom center of the pill (55, 28)
+                    var leftComet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 35 28 L 52 28"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2.5,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    var rightComet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 75 28 L 58 28"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2.5,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    canvas.Children.Add(leftComet);
+                    canvas.Children.Add(rightComet);
+                }
+                else if (p == "breathe")
+                {
+                    // Glowing outline surrounding the entire closed pill
+                    var glow = new Border
+                    {
+                        Width = 54,
+                        Height = 14,
+                        CornerRadius = new CornerRadius(7),
+                        BorderBrush = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
+                        BorderThickness = new Thickness(1.5),
+                        Effect = new System.Windows.Media.Effects.DropShadowEffect
+                        {
+                            Color = Colors.White,
+                            BlurRadius = 4,
+                            ShadowDepth = 0,
+                            Opacity = 0.55
+                        }
+                    };
+                    Canvas.SetLeft(glow, 28);
+                    Canvas.SetTop(glow, 14);
+                    canvas.Children.Add(glow);
+                }
             }
-            else if (pattern == "twin")
+            else if (s == "line")
             {
-                // Two symmetrical comets meeting at bottom
-                var leftComet = new WpfPath
+                // Top-docked slim line bar
+                var basePath = new WpfPath
                 {
-                    Data = Geometry.Parse("M 38 28 L 52 28"),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 2.5,
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round
+                    Data = Geometry.Parse("M 25 8 L 25 13 Q 25 17 29 17 L 81 17 Q 85 17 85 13 L 85 8 Z"),
+                    Fill = Brushes.Black,
+                    Stroke = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
+                    StrokeThickness = 1
                 };
-                var rightComet = new WpfPath
+                canvas.Children.Add(basePath);
+
+                if (p == "comet")
                 {
-                    Data = Geometry.Parse("M 58 28 L 72 28"),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 2.5,
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round
-                };
-                canvas.Children.Add(leftComet);
-                canvas.Children.Add(rightComet);
+                    var comet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 85 11 L 85 13 Q 85 17 81 17 L 55 17"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    canvas.Children.Add(comet);
+                }
+                else if (p == "twin")
+                {
+                    var leftComet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 33 17 L 52 17"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2.5,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    var rightComet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 77 17 L 58 17"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2.5,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    canvas.Children.Add(leftComet);
+                    canvas.Children.Add(rightComet);
+                }
+                else if (p == "breathe")
+                {
+                    var glow = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 25 8 L 25 13 Q 25 17 29 17 L 81 17 Q 85 17 85 13 L 85 8"),
+                        Stroke = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                        StrokeThickness = 1.5
+                    };
+                    canvas.Children.Add(glow);
+                }
             }
-            else if (pattern == "breathe")
+            else // "notch" / shouldered
             {
-                // Soft uniform glowing outline
-                var glow = new WpfPath
+                // Base black shouldered notch
+                var basePath = new WpfPath
                 {
-                    Data = Geometry.Parse("M 22 8 Q 30 8 34 14 Q 38 28 50 28 L 60 28 Q 72 28 76 14 Q 80 8 88 8"),
-                    Stroke = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
-                    StrokeThickness = 1.5
+                    Data = Geometry.Parse("M 22 8 Q 30 8 34 14 Q 38 28 50 28 L 60 28 Q 72 28 76 14 Q 80 8 88 8 Z"),
+                    Fill = Brushes.Black,
+                    Stroke = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
+                    StrokeThickness = 1
                 };
-                canvas.Children.Add(glow);
+                canvas.Children.Add(basePath);
+
+                if (p == "comet")
+                {
+                    // Single comet beam on right/bottom outline heading left
+                    var comet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 84 10 Q 78 10 75 15 Q 72 28 60 28"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    canvas.Children.Add(comet);
+                }
+                else if (p == "twin")
+                {
+                    // Two symmetrical comets meeting at bottom
+                    var leftComet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 38 28 L 52 28"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2.5,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    var rightComet = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 58 28 L 72 28"),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 2.5,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    canvas.Children.Add(leftComet);
+                    canvas.Children.Add(rightComet);
+                }
+                else if (p == "breathe")
+                {
+                    // Soft uniform glowing outline
+                    var glow = new WpfPath
+                    {
+                        Data = Geometry.Parse("M 22 8 Q 30 8 34 14 Q 38 28 50 28 L 60 28 Q 72 28 76 14 Q 80 8 88 8"),
+                        Stroke = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                        StrokeThickness = 1.5
+                    };
+                    canvas.Children.Add(glow);
+                }
             }
 
             return canvas;
@@ -2568,14 +2751,14 @@ namespace WindowsBuddy.UI.Settings
 
             stack.Children.Add(new TextBlock
             {
-                Text = "Modules",
+                Text = LocalizationService.T("modules.title", "Modules"),
                 FontSize = 26,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Choose what lives in your notch. Drag to reorder.",
+                Text = LocalizationService.T("modules.subtitle", "Choose what lives in your notch. Drag to reorder."),
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
                 Margin = new Thickness(0, 4, 0, 26)
@@ -2586,7 +2769,7 @@ namespace WindowsBuddy.UI.Settings
             // -------------------------------------------------------------
             stack.Children.Add(new TextBlock
             {
-                Text = "DOCK",
+                Text = LocalizationService.T("modules.dock.header", "DOCK"),
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 110)),
@@ -2607,35 +2790,30 @@ namespace WindowsBuddy.UI.Settings
             // -------------------------------------------------------------
             // SECTION 1: ESSENTIALS
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("ESSENTIALS"));
-            AddModuleRow("home", "Home", "Now playing, your next event and quick stats", Color.FromRgb(43, 102, 245), "⌂", true);
-            AddModuleRow("system", "System", "CPU, memory, disk and battery", Color.FromRgb(0, 180, 216), "⊞", true);
-            AddModuleRow("focus", "Timers", "Pomodoro, countdown, stopwatch and water", Color.FromRgb(255, 122, 0), "⏱", true);
-            AddModuleRow("weather", "Weather", "Now, hourly and five-day forecast", Color.FromRgb(56, 166, 245), "⛅", true);
-            AddModuleRow("clock", "Clock", "World clocks, digital or analog", Color.FromRgb(255, 170, 0), "🕒", true);
-            AddModuleRow("calendar", "Calendar", "Agenda, festivals and reminders", Color.FromRgb(230, 57, 70), "📅", false);
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("modules.sec.essentials", "ESSENTIALS")));
+            AddModuleRow("home", LocalizationService.T("tool.home", "Home"), LocalizationService.T("modules.home.desc", "Now playing, your next event and quick stats"), Color.FromRgb(43, 102, 245), "⌂", true);
+            AddModuleRow("system", LocalizationService.T("tool.system", "System"), LocalizationService.T("modules.system.desc", "CPU, memory, disk and battery"), Color.FromRgb(0, 180, 216), "⊞", true);
+            AddModuleRow("focus", LocalizationService.T("tool.focus", "Timers"), LocalizationService.T("modules.focus.desc", "Pomodoro, countdown, stopwatch and water"), Color.FromRgb(255, 122, 0), "⏱", true);
+            AddModuleRow("weather", LocalizationService.T("tool.weather", "Weather"), LocalizationService.T("modules.weather.desc", "Now, hourly and five-day forecast"), Color.FromRgb(56, 166, 245), "⛅", true);
+            AddModuleRow("clock", LocalizationService.T("tool.clock", "Clock"), LocalizationService.T("modules.clock.desc", "World clocks, digital or analog"), Color.FromRgb(255, 170, 0), "🕒", true);
+            AddModuleRow("calendar", LocalizationService.T("tool.calendar", "Calendar"), LocalizationService.T("modules.calendar.desc", "Agenda, festivals and reminders"), Color.FromRgb(230, 57, 70), "📅", false);
 
             // -------------------------------------------------------------
             // SECTION 2: PRODUCTIVITY
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("PRODUCTIVITY"));
-            AddModuleRow("clipboard", "Clipboard", "Everything you copied, searchable", Color.FromRgb(94, 92, 230), "📋", true);
-            AddModuleRow("notes", "Notes", "Quick notes that stay with the notch", Color.FromRgb(255, 183, 3), "📝", true);
-            AddModuleRow("fileshelf", "File Shelf", "Park files and drag them anywhere", Color.FromRgb(0, 194, 203), "📁", true);
-            AddModuleRow("maylidrop", "Mayli Drop", "Share with your phone on your private network", Color.FromRgb(139, 128, 249), "📱", true);
-            AddModuleRow("units", "Units", "Length, weight, temperature and more", Color.FromRgb(123, 44, 191), "⇄", true);
-            AddModuleRow("links", "Links", "Bookmarks and quick web searches", Color.FromRgb(255, 89, 100), "🔗", true);
-            AddModuleRow("message", "Message", "Flash your own text on the notch", Color.FromRgb(247, 37, 133), "💬", true);
-            AddModuleRow("fileconverter", "File Converter", "Convert images and documents", Color.FromRgb(214, 34, 165), "📄", false);
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("modules.sec.productivity", "PRODUCTIVITY")));
+            AddModuleRow("clipboard", LocalizationService.T("tool.clipboard", "Clipboard"), LocalizationService.T("modules.clipboard.desc", "Everything you copied, searchable"), Color.FromRgb(94, 92, 230), "📋", true);
+            AddModuleRow("notes", LocalizationService.T("tool.notes", "Notes"), LocalizationService.T("modules.notes.desc", "Quick notes that stay with the notch"), Color.FromRgb(255, 183, 3), "📝", true);
+            AddModuleRow("fileshelf", LocalizationService.T("tool.fileshelf", "File Shelf"), LocalizationService.T("modules.fileshelf.desc", "Park files and drag them anywhere"), Color.FromRgb(0, 194, 203), "📁", true);
+            AddModuleRow("units", LocalizationService.T("tool.units", "Units"), LocalizationService.T("modules.units.desc", "Length, weight, temperature and more"), Color.FromRgb(123, 44, 191), "⇄", true);
+            AddModuleRow("links", LocalizationService.T("tool.links", "Links"), LocalizationService.T("modules.links.desc", "Bookmarks and quick web searches"), Color.FromRgb(255, 89, 100), "🔗", true);
+            AddModuleRow("message", LocalizationService.T("tool.message", "Message"), LocalizationService.T("modules.message.desc", "Flash your own text on the notch"), Color.FromRgb(247, 37, 133), "💬", true);
 
             // -------------------------------------------------------------
             // SECTION 3: INSIGHTS
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("INSIGHTS"));
-            AddModuleRow("screentime", "Screen Time", "Where your day went, app by app", Color.FromRgb(114, 9, 183), "⏳", true);
-            AddModuleRow("analytics", "Analytics", "Website visitors, pages and sources", Color.FromRgb(46, 196, 182), "📊", false);
-            AddModuleRow("aicoding", "AI Coding", "Claude Code and Codex usage", Color.FromRgb(90, 98, 106), "🤖", false);
-            AddModuleRow("revenue", "Revenue", "Sales and license revenue at a glance", Color.FromRgb(112, 224, 0), "💵", false);
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("modules.sec.insights", "INSIGHTS")));
+            AddModuleRow("screentime", LocalizationService.T("tool.screentime", "Screen Time"), LocalizationService.T("modules.screentime.desc", "Where your day went, app by app"), Color.FromRgb(114, 9, 183), "⏳", true);
 
             // Reset order button
             var resetOrderBtn = new Border
@@ -2651,7 +2829,7 @@ namespace WindowsBuddy.UI.Settings
             };
             var resetTxt = new TextBlock
             {
-                Text = "Reset order",
+                Text = LocalizationService.T("modules.reset_order", "Reset order"),
                 FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White
@@ -2664,13 +2842,12 @@ namespace WindowsBuddy.UI.Settings
                 e.Handled = true;
                 AppPreferences.Instance.ResetModulesDefaults();
                 _mainContentArea.Content = BuildModulesPage();
-                MessageBox.Show("Dock module order and settings have been restored to defaults.", "Mayli Modules", MessageBoxButton.OK, MessageBoxImage.Information);
             };
             stack.Children.Add(resetOrderBtn);
 
             var tipText = new TextBlock
             {
-                Text = "Tip: drag the handle, or focus a row and press Alt+Up / Alt+Down. Changes show in the dock right away.",
+                Text = LocalizationService.T("modules.tip", "Tip: changes show in the dock right away."),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 120)),
                 Margin = new Thickness(0, 0, 0, 32),
@@ -2679,31 +2856,27 @@ namespace WindowsBuddy.UI.Settings
             stack.Children.Add(tipText);
 
             // -------------------------------------------------------------
-            // SECTION 4: HOME WIDGETS (Screenshots 4 & 5)
+            // SECTION 4: HOME WIDGETS
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("HOME WIDGETS"));
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("modules.sec.homewidgets", "HOME WIDGETS")));
 
             var homeWidgetsList = new (string Id, string Title)[]
             {
-                ("screentime", "Screen Time"),
-                ("system", "System"),
-                ("weather", "Weather"),
-                ("focus", "Focus"),
-                ("clipboard", "Clipboard"),
-                ("notes", "Notes"),
-                ("clock", "Clock"),
-                ("calendar", "Calendar"),
-                ("nowplaying", "Now Playing"),
-                ("links", "Links"),
-                ("fileshelf", "File Shelf"),
-                ("units", "Units"),
-                ("fileconverter", "File Converter"),
-                ("message", "Message"),
-                ("water", "Water"),
-                ("stopwatch", "Stopwatch"),
-                ("analytics", "Analytics"),
-                ("revenue", "Revenue"),
-                ("aicoding", "AI Coding")
+                ("screentime", LocalizationService.T("tool.screentime", "Screen Time")),
+                ("system", LocalizationService.T("tool.system", "System")),
+                ("weather", LocalizationService.T("tool.weather", "Weather")),
+                ("focus", LocalizationService.T("tool.focus", "Focus")),
+                ("clipboard", LocalizationService.T("tool.clipboard", "Clipboard")),
+                ("notes", LocalizationService.T("tool.notes", "Notes")),
+                ("clock", LocalizationService.T("tool.clock", "Clock")),
+                ("calendar", LocalizationService.T("tool.calendar", "Calendar")),
+                ("nowplaying", LocalizationService.T("tool.nowplaying", "Now Playing")),
+                ("links", LocalizationService.T("tool.links", "Links")),
+                ("fileshelf", LocalizationService.T("tool.fileshelf", "File Shelf")),
+                ("units", LocalizationService.T("tool.units", "Units")),
+                ("message", LocalizationService.T("tool.message", "Message")),
+                ("water", LocalizationService.T("tool.water", "Water")),
+                ("stopwatch", LocalizationService.T("tool.stopwatch", "Stopwatch"))
             };
 
             var widgetRows = new List<MayliHomeWidgetRow>();

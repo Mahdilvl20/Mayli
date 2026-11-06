@@ -109,9 +109,18 @@ namespace WindowsBuddy.UI.AnimateIcons
             }
         }
 
-        public void Play()
+        public void Play(bool forceRestart = false)
         {
-            if (_isPlaying) return;
+            if (forceRestart)
+            {
+                _isPlaying = false;
+                BuildIcon();
+            }
+            else if (_isPlaying)
+            {
+                return;
+            }
+
             _isPlaying = true;
             try
             {
@@ -181,6 +190,9 @@ namespace WindowsBuddy.UI.AnimateIcons
                 case AnimateIconType.CopyCheck:
                     BuildCopyCheck();
                     break;
+                case AnimateIconType.CutScissors:
+                    BuildCutScissors();
+                    break;
                 case AnimateIconType.Settings:
                     BuildSettings();
                     break;
@@ -229,6 +241,9 @@ namespace WindowsBuddy.UI.AnimateIcons
                 case AnimateIconType.Weather:
                     BuildWeather();
                     break;
+                case AnimateIconType.Calendar:
+                    BuildCalendar();
+                    break;
             }
         }
 
@@ -248,7 +263,10 @@ namespace WindowsBuddy.UI.AnimateIcons
 
             var check = CreatePath("M12 15l2 2 4-4");
             var checkScale = new ScaleTransform(1, 1, 15, 15);
-            check.RenderTransform = checkScale;
+            var checkGroup = new TransformGroup();
+            checkGroup.Children.Add(checkScale);
+            checkGroup.Children.Add(frontTrans);
+            check.RenderTransform = checkGroup;
             _canvas.Children.Add(check);
 
             _playAction = () =>
@@ -282,6 +300,40 @@ namespace WindowsBuddy.UI.AnimateIcons
                 checkScale.BeginAnimation(ScaleTransform.ScaleXProperty, ckScale);
                 checkScale.BeginAnimation(ScaleTransform.ScaleYProperty, ckScale);
                 check.BeginAnimation(UIElement.OpacityProperty, opAnim);
+            };
+        }
+
+        private void BuildCutScissors()
+        {
+            // Part 1: Bottom handle ring + upper blade
+            var blade1 = CreatePath("M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M8.12 15.88L20 4");
+            var rot1 = new RotateTransform(0, 12, 12);
+            blade1.RenderTransform = rot1;
+            _canvas.Children.Add(blade1);
+
+            // Part 2: Top handle ring + lower blade
+            var blade2 = CreatePath("M6 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M8.12 8.12L12 12 M14.47 14.48L20 20");
+            var rot2 = new RotateTransform(0, 12, 12);
+            blade2.RenderTransform = rot2;
+            _canvas.Children.Add(blade2);
+
+            _playAction = () =>
+            {
+                var anim1 = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                anim1.KeyFrames.Add(new SplineDoubleKeyFrame(0.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                anim1.KeyFrames.Add(new SplineDoubleKeyFrame(-20.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(160))));
+                anim1.KeyFrames.Add(new SplineDoubleKeyFrame(5.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(320))));
+                anim1.KeyFrames.Add(new SplineDoubleKeyFrame(0.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(480))));
+                anim1.Completed += (_, _) => _isPlaying = false;
+
+                var anim2 = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                anim2.KeyFrames.Add(new SplineDoubleKeyFrame(0.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                anim2.KeyFrames.Add(new SplineDoubleKeyFrame(20.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(160))));
+                anim2.KeyFrames.Add(new SplineDoubleKeyFrame(-5.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(320))));
+                anim2.KeyFrames.Add(new SplineDoubleKeyFrame(0.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(480))));
+
+                rot1.BeginAnimation(RotateTransform.AngleProperty, anim1);
+                rot2.BeginAnimation(RotateTransform.AngleProperty, anim2);
             };
         }
 
@@ -820,6 +872,27 @@ namespace WindowsBuddy.UI.AnimateIcons
                 yAnim.Completed += (_, _) => _isPlaying = false;
 
                 trans.BeginAnimation(TranslateTransform.YProperty, yAnim);
+            };
+        }
+
+        private void BuildCalendar()
+        {
+            var body = CreatePath("M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M16 2v4 M8 2v4 M3 10h18 M8 14h.01 M12 14h.01 M16 14h.01 M8 18h.01 M12 18h.01 M16 18h.01");
+            var scale = new ScaleTransform(1, 1, 12, 12);
+            body.RenderTransform = scale;
+            _canvas.Children.Add(body);
+
+            _playAction = () =>
+            {
+                var sAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                sAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                sAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.15, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220))));
+                sAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0.95, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(420))));
+                sAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600))));
+                sAnim.Completed += (_, _) => _isPlaying = false;
+
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, sAnim);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, sAnim);
             };
         }
 

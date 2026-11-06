@@ -75,13 +75,14 @@ namespace WindowsBuddy
 
                 StartIpcServer(app);
                 LogWriter.WriteNow("boot", "Step 2: StartIpcServer done");
-                InitializeTrayIcon(app);
-                LogWriter.WriteNow("boot", "Step 3: InitializeTrayIcon done");
 
                 _capsuleWindow = new CapsuleWindow();
-                LogWriter.WriteNow("boot", "Step 4: CapsuleWindow constructor done");
+                LogWriter.WriteNow("boot", "Step 3: CapsuleWindow constructor done");
                 _capsuleWindow.Show();
-                LogWriter.WriteNow("boot", "Step 5: CapsuleWindow Show done");
+                LogWriter.WriteNow("boot", "Step 4: CapsuleWindow Show done");
+
+                InitializeTrayIcon(app);
+                LogWriter.WriteNow("boot", "Step 5: InitializeTrayIcon done");
 
                 _ = WindowsBuddy.Tools.Clipboard.ClipboardService.Instance;
                 UpdateService.CheckOnStartup();

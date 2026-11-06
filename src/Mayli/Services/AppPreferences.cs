@@ -47,6 +47,7 @@ namespace WindowsBuddy.Services
         public bool RunningTimersActivity { get; set; } = true;
         public bool TimerFinishAlerts { get; set; } = true;
         public bool CalendarAlerts { get; set; } = true;
+        public string CalendarSystem { get; set; } = "jalali"; // "jalali", "gregorian"
         public string RemindersTarget { get; set; } = "Notch only";
         public string LiveActivityEventDuration { get; set; } = "3 s";
 
@@ -82,7 +83,7 @@ namespace WindowsBuddy.Services
         public string ClosedClockStyle { get; set; } = "Digital"; // "Digital", "Analog"
         public bool ShowClosedDate { get; set; } = false;
         public bool ShowClosedBattery { get; set; } = true;
-        public bool ShowClosedNowPlaying { get; set; } = false;
+        public bool ShowClosedNowPlaying { get; set; } = true;
         public bool ShowClosedBluetooth { get; set; } = false;
 
         // Surface Settings (matching Appearance screenshots)
@@ -92,7 +93,7 @@ namespace WindowsBuddy.Services
         public string NotchShadowDepth { get; set; } = "Medium"; // "None", "Subtle", "Medium", "Deep"
         public string NotchSoftEdge { get; set; } = "Medium"; // "None", "Low", "Medium", "High"
 
-        // Modules & Dock Settings
+        // Modules & Dock Settings (Active functional tools only)
         public Dictionary<string, bool> EnabledDockModules { get; set; } = new()
         {
             ["home"] = true,
@@ -104,15 +105,10 @@ namespace WindowsBuddy.Services
             ["clipboard"] = true,
             ["notes"] = true,
             ["fileshelf"] = true,
-            ["maylidrop"] = true,
             ["units"] = true,
             ["links"] = true,
             ["message"] = true,
-            ["fileconverter"] = false,
-            ["screentime"] = true,
-            ["analytics"] = false,
-            ["aicoding"] = false,
-            ["revenue"] = false
+            ["screentime"] = true
         };
 
         public List<string> HomeWidgets { get; set; } = new()
@@ -128,8 +124,8 @@ namespace WindowsBuddy.Services
         public List<string> DockModulesOrder { get; set; } = new()
         {
             "home", "system", "focus", "weather", "clock", "calendar",
-            "clipboard", "notes", "fileshelf", "maylidrop", "units", "links", "message", "fileconverter",
-            "screentime", "analytics", "aicoding", "revenue"
+            "clipboard", "notes", "fileshelf", "units", "links", "message",
+            "screentime"
         };
     }
 
@@ -410,6 +406,12 @@ namespace WindowsBuddy.Services
             set { Raw.CalendarAlerts = value; Save(); }
         }
 
+        public string CalendarSystem
+        {
+            get => Raw.CalendarSystem ?? "jalali";
+            set { Raw.CalendarSystem = value; Save(); }
+        }
+
         public string RemindersTarget
         {
             get => Raw.RemindersTarget;
@@ -624,7 +626,7 @@ namespace WindowsBuddy.Services
             Raw.ClosedClockStyle = "Digital";
             Raw.ShowClosedDate = false;
             Raw.ShowClosedBattery = true;
-            Raw.ShowClosedNowPlaying = false;
+            Raw.ShowClosedNowPlaying = true;
             Raw.ShowClosedBluetooth = false;
             Raw.ExcludedAudioApps?.Clear();
             Save();
@@ -702,15 +704,10 @@ namespace WindowsBuddy.Services
                 ["clipboard"] = true,
                 ["notes"] = true,
                 ["fileshelf"] = true,
-                ["maylidrop"] = true,
                 ["units"] = true,
                 ["links"] = true,
                 ["message"] = true,
-                ["fileconverter"] = false,
-                ["screentime"] = true,
-                ["analytics"] = false,
-                ["aicoding"] = false,
-                ["revenue"] = false
+                ["screentime"] = true
             };
 
             Raw.HomeWidgets = new List<string>
@@ -726,8 +723,8 @@ namespace WindowsBuddy.Services
             Raw.DockModulesOrder = new List<string>
             {
                 "home", "system", "focus", "weather", "clock", "calendar",
-                "clipboard", "notes", "fileshelf", "maylidrop", "units", "links", "message", "fileconverter",
-                "screentime", "analytics", "aicoding", "revenue"
+                "clipboard", "notes", "fileshelf", "units", "links", "message",
+                "screentime"
             };
 
             Save();
