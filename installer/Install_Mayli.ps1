@@ -31,7 +31,7 @@ if (-not (Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
 
-$releaseBin = Join-Path $solutionRoot "src\Mayli\bin\Release\net10.0-windows"
+$releaseBin = Join-Path $solutionRoot "src\Mayli\bin\Release\net10.0-windows10.0.19041.0"
 Copy-Item -Path "$releaseBin\*" -Destination $installDir -Recurse -Force
 
 # 4. Create Desktop & Start Menu Shortcuts

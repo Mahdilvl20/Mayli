@@ -5,7 +5,9 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <RootNamespace>WindowsBuddy</RootNamespace>
     <AssemblyName>Mayli</AssemblyName>
-    <Version>1.1.61.0</Version>
+    <Version>1.1.62.0</Version>
+    <AssemblyVersion>1.1.62.0</AssemblyVersion>
+    <FileVersion>1.1.62.0</FileVersion>
     <Company>Modi Studio</Company>
     <Product>Mayli</Product>
     <Description>Mayli - the notch for Windows</Description>

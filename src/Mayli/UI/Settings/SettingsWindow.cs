@@ -3541,14 +3541,14 @@ namespace WindowsBuddy.UI.Settings
 
             stack.Children.Add(new TextBlock
             {
-                Text = "Updates",
+                Text = LocalizationService.T("updates.title", "Updates"),
                 FontSize = 26,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Version information and update channels",
+                Text = LocalizationService.T("updates.subtitle", "Version information and update channels"),
                 FontSize = 12.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 136)),
                 Margin = new Thickness(0, 4, 0, 26)
@@ -3564,15 +3564,15 @@ namespace WindowsBuddy.UI.Settings
             };
             var versionText = new TextBlock
             {
-                Text = $"✓ Up to date (v{UpdateService.CurrentVersion})",
+                Text = string.Format(LocalizationService.T("updates.up_to_date", "✓ Up to date (v{0})"), UpdateService.CurrentVersion),
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88))
             };
             versionBadge.Child = versionText;
             stack.Children.Add(new MayliSettingRow(
-                "Installed version",
-                $"Mayli v{UpdateService.CurrentVersion} (Windows x64 Architecture).",
+                LocalizationService.T("updates.installed_title", "Installed version"),
+                string.Format(LocalizationService.T("updates.installed_desc", "Mayli v{0} (Windows x64 Architecture)."), UpdateService.CurrentVersion),
                 versionBadge
             ));
 
@@ -3583,12 +3583,18 @@ namespace WindowsBuddy.UI.Settings
                 Padding = new Thickness(16, 6, 16, 6),
                 Cursor = Cursors.Hand
             };
-            var checkBtnText = new TextBlock { Text = "Check Now", FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+            var checkBtnText = new TextBlock
+            {
+                Text = LocalizationService.T("updates.check_now", "Check Now"),
+                FontSize = 12.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
             checkBtn.Child = checkBtnText;
             checkBtn.MouseLeftButtonUp += async (_, e) =>
             {
                 e.Handled = true;
-                checkBtnText.Text = "Checking...";
+                checkBtnText.Text = LocalizationService.T("updates.checking", "Checking...");
                 checkBtn.IsEnabled = false;
 
                 try
@@ -3596,12 +3602,12 @@ namespace WindowsBuddy.UI.Settings
                     var info = await UpdateService.CheckForUpdatesAsync();
                     if (info.HasUpdate)
                     {
-                        versionText.Text = $"🚀 Update available: v{info.LatestVersion}";
+                        versionText.Text = string.Format(LocalizationService.T("updates.available", "🚀 Update available: v{0}"), info.LatestVersion);
                         versionText.Foreground = new SolidColorBrush(Color.FromRgb(255, 149, 0));
                         versionBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(255, 149, 0));
                         versionBadge.Background = new SolidColorBrush(Color.FromArgb(40, 255, 149, 0));
 
-                        checkBtnText.Text = "Download v" + info.LatestVersion + " ↗";
+                        checkBtnText.Text = string.Format(LocalizationService.T("updates.download_btn", "Download v{0} ↗"), info.LatestVersion);
                         checkBtn.Background = new SolidColorBrush(Color.FromRgb(48, 209, 88));
                         checkBtn.IsEnabled = true;
                         checkBtn.MouseLeftButtonUp -= null;
@@ -3620,29 +3626,38 @@ namespace WindowsBuddy.UI.Settings
                     }
                     else
                     {
-                        checkBtnText.Text = "You're on latest!";
+                        versionText.Text = string.Format(LocalizationService.T("updates.up_to_date", "✓ Up to date (v{0})"), UpdateService.CurrentVersion);
+                        versionText.Foreground = new SolidColorBrush(Color.FromRgb(48, 209, 88));
+                        versionBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(48, 209, 88));
+                        versionBadge.Background = new SolidColorBrush(Color.FromArgb(40, 48, 209, 88));
+
+                        checkBtnText.Text = LocalizationService.T("updates.on_latest", "You're on latest!");
                         await Task.Delay(2000);
-                        checkBtnText.Text = "Check Now";
+                        checkBtnText.Text = LocalizationService.T("updates.check_now", "Check Now");
                         checkBtn.IsEnabled = true;
                     }
                 }
                 catch
                 {
-                    checkBtnText.Text = "Check Now";
+                    checkBtnText.Text = LocalizationService.T("updates.check_now", "Check Now");
                     checkBtn.IsEnabled = true;
                     Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli/releases") { UseShellExecute = true });
                 }
             };
             stack.Children.Add(new MayliSettingRow(
-                "Check for updates",
-                "Queries github.com/Mahdilvl20/Mayli for newly published releases and fixes.",
+                LocalizationService.T("updates.check_title", "Check for updates"),
+                LocalizationService.T("updates.check_desc", "Queries github.com/Mahdilvl20/Mayli for newly published releases and fixes."),
                 checkBtn
             ));
 
-            var channelPicker = new MayliSegmentedControl(new[] { "Stable", "Beta" }, "Stable");
+            var channelPicker = new MayliSegmentedControl(new[]
+            {
+                LocalizationService.T("updates.channel_stable", "Stable"),
+                LocalizationService.T("updates.channel_beta", "Beta")
+            }, LocalizationService.T("updates.channel_stable", "Stable"));
             stack.Children.Add(new MayliSettingRow(
-                "Release channel",
-                "Choose between thoroughly tested Stable releases or experimental Beta features.",
+                LocalizationService.T("updates.channel_title", "Release channel"),
+                LocalizationService.T("updates.channel_desc", "Choose between thoroughly tested Stable releases or experimental Beta features."),
                 channelPicker
             ));
 

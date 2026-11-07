@@ -110,6 +110,24 @@ namespace WindowsBuddy.Services
             ["nav.help"] = "راهنما",
             ["nav.feedback"] = "بازخورد",
 
+            // Updates
+            ["updates.title"] = "بروزرسانی‌ها",
+            ["updates.subtitle"] = "اطلاعات نسخه و کانال‌های انتشار",
+            ["updates.installed_title"] = "نسخه نصب‌شده",
+            ["updates.installed_desc"] = "میلی نسخه {0} (معماری ویندوز ۶۴ بیتی)",
+            ["updates.up_to_date"] = "✓ به روز است (نسخه {0})",
+            ["updates.available"] = "🚀 نسخه جدید در دسترس است: نسخه {0}",
+            ["updates.check_title"] = "بررسی بروزرسانی",
+            ["updates.check_desc"] = "بررسی انتشارهای جدید و پچ‌ها در گیت‌هاب",
+            ["updates.check_now"] = "بررسی اکنون",
+            ["updates.checking"] = "در حال بررسی...",
+            ["updates.on_latest"] = "شما روی آخرین نسخه‌اید!",
+            ["updates.download_btn"] = "دانلود نسخه {0} ↗",
+            ["updates.channel_title"] = "کانال انتشار",
+            ["updates.channel_desc"] = "انتخاب بین نسخه پایدار یا قابلیت‌های آزمایشی بتا",
+            ["updates.channel_stable"] = "پایدار",
+            ["updates.channel_beta"] = "بتا",
+
             // Tools Titles
             ["tool.home"] = "خانه",
             ["tool.system"] = "سیستم",
@@ -481,6 +499,24 @@ namespace WindowsBuddy.Services
             ["nav.subtitle"] = "The Notch for Windows",
             ["nav.help"] = "Help",
             ["nav.feedback"] = "Feedback",
+
+            // Updates
+            ["updates.title"] = "Updates",
+            ["updates.subtitle"] = "Version information and update channels",
+            ["updates.installed_title"] = "Installed version",
+            ["updates.installed_desc"] = "Mayli v{0} (Windows x64 Architecture).",
+            ["updates.up_to_date"] = "✓ Up to date (v{0})",
+            ["updates.available"] = "🚀 Update available: v{0}",
+            ["updates.check_title"] = "Check for updates",
+            ["updates.check_desc"] = "Queries github.com/Mahdilvl20/Mayli for newly published releases and fixes.",
+            ["updates.check_now"] = "Check Now",
+            ["updates.checking"] = "Checking...",
+            ["updates.on_latest"] = "You're on latest!",
+            ["updates.download_btn"] = "Download v{0} ↗",
+            ["updates.channel_title"] = "Release channel",
+            ["updates.channel_desc"] = "Choose between thoroughly tested Stable releases or experimental Beta features.",
+            ["updates.channel_stable"] = "Stable",
+            ["updates.channel_beta"] = "Beta",
 
             // Tools Titles
             ["tool.home"] = "Home",

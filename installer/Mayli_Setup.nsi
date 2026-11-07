@@ -29,7 +29,7 @@ RequestExecutionLevel user
 
 Section "Mayli Core" SecCore
   SetOutPath "$INSTDIR"
-  File /r "..\src\Mayli\bin\Release\net10.0-windows\*.*"
+  File /r "..\src\Mayli\bin\Release\net10.0-windows10.0.19041.0\*.*"
 
   ; Create Shortcuts
   CreateDirectory "$SMPROGRAMS\Mayli"

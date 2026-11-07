@@ -18,7 +18,7 @@ if (-not (Test-Path $distDir)) {
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
 }
 
-$releaseBin = Join-Path $solutionRoot "src\Mayli\bin\Release\net10.0-windows"
+$releaseBin = Join-Path $solutionRoot "src\Mayli\bin\Release\net10.0-windows10.0.19041.0"
 
 Write-Host ">>> [2/2] Checking for Inno Setup Compiler (iscc.exe)..." -ForegroundColor Cyan
 $isccCandidates = @(

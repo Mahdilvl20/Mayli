@@ -2,7 +2,7 @@
 ; Inno Setup 6+ Compiler Script
 
 #define MyAppName "Mayli"
-#define MyAppVersion "1.1.61"
+#define MyAppVersion "1.1.62"
 #define MyAppPublisher "Modi Studio"
 #define MyAppURL "https://mayli.in"
 #define MyAppExeName "Mayli.exe"
@@ -38,7 +38,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startupicon"; Description: "Launch Mayli automatically on Windows startup"; GroupDescription: "Startup options:"
 
 [Files]
-Source: "..\src\Mayli\bin\Release\net10.0-windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\src\Mayli\bin\Release\net10.0-windows10.0.19041.0\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

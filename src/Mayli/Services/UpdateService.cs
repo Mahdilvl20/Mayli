@@ -23,7 +23,39 @@ namespace WindowsBuddy.Services
 
     public static class UpdateService
     {
-        public const string CurrentVersion = "1.1.61";
+        private static string _currentVersion;
+        public static string CurrentVersion
+        {
+            get
+            {
+                if (_currentVersion == null)
+                {
+                    try
+                    {
+                        var asm = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+                        if (asm != null && !string.IsNullOrWhiteSpace(asm.Location) && File.Exists(asm.Location))
+                        {
+                            var fvi = FileVersionInfo.GetVersionInfo(asm.Location);
+                            if (!string.IsNullOrWhiteSpace(fvi.ProductVersion))
+                            {
+                                string pv = fvi.ProductVersion.Split('+')[0].Trim();
+                                var segs = pv.Split('.');
+                                if (segs.Length == 4 && segs[3] == "0")
+                                    _currentVersion = $"{segs[0]}.{segs[1]}.{segs[2]}";
+                                else
+                                    _currentVersion = pv;
+                            }
+                        }
+                    }
+                    catch { }
+
+                    if (string.IsNullOrWhiteSpace(_currentVersion))
+                        _currentVersion = "1.1.62";
+                }
+                return _currentVersion;
+            }
+        }
+
         private const string RepoOwner = "Mahdilvl20";
         private const string RepoName = "Mayli";
 
@@ -40,19 +72,13 @@ namespace WindowsBuddy.Services
             int dash = clean.IndexOf('-');
             if (dash > 0) clean = clean.Substring(0, dash);
 
-            if (Version.TryParse(clean, out var v))
-            {
-                return v;
-            }
-
-            // If 2 or 3 parts, normalize to 4
             var parts = clean.Split('.');
-            if (parts.Length == 2 && int.TryParse(parts[0], out int p1) && int.TryParse(parts[1], out int p2))
-                return new Version(p1, p2, 0, 0);
-            if (parts.Length == 3 && int.TryParse(parts[0], out int p1_3) && int.TryParse(parts[1], out int p2_3) && int.TryParse(parts[2], out int p3_3))
-                return new Version(p1_3, p2_3, p3_3, 0);
+            int p0 = parts.Length > 0 && int.TryParse(parts[0], out int val0) ? val0 : 1;
+            int p1 = parts.Length > 1 && int.TryParse(parts[1], out int val1) ? val1 : 0;
+            int p2 = parts.Length > 2 && int.TryParse(parts[2], out int val2) ? val2 : 0;
+            int p3 = parts.Length > 3 && int.TryParse(parts[3], out int val3) ? val3 : 0;
 
-            return new Version(1, 0, 0, 0);
+            return new Version(p0, p1, p2, p3);
         }
 
         public static HttpClient CreateConfiguredClient()
