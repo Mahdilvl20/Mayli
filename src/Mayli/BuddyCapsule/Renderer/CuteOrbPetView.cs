@@ -341,16 +341,15 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
                 Interval = TimeSpan.FromMilliseconds(33)
             };
             _lifeTimer.Tick += OnLifeTimerTick;
-            _lifeTimer.Start();
 
             Loaded += (_, _) =>
             {
-                if (IsVisible) _lifeTimer.Start();
+                if (IsVisible && WindowsBuddy.Services.AppPreferences.Instance.EnablePet) _lifeTimer.Start();
             };
             Unloaded += (_, _) => _lifeTimer.Stop();
             IsVisibleChanged += (_, _) =>
             {
-                if (IsVisible && IsLoaded)
+                if (IsVisible && IsLoaded && WindowsBuddy.Services.AppPreferences.Instance.EnablePet)
                     _lifeTimer.Start();
                 else
                     _lifeTimer.Stop();

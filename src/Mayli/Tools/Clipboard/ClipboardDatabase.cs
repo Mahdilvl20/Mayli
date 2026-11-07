@@ -113,6 +113,9 @@ namespace WindowsBuddy.Tools.Clipboard
                 int rc = sqlite3_open16(_dbPath, out _db);
                 if (rc != SQLITE_OK || _db == IntPtr.Zero) return;
 
+                // High-performance SQLite tuning: Write-Ahead Logging & memory caching
+                sqlite3_exec(_db, "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA temp_store = MEMORY; PRAGMA cache_size = -2000;", IntPtr.Zero, IntPtr.Zero, out _);
+
                 string schemaSql = @"
 CREATE TABLE IF NOT EXISTS clipboard_items (
     id TEXT PRIMARY KEY,

@@ -61,9 +61,13 @@ namespace WindowsBuddy.Services
 
             Current = SampleTelemetryInternal(forceCpuSample: true);
 
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.0) };
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             _timer.Tick += (_, _) =>
             {
+                bool hasSubscribers = TelemetryChanged != null;
+                var desiredInterval = hasSubscribers ? TimeSpan.FromSeconds(1.0) : TimeSpan.FromSeconds(3.5);
+                if (_timer.Interval != desiredInterval) _timer.Interval = desiredInterval;
+
                 Current = SampleTelemetryInternal(forceCpuSample: true);
                 TelemetryChanged?.Invoke(Current);
             };
@@ -204,11 +208,11 @@ namespace WindowsBuddy.Services
 
     public sealed class MediaTrackState
     {
-        public string Title { get; set; } = "Future Calling";
-        public string Artist { get; set; } = "ZOYA";
-        public bool IsPlaying { get; set; } = true;
-        public double PositionSeconds { get; set; } = 84;
-        public double DurationSeconds { get; set; } = 224;
+        public string Title { get; set; } = "";
+        public string Artist { get; set; } = "";
+        public bool IsPlaying { get; set; } = false;
+        public double PositionSeconds { get; set; } = 0;
+        public double DurationSeconds { get; set; } = 0;
     }
 
     public sealed class MediaService
@@ -228,9 +232,9 @@ namespace WindowsBuddy.Services
             _progressTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _progressTimer.Tick += (_, _) =>
             {
-                if (State.IsPlaying)
+                if (State.IsPlaying && !string.IsNullOrWhiteSpace(State.Title) && State.DurationSeconds > 0)
                 {
-                    State.PositionSeconds = (State.PositionSeconds + 1) % Math.Max(1, State.DurationSeconds);
+                    State.PositionSeconds = Math.Min(State.DurationSeconds, State.PositionSeconds + 1);
                     StateChanged?.Invoke();
                 }
             };
@@ -239,6 +243,27 @@ namespace WindowsBuddy.Services
 
         public void TogglePlayPause()
         {
+            bool hasSession = !string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack) ||
+                              !string.IsNullOrWhiteSpace(State.Title);
+            if (!hasSession)
+            {
+                State.IsPlaying = false;
+                StateChanged?.Invoke();
+                return;
+            }
+            try
+            {
+                var mgr = RealtimeNotchActionService.Instance.GsmtcManager;
+                var session = mgr?.GetCurrentSession();
+                if (session != null)
+                {
+                    Task.Run(async () => await session.TryTogglePlayPauseAsync());
+                    State.IsPlaying = !State.IsPlaying;
+                    StateChanged?.Invoke();
+                    return;
+                }
+            }
+            catch { }
             NativeMethods.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 0, UIntPtr.Zero);
             State.IsPlaying = !State.IsPlaying;
             StateChanged?.Invoke();
@@ -246,6 +271,22 @@ namespace WindowsBuddy.Services
 
         public void NextTrack()
         {
+            bool hasSession = !string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack) ||
+                              !string.IsNullOrWhiteSpace(State.Title);
+            if (!hasSession) return;
+            try
+            {
+                var mgr = RealtimeNotchActionService.Instance.GsmtcManager;
+                var session = mgr?.GetCurrentSession();
+                if (session != null)
+                {
+                    Task.Run(async () => await session.TrySkipNextAsync());
+                    State.PositionSeconds = 0;
+                    StateChanged?.Invoke();
+                    return;
+                }
+            }
+            catch { }
             NativeMethods.keybd_event(VK_MEDIA_NEXT_TRACK, 0, 0, UIntPtr.Zero);
             State.PositionSeconds = 0;
             StateChanged?.Invoke();
@@ -253,6 +294,22 @@ namespace WindowsBuddy.Services
 
         public void PreviousTrack()
         {
+            bool hasSession = !string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack) ||
+                              !string.IsNullOrWhiteSpace(State.Title);
+            if (!hasSession) return;
+            try
+            {
+                var mgr = RealtimeNotchActionService.Instance.GsmtcManager;
+                var session = mgr?.GetCurrentSession();
+                if (session != null)
+                {
+                    Task.Run(async () => await session.TrySkipPreviousAsync());
+                    State.PositionSeconds = 0;
+                    StateChanged?.Invoke();
+                    return;
+                }
+            }
+            catch { }
             NativeMethods.keybd_event(VK_MEDIA_PREV_TRACK, 0, 0, UIntPtr.Zero);
             State.PositionSeconds = 0;
             StateChanged?.Invoke();

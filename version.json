@@ -1,6 +1,6 @@
 {
-  "version": "1.1.62",
-  "name": "Mayli v1.1.62",
-  "notes": "Fix update packaging target path for WinRT x64 release binaries, normalize version comparison, and add Persian localization to updates page.",
+  "version": "1.1.63",
+  "name": "Mayli v1.1.63",
+  "notes": "Fix notch and line media text jitter, align title to left in compact notch, stabilize wide notch countdown width, and optimize equalizer margin layout.",
   "url": "https://github.com/Mahdilvl20/Mayli/releases"
 }

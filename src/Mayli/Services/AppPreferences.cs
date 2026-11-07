@@ -52,7 +52,7 @@ namespace WindowsBuddy.Services
         public string LiveActivityEventDuration { get; set; } = "3 s";
 
         // Notch Page detailed preferences (matching exact screenshots)
-        public string NotchVisibility { get; set; } = "Always"; // "Always", "Smart", "Minimal", "Hidden"
+        public string NotchVisibility { get; set; } = "Smart"; // "Always", "Smart", "Minimal", "Hidden"
         public string NotchStyle { get; set; } = "Notch"; // "Line", "Notch", "Island"
         public string NotchShape { get; set; } = "Compact"; // "Compact", "Wide", "Classic", "Ultra-Compact"
         public int NotchScalePercent { get; set; } = 90; // 60 - 140
@@ -118,7 +118,7 @@ namespace WindowsBuddy.Services
             "weather",
             "focus",
             "clipboard",
-            "notes"
+            "nowplaying"
         };
 
         public List<string> DockModulesOrder { get; set; } = new()
@@ -141,8 +141,20 @@ namespace WindowsBuddy.Services
         private AppPreferences()
         {
             Raw = PersistenceHelper.SafeReadJson<AppPreferencesModel>(FileName);
+            Raw.Language = "en";
+            if (string.IsNullOrWhiteSpace(Raw.NotchVisibility) || string.Equals(Raw.NotchVisibility, "Always", StringComparison.OrdinalIgnoreCase))
+            {
+                Raw.NotchVisibility = "Smart";
+            }
             if (Raw.HomeWidgets != null)
             {
+                for (int i = 0; i < Raw.HomeWidgets.Count; i++)
+                {
+                    if (string.Equals(Raw.HomeWidgets[i], "notes", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Raw.HomeWidgets[i] = "nowplaying";
+                    }
+                }
                 Raw.HomeWidgets = Raw.HomeWidgets.Distinct(StringComparer.OrdinalIgnoreCase).Take(6).ToList();
             }
         }
@@ -187,26 +199,18 @@ namespace WindowsBuddy.Services
 
         public string Language
         {
-            get => IsPersian ? "fa" : "en";
+            get => "en";
             set
             {
-                string norm = string.Equals(value, "fa", StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(value, "fa-IR", StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(value, "فارسی", StringComparison.OrdinalIgnoreCase)
-                              ? "fa"
-                              : "en";
-                if (Raw.Language != norm)
+                if (Raw.Language != "en")
                 {
-                    Raw.Language = norm;
+                    Raw.Language = "en";
                     Save();
                 }
             }
         }
 
-        public bool IsPersian =>
-            string.Equals(Raw.Language, "fa", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(Raw.Language, "fa-IR", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(Raw.Language, "فارسی", StringComparison.OrdinalIgnoreCase);
+        public bool IsPersian => false;
 
         public string Theme
         {
@@ -600,7 +604,7 @@ namespace WindowsBuddy.Services
 
         public void ResetNotchDefaults()
         {
-            Raw.NotchVisibility = "Always";
+            Raw.NotchVisibility = "Smart";
             Raw.NotchStyle = "Notch";
             Raw.NotchShape = "Compact";
             Raw.NotchSilhouette = "Shouldered";
@@ -717,7 +721,7 @@ namespace WindowsBuddy.Services
                 "weather",
                 "focus",
                 "clipboard",
-                "notes"
+                "nowplaying"
             };
 
             Raw.DockModulesOrder = new List<string>

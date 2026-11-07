@@ -590,6 +590,7 @@ namespace WindowsBuddy.Tools.Calendar
             _weekdaysHeaderGrid.Children.Clear();
             var p = CapsuleTheme.Current;
             bool isJalali = (_service.CurrentCalendarType == CalendarType.Jalali);
+            _weekdaysHeaderGrid.FlowDirection = isJalali ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
 
             string[] names = isJalali
                 ? new[] { "ش", "ی", "د", "س", "چ", "پ", "ج" }
@@ -619,6 +620,7 @@ namespace WindowsBuddy.Tools.Calendar
             var p = CapsuleTheme.Current;
             var cells = _service.GetCurrentMonthCells();
             bool isJalali = (_service.CurrentCalendarType == CalendarType.Jalali);
+            _daysGrid.FlowDirection = isJalali ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
 
             foreach (var cell in cells)
             {
@@ -758,7 +760,8 @@ namespace WindowsBuddy.Tools.Calendar
             var p = CapsuleTheme.Current;
             DateTime date = _service.SelectedDate;
             bool isJalali = (_service.CurrentCalendarType == CalendarType.Jalali);
-            bool isPersian = AppPreferences.Instance.IsPersian;
+            bool isPersian = isJalali;
+            _eventsListPanel.FlowDirection = isJalali ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
             bool isToday = (date.Date == DateTime.Today);
 
             int primaryDay = isJalali ? new PersianCalendar().GetDayOfMonth(date) : date.Day;

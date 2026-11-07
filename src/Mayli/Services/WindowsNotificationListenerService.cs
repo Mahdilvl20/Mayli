@@ -153,7 +153,7 @@ namespace WindowsBuddy.Services
                     Log($"[BackgroundPollerLoopAsync ERROR loop #{loopCount}] {ex}");
                 }
 
-                await Task.Delay(250);
+                await Task.Delay(550);
             }
         }
 

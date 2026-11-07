@@ -49,26 +49,13 @@ namespace WindowsBuddy.Services
             }
         }
 
-        public static FontFamily CurrentFontFamily =>
-            AppPreferences.Instance.IsPersian ? PersianFontFamily : LatinFontFamily;
+        public static FontFamily CurrentFontFamily => LatinFontFamily;
 
-        public static FlowDirection CurrentFlowDirection =>
-            AppPreferences.Instance.IsPersian ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        public static FlowDirection CurrentFlowDirection => FlowDirection.LeftToRight;
 
         public static bool IsRtl(string text)
         {
-            if (string.IsNullOrWhiteSpace(text)) return AppPreferences.Instance.IsPersian;
-            foreach (char c in text)
-            {
-                if ((c >= 0x0600 && c <= 0x06FF) ||
-                    (c >= 0x0750 && c <= 0x077F) ||
-                    (c >= 0xFB50 && c <= 0xFDFF) ||
-                    (c >= 0xFE70 && c <= 0xFEFF))
-                {
-                    return true;
-                }
-            }
-            return AppPreferences.Instance.IsPersian;
+            return false;
         }
 
         public static event Action LanguageChanged;
@@ -230,6 +217,8 @@ namespace WindowsBuddy.Services
             ["home.focus"] = "تمرکز",
             ["home.clipboard"] = "کلیپ‌بورد",
             ["home.notes"] = "یادداشت‌ها",
+            ["home.nowplaying"] = "در حال پخش",
+            ["home.nomedia"] = "موسیقی در حال پخش نیست",
             ["home.no_apps"] = "امروز برنامه‌ای ثبت نشده",
             ["home.focusing"] = "در حال تمرکز",
             ["home.paused"] = "متوقف شده",
@@ -620,6 +609,8 @@ namespace WindowsBuddy.Services
             ["home.focus"] = "FOCUS",
             ["home.clipboard"] = "CLIPBOARD",
             ["home.notes"] = "NOTES",
+            ["home.nowplaying"] = "NOW PLAYING",
+            ["home.nomedia"] = "No Media Playing",
             ["home.no_apps"] = "No apps today",
             ["home.focusing"] = "Focusing",
             ["home.paused"] = "Paused",
@@ -855,11 +846,6 @@ namespace WindowsBuddy.Services
 
         public static string T(string key, string fallback = null)
         {
-            var dict = AppPreferences.Instance.IsPersian ? _fa : _en;
-            if (dict.TryGetValue(key, out string val))
-            {
-                return val;
-            }
             if (_en.TryGetValue(key, out string enVal))
             {
                 return enVal;
@@ -869,8 +855,7 @@ namespace WindowsBuddy.Services
 
         public static void SetLanguage(string lang)
         {
-            string norm = (lang == "fa" || lang == "فارسی") ? "fa" : "en";
-            AppPreferences.Instance.Language = norm;
+            AppPreferences.Instance.Language = "en";
             ApplyApplicationFont();
             LanguageChanged?.Invoke();
         }

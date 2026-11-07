@@ -1,3 +1,5 @@
+using Windows.Media.Control;
+using Windows.Storage.Streams;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -609,161 +611,353 @@ namespace WindowsBuddy.Services
 
         #region 3. Real Windows GSMTC Media Session + Timeline + Album Cover Art + Dominant Color
 
+        public GlobalSystemMediaTransportControlsSessionManager GsmtcManager => _gsmtcManager;
+        private GlobalSystemMediaTransportControlsSessionManager _gsmtcManager;
+        private GlobalSystemMediaTransportControlsSession _currentGsmtcSession;
+        private readonly object _gsmtcLock = new();
+        private string _cachedGsmtcTitle = "";
+        private string _cachedGsmtcArtist = "";
+        private BitmapSource _cachedGsmtcArtwork = null;
+        private Color _cachedGsmtcBeatColor = default;
+        private string _cachedGsmtcTrackKey = "";
+        private volatile bool _needMediaPropsRefresh = true;
+        private DispatcherTimer _gsmtcPollTimer;
+        private int _isPollingGsmtc = 0;
+
         private void StartGsmtcBackgroundWorker()
         {
-            var thread = new Thread(() =>
+            Task.Run(async () =>
             {
-                const string psScript = @"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
-$asStreamMethod = ([System.IO.WindowsRuntimeStreamExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsStreamForRead' -and $_.GetParameters().Count -eq 1 })[0]
-function Await($WinRtTask, $ResultType) {
-    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
-    $netTask = $asTask.Invoke($null, @($WinRtTask))
-    $netTask.Wait(2000) | Out-Null
-    if ($netTask.IsCompleted) { return $netTask.Result }
-    return $null
-}
-$mgrType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media, ContentType=WindowsRuntime]
-$propsType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties, Windows.Media, ContentType=WindowsRuntime]
-$streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage, ContentType=WindowsRuntime]
-$mgr = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) $mgrType
-$lastThumbKey = ''
-$cachedB64 = ''
-while ($true) {
-    try {
-        if ($null -eq $mgr) {
-            $mgr = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) $mgrType
-        }
-        $session = $mgr.GetCurrentSession()
-        if ($null -ne $session) {
-            $srcApp = if ($session.SourceAppUserModelId) { $session.SourceAppUserModelId.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
-            $info = $session.GetPlaybackInfo()
-            $status = $info.PlaybackStatus.ToString()
-            $tl = $session.GetTimelineProperties()
-            $posSec = [Math]::Max(0.0, $tl.Position.TotalSeconds)
-            if ($status -eq 'Playing' -and $tl.LastUpdatedTime.Year -gt 2000) {
-                $elapsed = ([DateTimeOffset]::UtcNow - $tl.LastUpdatedTime.ToUniversalTime()).TotalSeconds
-                if ($elapsed -gt 0 -and $elapsed -lt 300) { $posSec += $elapsed }
-            }
-            $durSec = [Math]::Max(0.0, $tl.EndTime.TotalSeconds)
-            $posStr = $posSec.ToString('F1', [System.Globalization.CultureInfo]::InvariantCulture)
-            $durStr = $durSec.ToString('F1', [System.Globalization.CultureInfo]::InvariantCulture)
+                await InitNativeGsmtcAsync();
+            });
 
-            $props = Await ($session.TryGetMediaPropertiesAsync()) $propsType
-            $title = if ($props.Title) { $props.Title.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
-            $artist = if ($props.Artist) { $props.Artist.Replace(""`t"", ' ').Replace(""`r"", '').Replace(""`n"", ' ') } else { '' }
-            $key = ""$title|$artist""
-            $b64 = ''
-            if ($key -ne $lastThumbKey -and $null -ne $props.Thumbnail) {
-                $ras = Await ($props.Thumbnail.OpenReadAsync()) $streamType
-                if ($null -ne $ras) {
-                    $netStream = $asStreamMethod.Invoke($null, @($ras))
-                    $ms = New-Object System.IO.MemoryStream
-                    $netStream.CopyTo($ms)
-                    $bytes = $ms.ToArray()
-                    $ms.Dispose()
-                    $netStream.Dispose()
-                    if ($bytes.Length -gt 0) {
-                        $cachedB64 = [Convert]::ToBase64String($bytes)
-                        $lastThumbKey = $key
+            _gsmtcPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(380) };
+            _gsmtcPollTimer.Tick += (_, _) =>
+            {
+                Task.Run(async () => await PollGsmtcStateAsync());
+            };
+            _gsmtcPollTimer.Start();
+        }
+
+        private async Task InitNativeGsmtcAsync()
+        {
+            try
+            {
+                _gsmtcManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+                if (_gsmtcManager != null)
+                {
+                    _gsmtcManager.CurrentSessionChanged += (mgr, args) =>
+                    {
+                        _needMediaPropsRefresh = true;
+                        Task.Run(async () => await HandleGsmtcSessionChangedAsync(mgr.GetCurrentSession()));
+                    };
+                    await HandleGsmtcSessionChangedAsync(_gsmtcManager.GetCurrentSession());
+                }
+            }
+            catch (Exception ex)
+            {
+                LogNotif($"InitNativeGsmtcAsync error: {ex.Message}");
+            }
+        }
+
+        private async Task HandleGsmtcSessionChangedAsync(GlobalSystemMediaTransportControlsSession session)
+        {
+            lock (_gsmtcLock)
+            {
+                if (_currentGsmtcSession != session)
+                {
+                    if (_currentGsmtcSession != null)
+                    {
+                        try
+                        {
+                            _currentGsmtcSession.MediaPropertiesChanged -= OnGsmtcMediaPropertiesChanged;
+                            _currentGsmtcSession.PlaybackInfoChanged -= OnGsmtcPlaybackInfoChanged;
+                            _currentGsmtcSession.TimelinePropertiesChanged -= OnGsmtcTimelinePropertiesChanged;
+                        }
+                        catch { }
+                    }
+                    _currentGsmtcSession = session;
+                    if (_currentGsmtcSession != null)
+                    {
+                        try
+                        {
+                            _currentGsmtcSession.MediaPropertiesChanged += OnGsmtcMediaPropertiesChanged;
+                            _currentGsmtcSession.PlaybackInfoChanged += OnGsmtcPlaybackInfoChanged;
+                            _currentGsmtcSession.TimelinePropertiesChanged += OnGsmtcTimelinePropertiesChanged;
+                        }
+                        catch { }
+                    }
+                    _needMediaPropsRefresh = true;
+                }
+            }
+
+            await PollGsmtcStateAsync();
+        }
+
+        private void OnGsmtcMediaPropertiesChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
+        {
+            _needMediaPropsRefresh = true;
+            Task.Run(async () => await PollGsmtcStateAsync());
+        }
+
+        private void OnGsmtcPlaybackInfoChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args)
+        {
+            Task.Run(async () => await PollGsmtcStateAsync());
+        }
+
+        private void OnGsmtcTimelinePropertiesChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args)
+        {
+            Task.Run(async () => await PollGsmtcStateAsync());
+        }
+
+        private async Task PollGsmtcStateAsync()
+        {
+            if (Interlocked.CompareExchange(ref _isPollingGsmtc, 1, 0) != 0)
+                return;
+
+            try
+            {
+                if (_gsmtcManager == null)
+                {
+                    try { _gsmtcManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync(); }
+                    catch { }
+                }
+
+                var mgr = _gsmtcManager;
+                if (mgr == null) return;
+
+                var session = mgr.GetCurrentSession();
+                if (session == null)
+                {
+                    if (!string.IsNullOrEmpty(_cachedGsmtcTrackKey) || IsMusicPlaying)
+                    {
+                        _cachedGsmtcTrackKey = "";
+                        _cachedGsmtcTitle = "";
+                        _cachedGsmtcArtist = "";
+                        _cachedGsmtcArtwork = null;
+                        PublishMediaUpdateDirect("", "", false, 0, 0, null, false, "", default);
+                    }
+                    return;
+                }
+
+                lock (_gsmtcLock)
+                {
+                    if (_currentGsmtcSession != session)
+                    {
+                        _currentGsmtcSession = session;
+                        _needMediaPropsRefresh = true;
+                        try
+                        {
+                            session.MediaPropertiesChanged += OnGsmtcMediaPropertiesChanged;
+                            session.PlaybackInfoChanged += OnGsmtcPlaybackInfoChanged;
+                            session.TimelinePropertiesChanged += OnGsmtcTimelinePropertiesChanged;
+                        }
+                        catch { }
                     }
                 }
-                $b64 = $cachedB64
-            }
-            [Console]::WriteLine(""GSMTC`t$status`t$title`t$artist`t$posStr`t$durStr`t$b64`t$srcApp"")
-        } else {
-            [Console]::WriteLine(""GSMTC`tStopped`t`t`t0`t0`t`t"")
-        }
-    } catch {
-        [Console]::WriteLine(""GSMTC`tError`t`t`t0`t0`t`t"")
-    }
-    Start-Sleep -Milliseconds 850
-}
-";
-                string encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(psScript));
 
-                while (true)
+                var info = session.GetPlaybackInfo();
+                bool isPlaying = info != null && info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+                bool isStoppedOrClosed = info == null ||
+                                         info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed ||
+                                         info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Stopped;
+
+                var tl = session.GetTimelineProperties();
+                double posSec = tl != null ? Math.Max(0.0, tl.Position.TotalSeconds) : 0;
+                double durSec = tl != null ? Math.Max(0.0, tl.EndTime.TotalSeconds) : 0;
+                string srcApp = session.SourceAppUserModelId ?? "";
+
+                if (isPlaying && !string.IsNullOrWhiteSpace(srcApp) && AppPreferences.Instance.IsAudioAppExcluded(srcApp))
                 {
-                    Process proc = null;
+                    _cachedGsmtcTrackKey = "";
+                    _cachedGsmtcTitle = "";
+                    _cachedGsmtcArtist = "";
+                    _cachedGsmtcArtwork = null;
+                    PublishMediaUpdateDirect("", "", false, 0, 0, null, false, srcApp, default);
+                    return;
+                }
+
+                if (isStoppedOrClosed)
+                {
+                    if (!string.IsNullOrEmpty(_cachedGsmtcTrackKey) || IsMusicPlaying)
+                    {
+                        _cachedGsmtcTrackKey = "";
+                        _cachedGsmtcTitle = "";
+                        _cachedGsmtcArtist = "";
+                        _cachedGsmtcArtwork = null;
+                        PublishMediaUpdateDirect("", "", false, 0, 0, null, false, srcApp, default);
+                    }
+                    return;
+                }
+
+                // Query media properties ONLY when signaled or initially missing to prevent COM contention/flicker
+                bool trackChanged = false;
+                if (_needMediaPropsRefresh || (isPlaying && string.IsNullOrEmpty(_cachedGsmtcTitle)))
+                {
+                    GlobalSystemMediaTransportControlsSessionMediaProperties props = null;
                     try
                     {
-                        var psi = new ProcessStartInfo
+                        props = await session.TryGetMediaPropertiesAsync();
+                    }
+                    catch { }
+
+                    if (props != null && !string.IsNullOrWhiteSpace(props.Title))
+                    {
+                        string title = props.Title.Trim();
+                        string artist = props.Artist?.Trim() ?? "";
+                        CleanTitleAndArtist(ref title, ref artist);
+
+                        string newKey = $"{title}|{artist}";
+                        trackChanged = !string.IsNullOrEmpty(_cachedGsmtcTrackKey) && !string.Equals(newKey, _cachedGsmtcTrackKey, StringComparison.Ordinal);
+
+                        BitmapSource thumbBmp = null;
+                        if (props.Thumbnail != null)
                         {
-                            FileName = "powershell.exe",
-                            Arguments = $"-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand {encoded}",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            RedirectStandardOutput = true,
-                            StandardOutputEncoding = System.Text.Encoding.UTF8
-                        };
-                        proc = Process.Start(psi);
-                        if (proc == null)
-                        {
-                            Thread.Sleep(3000);
-                            continue;
-                        }
-
-                        while (!proc.StandardOutput.EndOfStream)
-                        {
-                            string line = proc.StandardOutput.ReadLine();
-                            if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("GSMTC\t", StringComparison.Ordinal))
-                                continue;
-
-                            _lastGsmtcHeartbeatUtc = DateTime.UtcNow;
-                            _gsmtcActive = true;
-
-                            string[] parts = line.Split('\t');
-                            if (parts.Length < 6) continue;
-
-                            string status = parts[1];
-                            string title = parts[2].Trim();
-                            string artist = parts[3].Trim();
-                            double.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out double posSec);
-                            double.TryParse(parts[5], NumberStyles.Float, CultureInfo.InvariantCulture, out double durSec);
-                            string b64 = parts.Length >= 7 ? parts[6].Trim() : "";
-                            string srcApp = parts.Length >= 8 ? parts[7].Trim() : "";
-
-                            bool playing = string.Equals(status, "Playing", StringComparison.OrdinalIgnoreCase)
-                                           && !string.IsNullOrWhiteSpace(title);
-
-                            if (playing && !string.IsNullOrWhiteSpace(srcApp) && AppPreferences.Instance.IsAudioAppExcluded(srcApp))
+                            try
                             {
-                                playing = false;
-                                title = "";
-                                artist = "";
+                                using var ras = await props.Thumbnail.OpenReadAsync();
+                                if (ras != null && ras.Size > 0)
+                                {
+                                    using var stream = ras.AsStreamForRead();
+                                    var bmp = new BitmapImage();
+                                    bmp.BeginInit();
+                                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                                    bmp.DecodePixelWidth = 96;
+                                    bmp.StreamSource = stream;
+                                    bmp.EndInit();
+                                    bmp.Freeze();
+                                    thumbBmp = bmp;
+                                }
                             }
-
-                            CleanTitleAndArtist(ref title, ref artist);
-                            PublishMediaUpdate(title, artist, playing, posSec, durSec, b64, srcApp);
+                            catch { }
                         }
+
+                        _cachedGsmtcTitle = title;
+                        _cachedGsmtcArtist = artist;
+                        _cachedGsmtcArtwork = thumbBmp;
+                        _cachedGsmtcBeatColor = DominantColorExtractor.ExtractBeatColor(_cachedGsmtcArtwork, title, artist);
+                        _cachedGsmtcTrackKey = newKey;
+                        _needMediaPropsRefresh = false;
                     }
-                    catch
-                    {
-                        _gsmtcActive = false;
-                    }
-                    finally
-                    {
-                        try { if (proc != null && !proc.HasExited) proc.Kill(); } catch { }
-                        proc?.Dispose();
-                    }
-                    Thread.Sleep(2500);
                 }
-            })
+
+                if (string.IsNullOrWhiteSpace(_cachedGsmtcTitle))
+                {
+                    return;
+                }
+
+                _lastGsmtcHeartbeatUtc = DateTime.UtcNow;
+                _gsmtcActive = true;
+
+                PublishMediaUpdateDirect(_cachedGsmtcTitle, _cachedGsmtcArtist, isPlaying, posSec, durSec, _cachedGsmtcArtwork, trackChanged, srcApp, _cachedGsmtcBeatColor);
+            }
+            catch (Exception ex)
             {
-                IsBackground = true,
-                Name = "MayliGsmtcWorker"
-            };
-            thread.Start();
+                LogNotif($"PollGsmtcStateAsync error: {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isPollingGsmtc, 0);
+            }
+        }
+
+        private void PublishMediaUpdateDirect(string title, string artist, bool playing, double posSec, double durSec, BitmapSource newArtwork, bool trackChanged, string srcApp, Color beatColor)
+        {
+            if (!playing && string.IsNullOrWhiteSpace(title))
+            {
+                if (!IsMusicPlaying && string.IsNullOrEmpty(CurrentTrack) && CurrentArtwork == null)
+                    return;
+
+                Application.Current?.Dispatcher?.InvokeAsync(() =>
+                {
+                    IsMusicPlaying = false;
+                    CurrentTrack = "";
+                    CurrentArtist = "";
+                    CurrentArtwork = null;
+
+                    MediaService.Instance.State.IsPlaying = false;
+                    MediaService.Instance.State.Title = "";
+                    MediaService.Instance.State.Artist = "";
+                    MediaService.Instance.State.PositionSeconds = 0;
+                    MediaService.Instance.State.DurationSeconds = 0;
+
+                    MediaSessionChanged?.Invoke(new MediaSessionSnapshot
+                    {
+                        Title = "",
+                        Artist = "",
+                        IsPlaying = false,
+                        IsTrackSwitch = false,
+                        PositionSeconds = 0,
+                        DurationSeconds = 0,
+                        Artwork = null,
+                        BeatColor = CurrentBeatColor,
+                        SourceApp = ""
+                    });
+                });
+                return;
+            }
+
+            string cleanArtist = string.IsNullOrWhiteSpace(artist) ? "Music" : artist;
+
+            Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                bool isTrackChanged = trackChanged || (!string.IsNullOrEmpty(title) && !string.Equals(title, CurrentTrack, StringComparison.Ordinal));
+
+                IsMusicPlaying = playing;
+                CurrentTrack = title;
+                CurrentArtist = cleanArtist;
+                CurrentArtwork = newArtwork;
+                if (beatColor != default && beatColor != Colors.Transparent)
+                {
+                    CurrentBeatColor = beatColor;
+                }
+
+                MediaService.Instance.State.IsPlaying = playing;
+                MediaService.Instance.State.Title = title;
+                MediaService.Instance.State.Artist = cleanArtist;
+                MediaService.Instance.State.PositionSeconds = posSec;
+                MediaService.Instance.State.DurationSeconds = durSec;
+
+                MediaSessionChanged?.Invoke(new MediaSessionSnapshot
+                {
+                    Title = CurrentTrack,
+                    Artist = CurrentArtist,
+                    IsPlaying = IsMusicPlaying,
+                    IsTrackSwitch = isTrackChanged,
+                    PositionSeconds = posSec,
+                    DurationSeconds = durSec,
+                    Artwork = CurrentArtwork,
+                    BeatColor = CurrentBeatColor,
+                    SourceApp = srcApp
+                });
+            });
         }
 
         private static void CleanTitleAndArtist(ref string title, ref string artist)
         {
             if (string.IsNullOrWhiteSpace(title)) return;
 
-            if ((string.IsNullOrWhiteSpace(artist) || artist.Contains("YouTube", StringComparison.OrdinalIgnoreCase) || artist.Contains("Spotify", StringComparison.OrdinalIgnoreCase))
-                && title.Contains(" - ", StringComparison.Ordinal))
+            title = title.Trim();
+            artist = (artist ?? "").Trim();
+
+            // If title has redundant artist attached, strip it so title is clean and stable
+            if (!string.IsNullOrEmpty(artist))
+            {
+                string endPattern = " - " + artist;
+                if (title.EndsWith(endPattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    title = title.Substring(0, title.Length - endPattern.Length).Trim();
+                }
+                else
+                {
+                    string startPattern = artist + " - ";
+                    if (title.StartsWith(startPattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        title = title.Substring(startPattern.Length).Trim();
+                    }
+                }
+            }
+            else if (title.Contains(" - ", StringComparison.Ordinal))
             {
                 int dash = title.IndexOf(" - ", StringComparison.Ordinal);
                 string left = title.Substring(0, dash).Trim();
@@ -773,6 +967,11 @@ while ($true) {
                     artist = left;
                     title = right;
                 }
+            }
+
+            if (string.IsNullOrWhiteSpace(artist))
+            {
+                artist = "Music";
             }
         }
 
@@ -785,7 +984,48 @@ while ($true) {
                 artist = "";
             }
 
-            if (!playing && !IsMusicPlaying && string.IsNullOrEmpty(base64Thumb))
+            bool isNoSession = !playing && string.IsNullOrWhiteSpace(title);
+            if (isNoSession)
+            {
+                if (!IsMusicPlaying && string.IsNullOrEmpty(CurrentTrack) && CurrentArtwork == null)
+                {
+                    return;
+                }
+
+                Application.Current?.Dispatcher?.InvokeAsync(() =>
+                {
+                    bool hadState = IsMusicPlaying || !string.IsNullOrEmpty(CurrentTrack) || CurrentArtwork != null;
+                    IsMusicPlaying = false;
+                    CurrentTrack = "";
+                    CurrentArtist = "";
+                    CurrentArtwork = null;
+
+                    MediaService.Instance.State.IsPlaying = false;
+                    MediaService.Instance.State.Title = "";
+                    MediaService.Instance.State.Artist = "";
+                    MediaService.Instance.State.PositionSeconds = 0;
+                    MediaService.Instance.State.DurationSeconds = 0;
+
+                    if (hadState)
+                    {
+                        MediaSessionChanged?.Invoke(new MediaSessionSnapshot
+                        {
+                            Title = "",
+                            Artist = "",
+                            IsPlaying = false,
+                            IsTrackSwitch = false,
+                            PositionSeconds = 0,
+                            DurationSeconds = 0,
+                            Artwork = null,
+                            BeatColor = CurrentBeatColor,
+                            SourceApp = ""
+                        });
+                    }
+                });
+                return;
+            }
+
+            if (!playing && !IsMusicPlaying && string.IsNullOrEmpty(base64Thumb) && string.Equals(title, CurrentTrack, StringComparison.Ordinal))
             {
                 return;
             }

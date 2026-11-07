@@ -215,7 +215,8 @@ namespace WindowsBuddy.Services
 
                     while (_running)
                     {
-                        Thread.Sleep(25);
+                        bool isStillLive = (DateTime.UtcNow - lastActiveSoundUtc).TotalMilliseconds < 450;
+                        Thread.Sleep(isStillLive ? 25 : 85);
                         bool gotSamples = false;
 
                         while (capture.GetNextPacketSize(out uint packetFrames) == 0 && packetFrames > 0)

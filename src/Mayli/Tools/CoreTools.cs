@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Renderer;
@@ -107,9 +108,19 @@ namespace WindowsBuddy.Tools
         // Card 5: Clipboard
         private StackPanel _clipRowsStack;
 
-        // Card 6: Notes
-        private TextBlock _notesTitleText;
-        private TextBlock _notesSnippetText;
+        // Card 6: Now Playing / Music Controller
+        private Image _musicCardBgImage;
+        private Border _musicCardGlassOverlay;
+        private Image _musicCardThumbImage;
+        private TextBlock _musicCardFallbackGlyph;
+        private Border _musicCardThumbBorder;
+        private TextBlock _musicCardTitleText;
+        private TextBlock _musicCardArtistText;
+        private System.Windows.Shapes.Path _musicCardPlayIconPath;
+        private Border _musicCardPlayBtn;
+        private Border _musicCardProgressBarFill;
+        private Border _musicCardProgressBarTrack;
+        private MiniEqualizerControl _musicCardMiniEq;
 
         private DispatcherTimer _tickTimer;
 
@@ -437,83 +448,310 @@ namespace WindowsBuddy.Tools
             clipCard.Child = cDock;
 
             // -------------------------------------------------------------
-            // CARD 6: NOTES (Row 1, Col 2) - Synchronized with NotesService
+            // CARD 6: NOW PLAYING / MUSIC CONTROLLER (Frosted Glass & Controls)
             // -------------------------------------------------------------
-            var notesCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
-            notesCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("notes");
-
-            var nDock = new DockPanel();
-
-            var nHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            nHeader.Children.Add(new TextBlock
+            var nowPlayingCard = new BuddyCard
             {
-                Text = "📋 ",
-                FontSize = 10,
-                Foreground = CapsuleTheme.Brush(p.Text2),
+                Margin = new Thickness(3),
+                Cursor = Cursors.Hand,
+                Padding = new Thickness(0),
+                ClipToBounds = true
+            };
+            nowPlayingCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("audio");
+
+            var musicCardRootGrid = new Grid();
+
+            // Layer 0: Frosted Glass Background with Album Artwork & Subtle Glass Gradient
+            var bgClipBorder = new Border
+            {
+                CornerRadius = new CornerRadius(14),
+                ClipToBounds = true,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+
+            _musicCardBgImage = new Image
+            {
+                Stretch = Stretch.UniformToFill,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Opacity = 0.44,
+                Effect = new BlurEffect { Radius = 24, RenderingBias = RenderingBias.Performance },
+                Visibility = Visibility.Collapsed
+            };
+
+            _musicCardGlassOverlay = new Border
+            {
+                CornerRadius = new CornerRadius(14),
+                Background = new LinearGradientBrush(
+                    new GradientStopCollection
+                    {
+                        new GradientStop(Color.FromArgb(170, 18, 20, 28), 0.0),
+                        new GradientStop(Color.FromArgb(220, 12, 14, 20), 1.0)
+                    },
+                    new Point(0, 0),
+                    new Point(0, 1)
+                ),
+                BorderThickness = new Thickness(0)
+            };
+
+            var bgGrid = new Grid();
+            bgGrid.Children.Add(_musicCardBgImage);
+            bgGrid.Children.Add(_musicCardGlassOverlay);
+            bgClipBorder.Child = bgGrid;
+            musicCardRootGrid.Children.Add(bgClipBorder);
+
+            // Clip the card and all its frosted glass layers to exact 14px rounded corners (prevents rectangular corner bleed)
+            void UpdateNowPlayingCardClip()
+            {
+                double w = nowPlayingCard.ActualWidth;
+                double h = nowPlayingCard.ActualHeight;
+                if (w > 2 && h > 2)
+                {
+                    var clipGeo = new RectangleGeometry(new Rect(0, 0, w, h), 14, 14);
+                    clipGeo.Freeze();
+                    nowPlayingCard.Clip = clipGeo;
+                    bgClipBorder.Clip = clipGeo;
+                    musicCardRootGrid.Clip = clipGeo;
+                }
+            }
+            nowPlayingCard.SizeChanged += (_, _) => UpdateNowPlayingCardClip();
+            nowPlayingCard.Loaded += (_, _) => UpdateNowPlayingCardClip();
+
+            // Layer 1: Foreground Content
+            var musicContentDock = new DockPanel
+            {
+                Margin = new Thickness(11, 8, 11, 8)
+            };
+
+            // Top Header: Icon + Title + Mini Equalizer
+            var mHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+            DockPanel.SetDock(mHeader, Dock.Top);
+
+            _musicCardMiniEq = new MiniEqualizerControl
+            {
+                Height = 12,
+                Margin = new Thickness(0, 0, 1, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            DockPanel.SetDock(_musicCardMiniEq, Dock.Right);
+            mHeader.Children.Add(_musicCardMiniEq);
+
+            var mHeaderLeft = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            mHeaderLeft.Children.Add(new TextBlock
+            {
+                Text = "🎵 ",
+                FontSize = 9.5,
+                Foreground = CapsuleTheme.Brush(p.Accent),
                 VerticalAlignment = VerticalAlignment.Center
             });
-            nHeader.Children.Add(new TextBlock
+            mHeaderLeft.Children.Add(new TextBlock
             {
-                Text = LocalizationService.T("home.notes", "NOTES"),
-                FontSize = 9.5,
+                Text = LocalizationService.T("home.nowplaying", "NOW PLAYING"),
+                FontSize = 9.0,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
-            DockPanel.SetDock(nHeader, Dock.Top);
-            nDock.Children.Add(nHeader);
+            mHeader.Children.Add(mHeaderLeft);
+            musicContentDock.Children.Add(mHeader);
 
-            var nBottom = new DockPanel();
-            _notesSnippetText = new TextBlock
+            // Bottom Section: Progress Bar + Transport Controls
+            var mBottom = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 2, 0, 0) };
+            DockPanel.SetDock(mBottom, Dock.Bottom);
+
+            _musicCardProgressBarTrack = new Border
             {
-                Text = "Click to open notes",
-                FontSize = 9.5,
-                Foreground = CapsuleTheme.Brush(p.Text3),
+                Height = 3,
+                CornerRadius = new CornerRadius(1.5),
+                Background = CapsuleTheme.Brush(Color.FromArgb(35, 255, 255, 255)),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(0, 2, 0, 4)
+            };
+            _musicCardProgressBarFill = new Border
+            {
+                Height = 3,
+                CornerRadius = new CornerRadius(1.5),
+                Background = CapsuleTheme.Brush(p.Accent),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Width = 0
+            };
+            _musicCardProgressBarTrack.Child = _musicCardProgressBarFill;
+            _musicCardProgressBarTrack.SizeChanged += (_, _) => RefreshMusicProgressBar();
+            mBottom.Children.Add(_musicCardProgressBarTrack);
+
+            // Transport Controls: Sleek Glassmorphic Pill Dock with Vector Icons
+            var mControlsRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            var nAddBtn = new Border
+
+            var prevIconCanvas = new Canvas { Width = 12, Height = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            prevIconCanvas.Children.Add(new System.Windows.Shapes.Path
             {
-                Width = 20,
-                Height = 20,
-                CornerRadius = new CornerRadius(10),
-                Background = CapsuleTheme.Brush(p.Surface2),
+                Data = Geometry.Parse("M 2.0,2.5 L 3.3,2.5 L 3.3,9.5 L 2.0,9.5 Z M 9.8,2.2 L 4.0,6.0 L 9.8,9.8 Z"),
+                Fill = Brushes.White,
+                Opacity = 0.90
+            });
+            var prevBtn = new Border
+            {
+                Width = 24,
+                Height = 24,
+                CornerRadius = new CornerRadius(12),
+                Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Child = new TextBlock
-                {
-                    Text = "+",
-                    FontSize = 12,
-                    Foreground = CapsuleTheme.Brush(p.Text),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }
+                Margin = new Thickness(0, 0, 6, 0),
+                Child = prevIconCanvas
             };
-            nAddBtn.MouseLeftButtonUp += (s, e) =>
+            prevBtn.MouseEnter += (_, _) => prevBtn.Background = CapsuleTheme.Brush(Color.FromArgb(38, 255, 255, 255));
+            prevBtn.MouseLeave += (_, _) => prevBtn.Background = Brushes.Transparent;
+            prevBtn.MouseLeftButtonUp += (s, e) =>
             {
                 e.Handled = true;
-                WindowsBuddy.Tools.Notes.NotesService.Instance.CreateNote("New Note", "");
-                ToolRegistry.OnToolNavigationRequested?.Invoke("notes");
+                if (string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack)) return;
+                MediaService.Instance.PreviousTrack();
             };
-            DockPanel.SetDock(nAddBtn, Dock.Right);
-            nBottom.Children.Add(nAddBtn);
-            nBottom.Children.Add(_notesSnippetText);
-            DockPanel.SetDock(nBottom, Dock.Bottom);
-            nDock.Children.Add(nBottom);
+            mControlsRow.Children.Add(prevBtn);
 
-            var nCenter = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 4) };
-            _notesTitleText = new TextBlock
+            var playIconCanvas = new Canvas { Width = 12, Height = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            _musicCardPlayIconPath = new System.Windows.Shapes.Path
             {
-                Text = "No notes yet",
-                FontSize = 13.5,
+                Data = Geometry.Parse("M 3.8,2.0 L 10.2,6.0 L 3.8,10.0 Z"),
+                Fill = new SolidColorBrush(Color.FromRgb(16, 18, 26))
+            };
+            playIconCanvas.Children.Add(_musicCardPlayIconPath);
+
+            _musicCardPlayBtn = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(13),
+                Background = Brushes.White,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 6, 0),
+                Child = playIconCanvas
+            };
+            _musicCardPlayBtn.MouseEnter += (_, _) => _musicCardPlayBtn.Background = new SolidColorBrush(Color.FromRgb(230, 234, 242));
+            _musicCardPlayBtn.MouseLeave += (_, _) => _musicCardPlayBtn.Background = Brushes.White;
+            _musicCardPlayBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                if (string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack)) return;
+                MediaService.Instance.TogglePlayPause();
+                RefreshMusicCard();
+            };
+            mControlsRow.Children.Add(_musicCardPlayBtn);
+
+            var nextIconCanvas = new Canvas { Width = 12, Height = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            nextIconCanvas.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse("M 8.7,2.5 L 10.0,2.5 L 10.0,9.5 L 8.7,9.5 Z M 2.2,2.2 L 8.0,6.0 L 2.2,9.8 Z"),
+                Fill = Brushes.White,
+                Opacity = 0.90
+            });
+            var nextBtn = new Border
+            {
+                Width = 24,
+                Height = 24,
+                CornerRadius = new CornerRadius(12),
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand,
+                Child = nextIconCanvas
+            };
+            nextBtn.MouseEnter += (_, _) => nextBtn.Background = CapsuleTheme.Brush(Color.FromArgb(38, 255, 255, 255));
+            nextBtn.MouseLeave += (_, _) => nextBtn.Background = Brushes.Transparent;
+            nextBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                if (string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack)) return;
+                MediaService.Instance.NextTrack();
+            };
+            mControlsRow.Children.Add(nextBtn);
+
+            var mControlsPill = new Border
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                CornerRadius = new CornerRadius(15),
+                Padding = new Thickness(5, 2, 5, 2),
+                Background = CapsuleTheme.Brush(Color.FromArgb(24, 255, 255, 255)),
+                BorderBrush = CapsuleTheme.Brush(Color.FromArgb(32, 255, 255, 255)),
+                BorderThickness = new Thickness(1),
+                Child = mControlsRow
+            };
+            mBottom.Children.Add(mControlsPill);
+            musicContentDock.Children.Add(mBottom);
+
+            // Center Content: Album Thumbnail + Track Title & Artist
+            var mCenterDock = new DockPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 3)
+            };
+
+            _musicCardThumbBorder = new Border
+            {
+                Width = 34,
+                Height = 34,
+                CornerRadius = new CornerRadius(7),
+                ClipToBounds = true,
+                Background = CapsuleTheme.Brush(Color.FromArgb(40, 255, 255, 255)),
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            DockPanel.SetDock(_musicCardThumbBorder, Dock.Left);
+
+            var thumbGrid = new Grid();
+            _musicCardThumbImage = new Image
+            {
+                Stretch = Stretch.UniformToFill,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed
+            };
+            _musicCardFallbackGlyph = new TextBlock
+            {
+                Text = "🎵",
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = CapsuleTheme.Brush(p.Text3)
+            };
+            thumbGrid.Children.Add(_musicCardThumbImage);
+            thumbGrid.Children.Add(_musicCardFallbackGlyph);
+            _musicCardThumbBorder.Child = thumbGrid;
+            mCenterDock.Children.Add(_musicCardThumbBorder);
+
+            var mInfoStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _musicCardTitleText = new TextBlock
+            {
+                Text = LocalizationService.T("home.nomedia", "No Media Playing"),
+                FontSize = 12.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text),
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 170
+                MaxWidth = 145
             };
-            nCenter.Children.Add(_notesTitleText);
-            nDock.Children.Add(nCenter);
+            _musicCardArtistText = new TextBlock
+            {
+                Text = "Windows Audio",
+                FontSize = 10,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 1, 0, 0),
+                MaxWidth = 145
+            };
+            mInfoStack.Children.Add(_musicCardTitleText);
+            mInfoStack.Children.Add(_musicCardArtistText);
+            mCenterDock.Children.Add(mInfoStack);
 
-            notesCard.Child = nDock;
+            musicContentDock.Children.Add(mCenterDock);
+            musicCardRootGrid.Children.Add(musicContentDock);
+            nowPlayingCard.Child = musicCardRootGrid;
 
             // Factory to get or create widget card on demand
             BuddyCard CreateCard(string wId) => wId.ToLowerInvariant() switch
@@ -523,10 +761,10 @@ namespace WindowsBuddy.Tools
                 "weather" => weatherCard,
                 "focus" => focusCard,
                 "clipboard" => clipCard,
-                "notes" => notesCard,
+                "nowplaying" or "notes" or "music" or "audio" => nowPlayingCard,
                 "clock" => BuildCompactClockCard(p),
                 "calendar" => BuildCompactCalendarCard(p),
-                "nowplaying" => BuildCompactNowPlayingCard(p),
+                // "nowplaying" mapped above
                 "links" => BuildCompactLinksCard(p),
                 "fileshelf" => BuildCompactFileShelfCard(p),
                 "units" => BuildCompactUnitsCard(p),
@@ -540,7 +778,8 @@ namespace WindowsBuddy.Tools
                 _ => null
             };
 
-            var activeWidgets = (AppPreferences.Instance.Raw.HomeWidgets ?? new List<string> { "screentime", "system", "weather", "focus", "clipboard", "notes" })
+            var activeWidgets = (AppPreferences.Instance.Raw.HomeWidgets ?? new List<string> { "screentime", "system", "weather", "focus", "clipboard", "nowplaying" })
+                .Select(w => string.Equals(w, "notes", StringComparison.OrdinalIgnoreCase) ? "nowplaying" : w)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(6)
                 .ToList();
@@ -613,6 +852,16 @@ namespace WindowsBuddy.Tools
                 else _tickTimer?.Stop();
             };
             _tickTimer.Start();
+
+            RealtimeNotchActionService.Instance.MediaSessionChanged += _ =>
+            {
+                try { rootGrid.Dispatcher.BeginInvoke((Action)RefreshMusicCard); } catch { }
+            };
+
+            MediaService.Instance.StateChanged += () =>
+            {
+                try { rootGrid.Dispatcher.BeginInvoke((Action)RefreshMusicCard); } catch { }
+            };
 
             _lastClipSignature = null;
             RefreshAllCards();
@@ -742,13 +991,113 @@ namespace WindowsBuddy.Tools
                 }
             }
 
-            // 6. Refresh Notes
-            var notes = WindowsBuddy.Tools.Notes.NotesService.Instance.Notes;
-            if (_notesTitleText != null)
+            // 6. Refresh Now Playing / Music Controller
+            RefreshMusicCard();
+        }
+
+        private void RefreshMusicCard()
+        {
+            if (_musicCardTitleText == null) return;
+
+            var p = CapsuleTheme.Current;
+            var rsvc = RealtimeNotchActionService.Instance;
+            var msvc = MediaService.Instance;
+
+            bool hasMedia = !string.IsNullOrWhiteSpace(rsvc.CurrentTrack);
+            bool isPlaying = hasMedia && (rsvc.IsMusicPlaying || msvc.State.IsPlaying);
+            string track = hasMedia ? rsvc.CurrentTrack : "";
+            string artist = hasMedia ? rsvc.CurrentArtist : "";
+            var artwork = hasMedia ? rsvc.CurrentArtwork : null;
+            var beatColor = rsvc.CurrentBeatColor;
+
+            _musicCardTitleText.Text = !hasMedia
+                ? LocalizationService.T("home.nomedia", "No Media Playing")
+                : track;
+
+            _musicCardArtistText.Text = !hasMedia
+                ? "Open a music player"
+                : (string.IsNullOrWhiteSpace(artist) ? "Windows Audio" : artist);
+
+            if (_musicCardPlayIconPath != null)
             {
-                var latest = notes.FirstOrDefault();
-                _notesTitleText.Text = latest != null ? (string.IsNullOrWhiteSpace(latest.Title) ? "Untitled" : latest.Title) : "No notes yet";
-                _notesSnippetText.Text = notes.Count > 0 ? $"{notes.Count} notes saved" : "Click + to create note";
+                _musicCardPlayIconPath.Data = isPlaying
+                    ? Geometry.Parse("M 2.8,2.2 L 4.8,2.2 L 4.8,9.8 L 2.8,9.8 Z M 7.2,2.2 L 9.2,2.2 L 9.2,9.8 L 7.2,9.8 Z")
+                    : Geometry.Parse("M 3.8,2.0 L 10.2,6.0 L 3.8,10.0 Z");
+            }
+
+            if (_musicCardPlayBtn != null)
+            {
+                _musicCardPlayBtn.Opacity = hasMedia ? 1.0 : 0.45;
+                _musicCardPlayBtn.Cursor = hasMedia ? Cursors.Hand : Cursors.Arrow;
+            }
+
+            // Cover Art - Glass Background & Thumbnail
+            if (artwork != null)
+            {
+                if (!ReferenceEquals(_musicCardThumbImage.Source, artwork))
+                {
+                    _musicCardThumbImage.Source = artwork;
+                    _musicCardBgImage.Source = artwork;
+                }
+                _musicCardThumbImage.Visibility = Visibility.Visible;
+                _musicCardFallbackGlyph.Visibility = Visibility.Collapsed;
+                _musicCardBgImage.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                _musicCardThumbImage.Source = null;
+                _musicCardBgImage.Source = null;
+                _musicCardThumbImage.Visibility = Visibility.Collapsed;
+                _musicCardFallbackGlyph.Visibility = Visibility.Visible;
+                _musicCardBgImage.Visibility = Visibility.Collapsed;
+            }
+
+            // Mini Equalizer Visualizer
+            if (_musicCardMiniEq != null)
+            {
+                _musicCardMiniEq.IsPlaying = isPlaying;
+                if (isPlaying)
+                {
+                    _musicCardMiniEq.SetBeatColor(beatColor != default && beatColor != Colors.Transparent ? beatColor : p.Accent);
+                    try
+                    {
+                        float[] bands = new float[AudioSpectrumService.Bands];
+                        AudioSpectrumService.Instance.Read(bands, out bool live);
+                        float[] mini4 = new float[4];
+                        AudioSpectrumService.ComputeMiniBars(bands, mini4, DateTime.UtcNow.TimeOfDay.TotalSeconds * 2.0);
+                        _musicCardMiniEq.SetLevels(mini4, true);
+                    }
+                    catch
+                    {
+                        _musicCardMiniEq.SetLevels(new float[] { 0.7f, 0.4f, 0.8f, 0.5f }, true);
+                    }
+                }
+                else
+                {
+                    _musicCardMiniEq.DecayLevels();
+                }
+            }
+
+            RefreshMusicProgressBar();
+        }
+
+        private void RefreshMusicProgressBar()
+        {
+            if (_musicCardProgressBarFill == null || _musicCardProgressBarTrack == null) return;
+            double trackWidth = _musicCardProgressBarTrack.ActualWidth;
+            if (trackWidth <= 0) trackWidth = 140;
+
+            bool hasMedia = !string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack);
+            double dur = MediaService.Instance.State.DurationSeconds;
+            double pos = MediaService.Instance.State.PositionSeconds;
+            if (hasMedia && dur > 0 && pos >= 0)
+            {
+                double fraction = Math.Clamp(pos / dur, 0.0, 1.0);
+                _musicCardProgressBarFill.Width = Math.Max(0, fraction * trackWidth);
+            }
+            else
+            {
+                _musicCardProgressBarFill.Width = 0;
             }
         }
 

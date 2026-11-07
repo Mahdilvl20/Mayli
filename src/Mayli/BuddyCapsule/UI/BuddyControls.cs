@@ -611,17 +611,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
     {
         private static readonly double[][] CometLayers =
         {
-            new[] { 0.012, 1.00 },
-            new[] { 0.018, 0.20 },
-            new[] { 0.036, 0.20 },
-            new[] { 0.054, 0.20 },
-            new[] { 0.072, 0.20 },
-            new[] { 0.090, 0.20 },
-            new[] { 0.108, 0.20 },
-            new[] { 0.126, 0.20 },
-            new[] { 0.144, 0.20 },
-            new[] { 0.162, 0.20 },
-            new[] { 0.180, 0.20 }
+            new[] { 0.014, 1.00 },
+            new[] { 0.032, 0.34 },
+            new[] { 0.064, 0.30 },
+            new[] { 0.100, 0.26 },
+            new[] { 0.140, 0.22 },
+            new[] { 0.180, 0.18 }
         };
 
         private struct CometStrokeEntry
@@ -648,6 +643,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private double _totalLength = 276.0;
         private double _cyclePhase; // 0.0 .. 1.0
         private Color _lightColor = Colors.White;
+        private Color _lastBrushColor = Colors.Transparent;
         private bool _isMorphing;
         private string _pattern = "Twin comets";
         private string _speed = "Normal";
@@ -907,22 +903,23 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 double dashLen = Math.Max(0.25, entry.SegFrac * totalInStrokeUnits);
                 double gapLen = Math.Max(2.0, 4.0 * totalInStrokeUnits);
 
-                Color c = entry.IsGlow ? _lightColor : _lightColor;
-                if (!entry.IsGlow)
-                {
-                    // Mix white core with chosen light color so colored edge lights look vibrant
-                    c = Color.FromRgb(
-                        (byte)((_lightColor.R * 2 + 255) / 3),
-                        (byte)((_lightColor.G * 2 + 255) / 3),
-                        (byte)((_lightColor.B * 2 + 255) / 3));
-                }
-                byte a = (byte)Math.Clamp(Math.Round(entry.Alpha * 255.0), 0, 255);
-                var brush = new SolidColorBrush(Color.FromArgb(a, c.R, c.G, c.B));
-                brush.Freeze();
-
                 var p = entry.PathElement;
                 p.Data = entry.IsReverse ? geoReverse : geoForward;
-                p.Stroke = brush;
+                if (p.Stroke == null || _lastBrushColor != _lightColor)
+                {
+                    Color c = _lightColor;
+                    if (!entry.IsGlow)
+                    {
+                        c = Color.FromRgb(
+                            (byte)((_lightColor.R * 2 + 255) / 3),
+                            (byte)((_lightColor.G * 2 + 255) / 3),
+                            (byte)((_lightColor.B * 2 + 255) / 3));
+                    }
+                    byte a = (byte)Math.Clamp(Math.Round(entry.Alpha * 255.0), 0, 255);
+                    var brush = new SolidColorBrush(Color.FromArgb(a, c.R, c.G, c.B));
+                    brush.Freeze();
+                    p.Stroke = brush;
+                }
                 p.StrokeThickness = th;
                 if (isBreathe)
                 {
@@ -944,6 +941,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 }
             }
 
+            _lastBrushColor = _lightColor;
             UpdateDashOffsets();
         }
 
@@ -983,6 +981,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 step *= 0.65;
             }
             _cyclePhase = (_cyclePhase + step) % 1.0;
+            _lastBrushColor = _lightColor;
             UpdateDashOffsets();
         }
 
@@ -1557,14 +1556,14 @@ namespace WindowsBuddy.BuddyCapsule.UI
     }
 
     /// <summary>
-    /// MiniEqualizerControl: The 4-bar animated audio visualizer on the top-right of the music notch,
-    /// dynamically colored with the current track's album cover dominant color.
+    /// MiniEqualizerControl: Clean 4-bar animated audio visualizer on the top-right of the music notch.
+    /// Perfectly sized with safe padding and zero outer glow bleed.
     /// </summary>
     public class MiniEqualizerControl : StackPanel
     {
         private readonly Border[] _bars = new Border[4];
         private bool _isPlaying = true;
-        private Color _beatColor = Color.FromRgb(245, 245, 250);
+        private Color _beatColor = Color.FromRgb(185, 228, 255);
 
         public bool IsPlaying
         {
@@ -1572,34 +1571,54 @@ namespace WindowsBuddy.BuddyCapsule.UI
             set => _isPlaying = value;
         }
 
-        public MiniEqualizerControl()
+        public MiniEqualizerControl(bool prominent = false)
         {
             Orientation = Orientation.Horizontal;
             VerticalAlignment = VerticalAlignment.Center;
-            Height = 14;
-            Margin = new Thickness(8, 0, 2, 0);
+            Height = 12.0;
+            Margin = new Thickness(4, 0, 2, 0);
 
-            double[] initialHeights = { 9.0, 3.0, 11.0, 8.0 };
+            double barW = 2.4;
+            double barGap = 1.2;
+            double[] initialHeights = { 8.5, 3.5, 10.5, 7.5 };
+
+            var brush = BuildBarBrush(_beatColor);
             for (int i = 0; i < 4; i++)
             {
                 var pill = new Border
                 {
-                    Width = 2.4,
+                    Width = barW,
                     Height = initialHeights[i],
-                    CornerRadius = new CornerRadius(1.2),
-                    Background = CapsuleTheme.Brush(_beatColor),
+                    CornerRadius = new CornerRadius(barW * 0.5),
+                    Background = brush,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(1.25, 0, 1.25, 0)
+                    Margin = new Thickness(barGap, 0, barGap, 0)
                 };
                 _bars[i] = pill;
                 Children.Add(pill);
             }
         }
 
+        private static Brush BuildBarBrush(Color c)
+        {
+            Color top = Color.FromRgb(
+                (byte)Math.Clamp(c.R * 0.45 + 255 * 0.55, 0, 255),
+                (byte)Math.Clamp(c.G * 0.45 + 255 * 0.55, 0, 255),
+                (byte)Math.Clamp(c.B * 0.45 + 255 * 0.55, 0, 255));
+            Color bot = Color.FromRgb(
+                (byte)Math.Clamp(c.R * 0.70 + 140 * 0.30, 0, 255),
+                (byte)Math.Clamp(c.G * 0.70 + 190 * 0.30, 0, 255),
+                (byte)Math.Clamp(c.B * 0.70 + 255 * 0.30, 0, 255));
+
+            var grad = new LinearGradientBrush(top, bot, 90.0);
+            grad.Freeze();
+            return grad;
+        }
+
         public void SetBeatColor(Color color)
         {
             _beatColor = color;
-            var brush = CapsuleTheme.Brush(_beatColor);
+            var brush = BuildBarBrush(_beatColor);
             for (int i = 0; i < 4; i++)
             {
                 _bars[i].Background = brush;
@@ -1611,18 +1630,18 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _isPlaying = isPlaying;
             if (!isPlaying || mini4 == null || mini4.Length < 4)
             {
-                DecayLevels(3.0);
+                DecayLevels(2.8);
                 return;
             }
 
             for (int i = 0; i < 4; i++)
             {
-                double target = 2.5 + Math.Clamp(mini4[i], 0f, 1f) * 10.5;
+                double target = 2.5 + Math.Clamp(mini4[i], 0f, 1f) * 9.0;
                 _bars[i].Height = _bars[i].Height * 0.45 + target * 0.55;
             }
         }
 
-        public bool DecayLevels(double targetHeight = 3.0)
+        public bool DecayLevels(double targetHeight = 2.8)
         {
             bool allSettled = true;
             for (int i = 0; i < 4; i++)
@@ -1638,58 +1657,99 @@ namespace WindowsBuddy.BuddyCapsule.UI
     }
 
     /// <summary>
-    /// WaveformProgressBar: Full-width real-time symmetrical audio spectrum visualizer across the bottom
-    /// of the music notch (CompactBars = 40, WideBars = 56), matching the user's videos.
+    /// WaveformProgressBar: Responsive real-time symmetrical audio spectrum visualizer across the bottom
+    /// of the music notch. Fits 100% within safe inner margins with zero overflow beyond notch borders.
     /// </summary>
-    public class WaveformProgressBar : StackPanel
+    public class WaveformProgressBar : FrameworkElement
     {
-        public const int CompactBarCount = 40;
-        public const int WideBarCount = 56;
-        public const int BarCount = 40;
+        public const int CompactBarCount = 38;
+        public const int WideBarCount = 50;
+        public const int BarCount = 38;
 
         private readonly int _count;
-        private readonly Border[] _bars;
-        private Color _beatColor = Color.FromRgb(245, 245, 250);
+        private readonly double[] _heights;
+        private Color _beatColor = Color.FromRgb(165, 205, 255);
+        private bool _isCustomColor = false;
         private bool _isPlaying = true;
+        private LinearGradientBrush _cachedBarBrush;
+        private double _cachedBrushWidth = -1;
 
         public int Count => _count;
 
         public WaveformProgressBar(int barCount = CompactBarCount)
         {
-            _count = Math.Max(8, barCount);
-            _bars = new Border[_count];
-
-            Orientation = Orientation.Horizontal;
-            HorizontalAlignment = HorizontalAlignment.Center;
-            VerticalAlignment = VerticalAlignment.Center;
-            Height = 11.5;
-            Margin = new Thickness(0, 3, 0, 0);
-
-            var brush = CapsuleTheme.Brush(_beatColor);
+            _count = Math.Max(12, barCount);
+            _heights = new double[_count];
             for (int i = 0; i < _count; i++)
             {
-                var b = new Border
-                {
-                    Width = 2.3,
-                    Height = 2.3,
-                    CornerRadius = new CornerRadius(1.15),
-                    Margin = new Thickness(1.65, 0, 1.65, 0),
-                    VerticalAlignment = VerticalAlignment.Bottom,
-                    Background = brush
-                };
-                _bars[i] = b;
-                Children.Add(b);
+                _heights[i] = 2.4;
             }
+
+            HorizontalAlignment = HorizontalAlignment.Stretch;
+            VerticalAlignment = VerticalAlignment.Bottom;
+            Height = 10.5;
+            IsHitTestVisible = false;
+            SnapsToDevicePixels = true;
         }
 
-        public void SetBeatColor(Color color)
+        public void SetBeatColor(Color color, bool isCustomColor = false)
         {
+            if (_beatColor == color && _isCustomColor == isCustomColor) return;
             _beatColor = color;
-            var brush = CapsuleTheme.Brush(_beatColor);
-            for (int i = 0; i < _count; i++)
+            _isCustomColor = isCustomColor;
+            _cachedBrushWidth = -1;
+            InvalidateVisual();
+        }
+
+        private void EnsureBrushes(double width)
+        {
+            if (_cachedBarBrush != null && Math.Abs(_cachedBrushWidth - width) < 4.0) return;
+            _cachedBrushWidth = Math.Max(40.0, width);
+
+            Color cLeft, cMidLeft, cCenter, cMidRight, cRight;
+            if (_isCustomColor)
             {
-                _bars[i].Background = brush;
+                cLeft = Blend(_beatColor, Color.FromRgb(120, 210, 255), 0.25);
+                cMidLeft = Lighten(_beatColor, 0.35);
+                cCenter = Lighten(_beatColor, 0.50);
+                cMidRight = Lighten(_beatColor, 0.35);
+                cRight = Blend(_beatColor, Color.FromRgb(195, 130, 255), 0.25);
             }
+            else
+            {
+                cLeft = Blend(Color.FromRgb(56, 189, 248), _beatColor, 0.28);
+                cMidLeft = Blend(Color.FromRgb(165, 205, 255), Lighten(_beatColor, 0.42), 0.32);
+                cCenter = Blend(Color.FromRgb(196, 181, 253), Lighten(_beatColor, 0.45), 0.35);
+                cMidRight = Blend(Color.FromRgb(216, 198, 255), Lighten(_beatColor, 0.48), 0.32);
+                cRight = Blend(Color.FromRgb(180, 120, 252), _beatColor, 0.32);
+            }
+
+            var grad = new LinearGradientBrush
+            {
+                MappingMode = BrushMappingMode.Absolute,
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(_cachedBrushWidth, 0)
+            };
+            grad.GradientStops.Add(new GradientStop(cLeft, 0.0));
+            grad.GradientStops.Add(new GradientStop(cMidLeft, 0.28));
+            grad.GradientStops.Add(new GradientStop(cCenter, 0.50));
+            grad.GradientStops.Add(new GradientStop(cMidRight, 0.72));
+            grad.GradientStops.Add(new GradientStop(cRight, 1.0));
+            grad.Freeze();
+            _cachedBarBrush = grad;
+        }
+
+        private static Color Blend(Color a, Color b, double t)
+        {
+            return Color.FromRgb(
+                (byte)Math.Clamp(a.R + (b.R - a.R) * t, 0, 255),
+                (byte)Math.Clamp(a.G + (b.G - a.G) * t, 0, 255),
+                (byte)Math.Clamp(a.B + (b.B - a.B) * t, 0, 255));
+        }
+
+        private static Color Lighten(Color c, double t)
+        {
+            return Blend(c, Colors.White, t);
         }
 
         public void SetSpectrumLevels(float[] mappedBars, bool isPlaying, bool isAudioLive, double phase)
@@ -1697,47 +1757,59 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _isPlaying = isPlaying;
             if (!isPlaying)
             {
-                DecayLevels(2.2);
+                DecayLevels(2.0);
                 return;
             }
 
             float maxLevel = 0f;
-            if (mappedBars != null)
+            int srcLen = mappedBars != null ? mappedBars.Length : 0;
+            for (int i = 0; i < Math.Min(_count, srcLen); i++)
             {
-                for (int i = 0; i < Math.Min(_count, mappedBars.Length); i++)
-                    if (mappedBars[i] > maxLevel) maxLevel = mappedBars[i];
+                if (mappedBars[i] > maxLevel) maxLevel = mappedBars[i];
             }
 
             bool useLiveFft = isAudioLive && maxLevel > 0.04f;
-            double half = (_count - 1) * 0.5;
+            double maxBarH = Math.Max(8.0, (Height > 3.0 ? Height : 10.5) - 0.5);
+            double dynRange = maxBarH - 2.4;
 
             for (int i = 0; i < _count; i++)
             {
-                double h;
-                if (useLiveFft)
+                double u = _count > 1 ? i / (double)(_count - 1) : 0.5;
+                double edgeWindow = 0.25 + 0.75 * Math.Pow(Math.Sin(u * Math.PI), 0.70);
+
+                double dL = (u - 0.29) / 0.12;
+                double dC = (u - 0.50) / 0.11;
+                double dR = (u - 0.71) / 0.12;
+                double threeLobe = 0.38
+                    + 0.75 * Math.Exp(-0.5 * dL * dL)
+                    + 0.58 * Math.Exp(-0.5 * dC * dC)
+                    + 0.75 * Math.Exp(-0.5 * dR * dR);
+
+                double targetH;
+                if (useLiveFft && srcLen > 1)
                 {
-                    float lvl = mappedBars[i];
-                    h = 2.2 + Math.Clamp(lvl, 0f, 1f) * 8.8;
+                    double srcPos = u * (srcLen - 1);
+                    int idx0 = Math.Clamp((int)srcPos, 0, srcLen - 1);
+                    int idx1 = Math.Clamp(idx0 + 1, 0, srcLen - 1);
+                    double frac = srcPos - idx0;
+                    double lvl = mappedBars[idx0] * (1.0 - frac) + mappedBars[idx1] * frac;
+                    double shaped = Math.Clamp(lvl * (0.60 + 0.60 * threeLobe), 0.0, 1.0);
+                    targetH = 2.4 + shaped * edgeWindow * dynRange;
                 }
                 else
                 {
-                    double dist = Math.Abs(i - half) / half;
-                    if (dist < 0.22)
-                    {
-                        h = 2.2 + 1.2 * Math.Max(0.0, Math.Sin(phase * 3.2 - dist * 6.0));
-                    }
-                    else
-                    {
-                        double wave1 = Math.Sin(dist * Math.PI * 2.8 - phase * 3.4);
-                        double wave2 = Math.Cos(dist * Math.PI * 4.5 + phase * 2.7);
-                        double env = Math.Sin(dist * Math.PI);
-                        h = 2.3 + Math.Max(0.0, (wave1 * 0.55 + wave2 * 0.45 + 0.65) * env * 5.2);
-                    }
+                    double dist = Math.Abs(u - 0.5) * 2.0;
+                    double ripple = 0.72
+                        + 0.22 * Math.Sin(phase * 3.1 - dist * 7.5)
+                        + 0.14 * Math.Cos(phase * 2.3 + u * 15.0);
+                    targetH = 2.4 + Math.Clamp(threeLobe * ripple * 0.78, 0.0, 1.0) * edgeWindow * dynRange;
                 }
 
-                h = Math.Clamp(h, 2.2, 11.0);
-                _bars[i].Height = _bars[i].Height * 0.40 + h * 0.60;
+                targetH = Math.Clamp(targetH, 2.4, maxBarH);
+                _heights[i] = _heights[i] * 0.40 + targetH * 0.60;
             }
+
+            InvalidateVisual();
         }
 
         public void SetPlayback(double progress, bool isPlaying)
@@ -1745,37 +1817,100 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _isPlaying = isPlaying;
         }
 
-        public bool DecayLevels(double targetHeight = 2.2)
+        public bool DecayLevels(double targetHeight = 2.4)
         {
             bool allSettled = true;
             for (int i = 0; i < _count; i++)
             {
-                double cur = _bars[i].Height;
+                double cur = _heights[i];
                 double next = cur * 0.78 + targetHeight * 0.22;
                 if (Math.Abs(next - targetHeight) > 0.08) allSettled = false;
                 else next = targetHeight;
-                _bars[i].Height = next;
+                _heights[i] = next;
             }
+            InvalidateVisual();
             return allSettled;
+        }
+
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            double h = !double.IsNaN(Height) && Height > 0 ? Height : 10.5;
+            double w = double.IsInfinity(availableSize.Width) ? _count * 4.6 : availableSize.Width;
+            return new Size(Math.Max(0.0, w), h);
+        }
+
+        protected override void OnRender(DrawingContext dc)
+        {
+            double w = ActualWidth;
+            double h = ActualHeight;
+            if (w < 20.0 || h < 3.0) return;
+
+            EnsureBrushes(w);
+
+            const double barW = 2.0;
+            const double radius = 1.0;
+            const double sidePad = 2.0;
+            double usableW = Math.Max(10.0, w - sidePad * 2.0 - barW);
+
+            int visCount = Math.Clamp((int)Math.Round(usableW / 4.6) + 1, 10, _count);
+            double step = visCount > 1 ? usableW / (visCount - 1) : 0.0;
+
+            var geo = new StreamGeometry();
+            using (StreamGeometryContext ctx = geo.Open())
+            {
+                for (int i = 0; i < visCount; i++)
+                {
+                    double u = visCount > 1 ? i / (double)(visCount - 1) : 0.5;
+                    double srcIdx = u * (_count - 1);
+                    int k0 = Math.Clamp((int)srcIdx, 0, _count - 1);
+                    int k1 = Math.Clamp(k0 + 1, 0, _count - 1);
+                    double f = srcIdx - k0;
+                    double barH = _heights[k0] * (1.0 - f) + _heights[k1] * f;
+
+                    double morphEdge = 0.28 + 0.72 * Math.Pow(Math.Sin(u * Math.PI), 0.65);
+                    barH = Math.Clamp(2.4 + (barH - 2.4) * morphEdge, 2.4, h);
+
+                    double x = sidePad + i * step;
+                    double y = h - barH;
+                    AddRoundedBar(ctx, x, y, barW, barH, radius);
+                }
+            }
+            geo.Freeze();
+
+            dc.DrawGeometry(_cachedBarBrush, null, geo);
+        }
+
+        private static void AddRoundedBar(StreamGeometryContext ctx, double x, double y, double w, double h, double r)
+        {
+            double cr = Math.Min(r, Math.Min(w * 0.5, h * 0.5));
+            ctx.BeginFigure(new Point(x + cr, y), isFilled: true, isClosed: true);
+            ctx.LineTo(new Point(x + w - cr, y), isStroked: true, isSmoothJoin: true);
+            ctx.ArcTo(new Point(x + w, y + cr), new Size(cr, cr), 0, false, SweepDirection.Clockwise, true, true);
+            ctx.LineTo(new Point(x + w, y + h - cr), isStroked: true, isSmoothJoin: true);
+            ctx.ArcTo(new Point(x + w - cr, y + h), new Size(cr, cr), 0, false, SweepDirection.Clockwise, true, true);
+            ctx.LineTo(new Point(x + cr, y + h), isStroked: true, isSmoothJoin: true);
+            ctx.ArcTo(new Point(x, y + h - cr), new Size(cr, cr), 0, false, SweepDirection.Clockwise, true, true);
+            ctx.LineTo(new Point(x, y + cr), isStroked: true, isSmoothJoin: true);
+            ctx.ArcTo(new Point(x + cr, y), new Size(cr, cr), 0, false, SweepDirection.Clockwise, true, true);
         }
     }
 
     /// <summary>
-    /// AlbumArtThumbnail: Displays the artist/track artwork thumbnail in either Compact (23x23) or Wide (42x42) size.
+    /// AlbumArtThumbnail: Displays the artist/track artwork thumbnail in either Compact (32x32) or Wide (56x56) size.
     /// </summary>
     public class AlbumArtThumbnail : Border
     {
         private readonly Image _imageControl;
         private readonly Border _fallbackArtwork;
 
-        public AlbumArtThumbnail(double size = 23.0, double cornerRadius = 6.0)
+        public AlbumArtThumbnail(double size = 22.0, double cornerRadius = 5.5)
         {
             Width = size;
             Height = size;
             CornerRadius = new CornerRadius(cornerRadius);
             ClipToBounds = true;
-            Background = CapsuleTheme.Brush(Color.FromRgb(22, 23, 28));
-            BorderBrush = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
+            Background = CapsuleTheme.Brush(Color.FromRgb(18, 20, 28));
+            BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
             BorderThickness = new Thickness(1);
             VerticalAlignment = VerticalAlignment.Center;
             Margin = new Thickness(0, 0, size > 30 ? 10 : 8, 0);
@@ -1783,9 +1918,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             var grid = new Grid();
             var updateClip = new Action(() =>
             {
-                double w = ActualWidth > 0 ? ActualWidth : size;
-                double h = ActualHeight > 0 ? ActualHeight : size;
-                grid.Clip = new RectangleGeometry(new Rect(0, 0, w, h), cornerRadius, cornerRadius);
+                double currentW = ActualWidth > 0 ? ActualWidth : Width;
+                double currentH = ActualHeight > 0 ? ActualHeight : Height;
+                double currentR = CornerRadius.TopLeft > 0 ? CornerRadius.TopLeft : cornerRadius;
+                double innerW = Math.Max(1.0, currentW - 2.0);
+                double innerH = Math.Max(1.0, currentH - 2.0);
+                double innerR = Math.Max(1.0, currentR - 1.0);
+                grid.Clip = new RectangleGeometry(new Rect(0, 0, innerW, innerH), innerR, innerR);
             });
             updateClip();
             SizeChanged += (_, _) => updateClip();
@@ -1842,6 +1981,15 @@ namespace WindowsBuddy.BuddyCapsule.UI
             grid.Children.Add(_imageControl);
 
             Child = grid;
+        }
+
+        public void UpdateDimensions(double size, double cornerRadius)
+        {
+            if (Math.Abs(Width - size) < 0.2 && Math.Abs(Height - size) < 0.2 && Math.Abs(CornerRadius.TopLeft - cornerRadius) < 0.2)
+                return;
+            Width = size;
+            Height = size;
+            CornerRadius = new CornerRadius(cornerRadius);
         }
 
         public void SetArtwork(ImageSource source, string artistName = null)

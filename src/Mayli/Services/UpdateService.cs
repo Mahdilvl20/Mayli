@@ -50,7 +50,7 @@ namespace WindowsBuddy.Services
                     catch { }
 
                     if (string.IsNullOrWhiteSpace(_currentVersion))
-                        _currentVersion = "1.1.62";
+                        _currentVersion = "1.1.63";
                 }
                 return _currentVersion;
             }

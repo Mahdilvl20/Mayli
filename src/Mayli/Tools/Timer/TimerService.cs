@@ -196,8 +196,8 @@ namespace WindowsBuddy.Tools.Timer
             LoadPrefs();
 
             _lastTickTimestamp = Stopwatch.GetTimestamp();
-            // 25ms (40fps) high-resolution tick for silky-smooth circular progress bar and stopwatch milliseconds
-            _clock = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(25) };
+            // Adaptive timer tick: 1000ms when idle to conserve CPU, 25ms (40fps) during active countdown/stopwatch
+            _clock = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(1000) };
             _clock.Tick += OnClockTick;
             _clock.Start();
         }
@@ -363,11 +363,23 @@ namespace WindowsBuddy.Tools.Timer
             return CapsuleTheme.Current.Accent;
         }
 
+        private void EnsureClockRate()
+        {
+            bool anyActive = StopwatchIsRunning || PomoIsRunning || CountIsRunning;
+            var target = anyActive ? TimeSpan.FromMilliseconds(25) : TimeSpan.FromMilliseconds(1000);
+            if (_clock.Interval != target)
+            {
+                _clock.Interval = target;
+            }
+        }
+
         private void OnClockTick(object sender, EventArgs e)
         {
             long nowTs = Stopwatch.GetTimestamp();
             double dt = Math.Clamp((nowTs - _lastTickTimestamp) / (double)Stopwatch.Frequency, 0.0, 0.5);
             _lastTickTimestamp = nowTs;
+
+            EnsureClockRate();
 
             bool shouldNotify = StopwatchIsRunning;
 

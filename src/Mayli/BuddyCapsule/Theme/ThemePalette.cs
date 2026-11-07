@@ -228,11 +228,18 @@ namespace WindowsBuddy.BuddyCapsule.Theme
             }
         }
 
+        private static readonly Dictionary<Color, SolidColorBrush> _brushCache = new();
+
         public static SolidColorBrush Brush(Color c)
         {
-            var b = new SolidColorBrush(c);
-            b.Freeze();
-            return b;
+            lock (_brushCache)
+            {
+                if (_brushCache.TryGetValue(c, out var cached)) return cached;
+                var b = new SolidColorBrush(c);
+                b.Freeze();
+                _brushCache[c] = b;
+                return b;
+            }
         }
     }
 }

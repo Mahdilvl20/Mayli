@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -34,10 +35,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
     {
         public const double CollapsedWidth = 228.0;
         public const double CollapsedHeight = 35.0;
-        public const double MediaCollapsedWidth = 296.0;
-        public const double MediaCollapsedHeight = 45.0;
-        public const double MediaWideCollapsedWidth = 380.0;
-        public const double MediaWideCollapsedHeight = 75.0;
+        public const double MediaCollapsedWidth = 348.0;
+        public const double MediaCollapsedHeight = 52.0;
+        public const double MediaWideCollapsedWidth = 398.0;
+        public const double MediaWideCollapsedHeight = 86.0;
         public const double MediaWideDurationSeconds = 4.0;
         public const double BannerCollapsedWidth = 330.0;
         public const double BannerCollapsedHeight = 38.0;
@@ -86,23 +87,27 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private bool _isMinimalPeekHovered = false;
         private bool _isAutoHiddenByVisibility = false;
 
-        // 2A. Collapsed Compact Live Media View (296 x 45 - Normal Music Playing)
+        // 2A. Collapsed Compact Live Media View (Responsive Width x 54 - Normal Music Playing)
         private readonly Grid _collapsedMediaView;
         private readonly AlbumArtThumbnail _albumArtThumb;
-        private readonly TextBlock _mediaTrackText;
-        private readonly TextBlock _mediaArtistText;
+        private readonly TextBlock _mediaCombinedText;
+        private readonly Run _mediaTrackRun;
+        private readonly Run _mediaSepRun;
+        private readonly Run _mediaArtistRun;
         private readonly MiniEqualizerControl _miniEqualizer;
         private readonly WaveformProgressBar _waveformProgress;
 
-        // 2B. Collapsed Wide Live Media Card (380 x 75 - Track Switch / Next Song 4s Popup)
+        // 2B. Collapsed Wide Live Media Card (398 x 90 - Track Switch / Play 4s Popup)
         private readonly Grid _collapsedMediaWideView;
         private readonly AlbumArtThumbnail _wideAlbumArtThumb;
         private readonly TextBlock _wideMediaTrackText;
         private readonly TextBlock _wideMediaArtistText;
+        private readonly Grid _wideScrubberHost;
         private readonly Border _wideProgressTrack;
         private readonly Border _wideProgressFill;
+        private readonly Ellipse _wideProgressThumb;
+        private readonly TranslateTransform _wideProgressThumbTranslate = new(0, 0);
         private readonly TextBlock _wideRemainingText;
-        private readonly MediaTransportControlsBar _wideTransportControls;
         private readonly WaveformProgressBar _wideWaveformProgress;
 
         // 3. Collapsed Dynamic Banner View (Copied, Screenshot, Bluetooth, Windows Notifications)
@@ -152,11 +157,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly ScaleTransform _rightIslandScale = new(0.8, 0.8);
 
         // 5C. Detached Music Satellite Capsule (when Notification arrives while Music IS playing)
-        // Album Art Image (circular) + pulsating beat ring or glow
+        // Album Art Image (circular) + pulsating beat ring + mini equalizer
         private readonly Border _musicSatelliteIsland;
+        private readonly Grid _musicSatelliteArtGrid;
         private readonly Image _musicSatelliteArtworkImage;
         private readonly TextBlock _musicSatelliteGlyph;
         private readonly Ellipse _musicSatelliteBeatRing;
+        private readonly MiniEqualizerControl _musicSatelliteEqualizer;
         private readonly TranslateTransform _musicSatelliteTranslate = new(0, 0);
         private readonly ScaleTransform _musicSatelliteScale = new(0.8, 0.8);
         private double _musicSatelliteProgress = 0.0;
@@ -292,6 +299,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                ClipToBounds = true,
                 FlowDirection = FlowDirection.LeftToRight
             };
 
@@ -507,74 +515,97 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _collapsedContent.Children.Add(_collapsedTimerView);
 
-            // View 2A: Compact Live Media Playback View (296 x 45, matching video 00:00-00:06 & 00:11-00:19)
+            // View 2A: Compact Live Media Playback View (312 x 50, perfectly fitted inside margins)
             _collapsedMediaView = new Grid
             {
                 Visibility = Visibility.Collapsed,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 1, 0, 1),
+                ClipToBounds = true,
                 RenderTransform = new TranslateTransform(0, 0)
             };
             _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _collapsedMediaView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // Row 0: Album Art + Track Title - Artist + 4-bar Mini Equalizer
-            var topRowDock = new DockPanel { Margin = new Thickness(1, 0, 1, 1) };
+            // Row 0: Album Art (22x22) | Text | Mini Equalizer
+            var compactTopGrid = new Grid
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 2)
+            };
+            compactTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            compactTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            compactTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _miniEqualizer = new MiniEqualizerControl { Cursor = Cursors.Hand, ToolTip = "Play / Pause" };
+            _albumArtThumb = new AlbumArtThumbnail(22.0, 5.5)
+            {
+                Margin = new Thickness(2, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(_albumArtThumb, 0);
+            compactTopGrid.Children.Add(_albumArtThumb);
+
+            _mediaCombinedText = new TextBlock
+            {
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                TextAlignment = TextAlignment.Left
+            };
+            _mediaTrackRun = new Run("Grounds for Hope")
+            {
+                FontSize = 12.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            _mediaSepRun = new Run(" – ")
+            {
+                FontSize = 11.5,
+                FontWeight = FontWeights.Normal,
+                Foreground = new SolidColorBrush(Color.FromRgb(180, 190, 205))
+            };
+            _mediaArtistRun = new Run("NOTSOBAD")
+            {
+                FontSize = 11.5,
+                FontWeight = FontWeights.Normal,
+                Foreground = new SolidColorBrush(Color.FromRgb(200, 210, 225))
+            };
+            _mediaCombinedText.Inlines.Add(_mediaTrackRun);
+            _mediaCombinedText.Inlines.Add(_mediaSepRun);
+            _mediaCombinedText.Inlines.Add(_mediaArtistRun);
+            Grid.SetColumn(_mediaCombinedText, 1);
+            compactTopGrid.Children.Add(_mediaCombinedText);
+
+            _miniEqualizer = new MiniEqualizerControl(prominent: false)
+            {
+                Cursor = Cursors.Hand,
+                ToolTip = "Play / Pause",
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 2, 0)
+            };
             _miniEqualizer.MouseLeftButtonUp += (_, e) =>
             {
                 e.Handled = true;
                 MediaService.Instance.TogglePlayPause();
             };
-            DockPanel.SetDock(_miniEqualizer, Dock.Right);
-            topRowDock.Children.Add(_miniEqualizer);
+            Grid.SetColumn(_miniEqualizer, 2);
+            compactTopGrid.Children.Add(_miniEqualizer);
 
-            var leftInfo = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            _albumArtThumb = new AlbumArtThumbnail(24.0, 6.0);
-            leftInfo.Children.Add(_albumArtThumb);
+            Grid.SetRow(compactTopGrid, 0);
+            _collapsedMediaView.Children.Add(compactTopGrid);
 
-            _mediaTrackText = new TextBlock
+            // Row 1: Symmetrical Audio Spectrum (safe inset strictly within the notch flat bottom baseline)
+            _waveformProgress = new WaveformProgressBar(WaveformProgressBar.CompactBarCount)
             {
-                Text = "Future Calling",
-                FontSize = 12.0,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Text),
-                MaxWidth = 135,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = VerticalAlignment.Center
+                Height = 8.0,
+                Margin = new Thickness(14, 1, 14, 5)
             };
-            leftInfo.Children.Add(_mediaTrackText);
-
-            leftInfo.Children.Add(new TextBlock
-            {
-                Text = " - ",
-                FontSize = 11.5,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            _mediaArtistText = new TextBlock
-            {
-                Text = "ZOYA",
-                FontSize = 11.5,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                MaxWidth = 90,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            leftInfo.Children.Add(_mediaArtistText);
-
-            topRowDock.Children.Add(leftInfo);
-            Grid.SetRow(topRowDock, 0);
-            _collapsedMediaView.Children.Add(topRowDock);
-
-            // Row 1: Full-width 40-bar Symmetrical Audio Spectrum
-            _waveformProgress = new WaveformProgressBar(WaveformProgressBar.CompactBarCount);
             Grid.SetRow(_waveformProgress, 1);
             _collapsedMediaView.Children.Add(_waveformProgress);
 
-            // Right-clicking compact media pill shows the 4-second Wide Music Card on demand
+            // Right-clicking compact media pill shows the Wide Music Card on demand
             _collapsedMediaView.MouseRightButtonUp += (_, e) =>
             {
                 e.Handled = true;
@@ -583,128 +614,153 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _collapsedContent.Children.Add(_collapsedMediaView);
 
-            // View 2B: Wide Music Card on Track Switch / Next Song (380 x 75 for 4.0s, matching video 00:07-00:10)
+            // View 2B: Wide Music Card on Track Switch / Play (392 x 84)
             _collapsedMediaWideView = new Grid
             {
                 Visibility = Visibility.Collapsed,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 2, 2, 1),
+                ClipToBounds = true,
                 RenderTransform = new TranslateTransform(0, 0)
             };
             _collapsedMediaWideView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _collapsedMediaWideView.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            var wideTopGrid = new Grid { Margin = new Thickness(1, 1, 1, 4) };
+            var wideTopGrid = new Grid
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 3)
+            };
             wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            wideTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _wideAlbumArtThumb = new AlbumArtThumbnail(44.0, 10.0)
+            _wideAlbumArtThumb = new AlbumArtThumbnail(38.0, 8.0)
             {
-                Margin = new Thickness(0, 0, 10, 0),
+                Margin = new Thickness(4, 0, 10, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(_wideAlbumArtThumb, 0);
             wideTopGrid.Children.Add(_wideAlbumArtThumb);
 
-            var wideCenterStack = new StackPanel
+            var wideRightGrid = new Grid
             {
-                Orientation = Orientation.Vertical,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0)
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center
             };
+            wideRightGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            wideRightGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            wideRightGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Line 1: Track Title on left (*) + Remaining Time on right (46px fixed)
+            var wideTitleRow = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
+            wideTitleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            wideTitleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46.0, GridUnitType.Pixel) });
 
             _wideMediaTrackText = new TextBlock
             {
-                Text = "Nobody Else",
-                FontSize = 12.5,
+                Text = "Grounds for Hope",
+                FontSize = 13.0,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            wideCenterStack.Children.Add(_wideMediaTrackText);
+            Grid.SetColumn(_wideMediaTrackText, 0);
+            wideTitleRow.Children.Add(_wideMediaTrackText);
 
+            _wideRemainingText = new TextBlock
+            {
+                Text = "-2:55",
+                FontSize = 11.0,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(210, 220, 235)),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            Grid.SetColumn(_wideRemainingText, 1);
+            wideTitleRow.Children.Add(_wideRemainingText);
+
+            Grid.SetRow(wideTitleRow, 0);
+            wideRightGrid.Children.Add(wideTitleRow);
+
+            // Line 2: Artist subtitle
             _wideMediaArtistText = new TextBlock
             {
-                Text = "Moeaike",
-                FontSize = 11.0,
-                Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 147)),
-                Margin = new Thickness(0, 1, 0, 6),
-                TextTrimming = TextTrimming.CharacterEllipsis
+                Text = "NOTSOBAD",
+                FontSize = 11.5,
+                FontWeight = FontWeights.Normal,
+                Foreground = new SolidColorBrush(Color.FromRgb(165, 175, 192)),
+                Margin = new Thickness(0, 2, 0, 4),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap,
+                MaxWidth = 240.0
             };
-            wideCenterStack.Children.Add(_wideMediaArtistText);
+            Grid.SetRow(_wideMediaArtistText, 1);
+            wideRightGrid.Children.Add(_wideMediaArtistText);
 
-            // Horizontal Progress Scrubber Bar (White filled left + dark translucent track right)
+            // Line 3: Scrubber bar
+            _wideScrubberHost = new Grid
+            {
+                Height = 6.0,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center,
+                ClipToBounds = false,
+                Margin = new Thickness(0, 2, 8, 2)
+            };
+
             _wideProgressTrack = new Border
             {
                 Height = 3.5,
                 CornerRadius = new CornerRadius(1.75),
-                Background = new SolidColorBrush(Color.FromArgb(62, 255, 255, 255)),
+                Background = new SolidColorBrush(Color.FromArgb(45, 255, 255, 255)),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(0, 0, 4, 0)
+                VerticalAlignment = VerticalAlignment.Center
             };
+            _wideProgressTrack.SizeChanged += (_, _) => UpdateMediaTimelineVisuals();
+            _wideScrubberHost.Children.Add(_wideProgressTrack);
+
             _wideProgressFill = new Border
             {
                 Height = 3.5,
-                Width = 28.0,
+                Width = 24.0,
                 CornerRadius = new CornerRadius(1.75),
                 Background = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Left
-            };
-            _wideProgressTrack.Child = _wideProgressFill;
-            _wideProgressTrack.SizeChanged += (_, _) => UpdateMediaTimelineVisuals();
-            wideCenterStack.Children.Add(_wideProgressTrack);
-
-            Grid.SetColumn(wideCenterStack, 1);
-            wideTopGrid.Children.Add(wideCenterStack);
-
-            var wideRightStack = new StackPanel
-            {
-                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right
+                IsHitTestVisible = false
             };
+            _wideScrubberHost.Children.Add(_wideProgressFill);
 
-            _wideRemainingText = new TextBlock
+            _wideProgressThumb = new Ellipse
             {
-                Text = "-3:22",
-                FontSize = 11.0,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(152, 152, 160)),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 0, 2, 4)
+                Width = 8.0,
+                Height = 8.0,
+                Fill = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false,
+                RenderTransform = _wideProgressThumbTranslate
             };
-            wideRightStack.Children.Add(_wideRemainingText);
+            _wideScrubberHost.Children.Add(_wideProgressThumb);
 
-            _wideTransportControls = new MediaTransportControlsBar(
-                onPrev: () =>
-                {
-                    ResetMediaWideTimer();
-                    MediaService.Instance.PreviousTrack();
-                },
-                onPlayPause: () =>
-                {
-                    ResetMediaWideTimer();
-                    MediaService.Instance.TogglePlayPause();
-                },
-                onNext: () =>
-                {
-                    ResetMediaWideTimer();
-                    MediaService.Instance.NextTrack();
-                })
-            {
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            wideRightStack.Children.Add(_wideTransportControls);
+            Grid.SetRow(_wideScrubberHost, 2);
+            wideRightGrid.Children.Add(_wideScrubberHost);
 
-            Grid.SetColumn(wideRightStack, 2);
-            wideTopGrid.Children.Add(wideRightStack);
+            Grid.SetColumn(wideRightGrid, 1);
+            wideTopGrid.Children.Add(wideRightGrid);
 
             Grid.SetRow(wideTopGrid, 0);
             _collapsedMediaWideView.Children.Add(wideTopGrid);
 
-            // Row 1: Full-width 56-bar Symmetrical Audio Spectrum
-            _wideWaveformProgress = new WaveformProgressBar(WaveformProgressBar.WideBarCount);
+            // Row 1: Spectrum
+            _wideWaveformProgress = new WaveformProgressBar(WaveformProgressBar.WideBarCount)
+            {
+                Height = 9.5,
+                Margin = new Thickness(16, 2, 16, 6)
+            };
             Grid.SetRow(_wideWaveformProgress, 1);
             _collapsedMediaWideView.Children.Add(_wideWaveformProgress);
 
@@ -1140,62 +1196,82 @@ namespace WindowsBuddy.BuddyCapsule.Core
             musicSatTransformGroup.Children.Add(_musicSatelliteScale);
             musicSatTransformGroup.Children.Add(_musicSatelliteTranslate);
 
-            var musicSatGrid = new Grid
+            var musicSatPanel = new StackPanel
             {
-                Width = 36,
-                Height = 36
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            _musicSatelliteArtGrid = new Grid
+            {
+                Width = 24,
+                Height = 24,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6, 0, 0, 0)
             };
 
             _musicSatelliteBeatRing = new Ellipse
             {
-                Width = 36,
-                Height = 36,
+                Width = 26,
+                Height = 26,
                 Stroke = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255)),
-                StrokeThickness = 1.5,
+                StrokeThickness = 1.2,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
             _musicSatelliteArtworkImage = new Image
             {
-                Width = 32,
-                Height = 32,
+                Width = 24,
+                Height = 24,
                 Stretch = Stretch.UniformToFill,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                Clip = new EllipseGeometry(new Point(16, 16), 16, 16)
+                Clip = new EllipseGeometry(new Point(12, 12), 12, 12)
             };
 
             _musicSatelliteGlyph = new TextBlock
             {
                 Text = "🎵",
-                FontSize = 14,
+                FontSize = 13,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Collapsed
             };
 
-            musicSatGrid.Children.Add(_musicSatelliteBeatRing);
-            musicSatGrid.Children.Add(_musicSatelliteArtworkImage);
-            musicSatGrid.Children.Add(_musicSatelliteGlyph);
+            _musicSatelliteArtGrid.Children.Add(_musicSatelliteBeatRing);
+            _musicSatelliteArtGrid.Children.Add(_musicSatelliteArtworkImage);
+            _musicSatelliteArtGrid.Children.Add(_musicSatelliteGlyph);
+
+            _musicSatelliteEqualizer = new MiniEqualizerControl
+            {
+                Cursor = Cursors.Hand,
+                ToolTip = "Music Visualizer",
+                Margin = new Thickness(4, 0, 7, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            musicSatPanel.Children.Add(_musicSatelliteArtGrid);
+            musicSatPanel.Children.Add(_musicSatelliteEqualizer);
 
             _musicSatelliteIsland = new Border
             {
-                Width = 36,
-                Height = 36,
-                CornerRadius = new CornerRadius(18),
+                Width = 58,
+                Height = 34,
+                CornerRadius = new CornerRadius(17),
                 Background = CapsuleTheme.Brush(p.Bg),
                 BorderBrush = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 4.5, 0, 0),
+                Margin = new Thickness(0, 5, 0, 0),
                 RenderTransformOrigin = new Point(0.5, 0.5),
                 RenderTransform = musicSatTransformGroup,
                 Cursor = Cursors.Hand,
                 Visibility = Visibility.Collapsed,
                 ToolTip = "Music Playing · Click: Play / Pause · Right-click: Next track",
-                Child = musicSatGrid
+                Child = musicSatPanel
             };
             _musicSatelliteIsland.MouseLeftButtonUp += (_, e) =>
             {
@@ -1319,6 +1395,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 if (!_isMusicActive)
                 {
                     bool miniSettled = _miniEqualizer.DecayLevels();
+                    _musicSatelliteEqualizer?.DecayLevels();
                     bool waveSettled = _waveformProgress.DecayLevels();
                     bool wideWaveSettled = _wideWaveformProgress.DecayLevels();
                     if (miniSettled && waveSettled && wideWaveSettled)
@@ -1333,11 +1410,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 AudioSpectrumService.Instance.Read(_fftBands28, out bool isAudioLive);
                 AudioSpectrumService.ComputeMiniBars(_fftBands28, _miniBars4, _spectrumPhase);
                 _miniEqualizer.SetLevels(_miniBars4, true);
+                _musicSatelliteEqualizer?.SetLevels(_miniBars4, true);
 
                 if (_isMediaWideActive)
                 {
                     AudioSpectrumService.MapBands(_fftBands28, _mappedBars56, WaveformProgressBar.WideBarCount);
                     _wideWaveformProgress.SetSpectrumLevels(_mappedBars56, true, isAudioLive, _spectrumPhase);
+                    UpdateMediaTimelineVisuals();
                 }
                 else
                 {
@@ -1345,6 +1424,15 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _waveformProgress.SetSpectrumLevels(_mappedBars40, true, isAudioLive, _spectrumPhase);
                 }
             };
+
+            // Startup memory compaction: trims initial JIT/assembly load working set after 6 seconds
+            var startupTrimTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6.0) };
+            startupTrimTimer.Tick += (_, _) =>
+            {
+                startupTrimTimer.Stop();
+                TrimWorkingSet();
+            };
+            startupTrimTimer.Start();
 
             // Music Settle Exit Timer (Retains media card 2.8s after music ends/pauses, then smoothly morphs to resting notch)
             _mediaSettleExitTimer = new DispatcherTimer();
@@ -1366,8 +1454,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _mediaWideDismissTimer.Stop();
                 if (_isMediaWideActive)
                 {
-                    _isMediaWideActive = false;
-                    UpdateCollapsedViewState(animateCompactEntrance: true);
+                    var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+                    var fadeOut = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(160)) { EasingFunction = ease };
+                    fadeOut.Completed += (_, _) =>
+                    {
+                        _isMediaWideActive = false;
+                        _collapsedMediaWideView.Visibility = Visibility.Collapsed;
+                        _collapsedMediaWideView.BeginAnimation(OpacityProperty, null);
+                        _collapsedMediaWideView.Opacity = 1.0;
+                        UpdateCollapsedViewState(animateCompactEntrance: true);
+                    };
+                    _collapsedMediaWideView.BeginAnimation(OpacityProperty, fadeOut);
                 }
             };
 
@@ -1639,9 +1736,21 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 if (isCopyOrCut)
                 {
                     GetConfiguredRestingDimensions(out double rw, out double rh);
-                    _currentBaseCollapsedWidth = rw;
-                    _currentBaseCollapsedHeight = rh;
-                    _bannerSubtitle.MaxWidth = Math.Max(60.0, rw - 110.0);
+                    if (isMusicPlaying)
+                    {
+                        double satW = Math.Round(rh * 1.68);
+                        double gap = 9.0;
+                        double copyMainW = Math.Max(152.0, rw - satW - gap);
+                        _currentBaseCollapsedWidth = copyMainW;
+                        _currentBaseCollapsedHeight = rh;
+                        _bannerSubtitle.MaxWidth = Math.Max(40.0, copyMainW - 96.0);
+                    }
+                    else
+                    {
+                        _currentBaseCollapsedWidth = rw;
+                        _currentBaseCollapsedHeight = rh;
+                        _bannerSubtitle.MaxWidth = Math.Max(60.0, rw - 110.0);
+                    }
                 }
                 else
                 {
@@ -1685,6 +1794,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             Color beatColor = _currentSongBeatColor.A > 0 ? _currentSongBeatColor : Color.FromRgb(255, 60, 90);
             _musicSatelliteBeatRing.Stroke = new SolidColorBrush(Color.FromArgb(160, beatColor.R, beatColor.G, beatColor.B));
+            _musicSatelliteEqualizer?.SetBeatColor(beatColor);
         }
 
         private void OnRealMediaSessionChanged(MediaSessionSnapshot snapshot)
@@ -1698,7 +1808,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     _mediaSettleExitTimer.Stop();
                     _spectrumTimer.Stop();
                     _miniEqualizer.IsPlaying = false;
-                    _wideTransportControls.SetPlaying(false);
+                    if (_musicSatelliteEqualizer != null) _musicSatelliteEqualizer.IsPlaying = false;
                     _isMediaWideActive = false;
                     _mediaWideDismissTimer.Stop();
                     UpdateEdgeLightEffectiveColor();
@@ -1724,10 +1834,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 {
                     if (wasPlaying && _isMediaRetained)
                     {
-                        // Music paused/stopped: smoothly decay equalizer and keep media card alive for 3.2s before morphing
+                        // Music paused/stopped: smoothly decay equalizer and keep media card alive for 3.5s before morphing
                         _spectrumTimer.Start();
                         _mediaSettleExitTimer.Stop();
-                        _mediaSettleExitTimer.Interval = TimeSpan.FromSeconds(3.2);
+                        _mediaSettleExitTimer.Interval = TimeSpan.FromSeconds(3.5);
                         _mediaSettleExitTimer.Start();
                     }
                 }
@@ -1740,30 +1850,39 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 // Determine beat color based on user's Music color setting
                 Color beatColor = snapshot.BeatColor;
-                if (!string.Equals(AppPreferences.Instance.MusicBeatColor, "Artwork", StringComparison.OrdinalIgnoreCase))
+                bool isCustomBeatColor = !string.Equals(AppPreferences.Instance.MusicBeatColor, "Artwork", StringComparison.OrdinalIgnoreCase);
+                if (isCustomBeatColor)
                 {
                     try
                     {
                         beatColor = (Color)ColorConverter.ConvertFromString(AppPreferences.Instance.MusicBeatColor);
                     }
-                    catch { }
+                    catch { isCustomBeatColor = false; }
                 }
 
-                // Compact media view (296 x 45)
-                _mediaTrackText.Text = track;
-                _mediaArtistText.Text = artist;
+                // Compact media view (312 x 50)
+                _mediaTrackRun.Text = track;
+                bool hasArtist = !string.IsNullOrWhiteSpace(artist);
+                _mediaSepRun.Text = hasArtist ? " – " : string.Empty;
+                _mediaArtistRun.Text = hasArtist ? artist : string.Empty;
+
                 _miniEqualizer.IsPlaying = snapshot.IsPlaying;
                 _miniEqualizer.SetBeatColor(beatColor);
-                _waveformProgress.SetBeatColor(beatColor);
+                if (_musicSatelliteEqualizer != null)
+                {
+                    _musicSatelliteEqualizer.IsPlaying = snapshot.IsPlaying;
+                    _musicSatelliteEqualizer.SetBeatColor(beatColor);
+                }
+                _waveformProgress.SetBeatColor(beatColor, isCustomBeatColor);
                 _currentArtworkSource = snapshot.Artwork;
                 _albumArtThumb.SetArtwork(snapshot.Artwork, artist);
 
-                // Wide media card view (380 x 75)
+                // Wide media card view (392 x 84)
                 _wideMediaTrackText.Text = track;
-                _wideMediaArtistText.Text = artist;
-                _wideTransportControls.SetPlaying(snapshot.IsPlaying);
-                _wideWaveformProgress.SetBeatColor(beatColor);
+                _wideMediaArtistText.Text = hasArtist ? artist : "Playing Now";
+                _wideWaveformProgress.SetBeatColor(beatColor, isCustomBeatColor);
                 _wideAlbumArtThumb.SetArtwork(snapshot.Artwork, artist);
+                UpdateWideScrubberTheme(beatColor, isCustomBeatColor);
 
                 if (_musicSatelliteTarget > 0.005)
                 {
@@ -1792,17 +1911,18 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
                 if (!_isMusicActive)
                 {
+                    bool wasWide = _isMediaWideActive;
                     _isMediaWideActive = false;
                     _mediaWideDismissTimer.Stop();
-                    if (!_isMediaRetained && !_isBannerActive)
+                    if ((wasWide || !_isMediaRetained) && !_isBannerActive)
                     {
-                        UpdateCollapsedViewState();
+                        UpdateCollapsedViewState(animateCompactEntrance: wasWide && _isMediaRetained);
                     }
                 }
                 else
                 {
                     // Whenever a song starts playing or track switches, expand the notch to show track & progress bar, then settle
-                    bool shouldExpandWide = (!wasPlaying && _isMusicActive) || snapshot.IsTrackSwitch || trackChanged;
+                    bool shouldExpandWide = (!wasPlaying && _isMusicActive) || (snapshot.IsTrackSwitch && trackChanged);
                     if (shouldExpandWide)
                     {
                         ActivateMediaWideCard();
@@ -1828,7 +1948,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             if (!_isBannerActive)
             {
                 UpdateCollapsedViewState();
-                AnimateViewEntrance(_collapsedMediaWideView, -7.0);
+                AnimateViewEntrance(_collapsedMediaWideView, 0.0);
             }
         }
 
@@ -1855,11 +1975,58 @@ namespace WindowsBuddy.BuddyCapsule.Core
             double pos = Math.Clamp(_mediaPosSeconds + elapsedSinceSync, 0.0, dur);
             double remaining = Math.Max(0.0, dur - pos);
 
-            _wideRemainingText.Text = FormatRemaining(remaining);
+            string remStr = FormatRemaining(remaining);
+            if (!string.Equals(_wideRemainingText.Text, remStr, StringComparison.Ordinal))
+            {
+                _wideRemainingText.Text = remStr;
+            }
 
-            double trackWidth = _wideProgressTrack.ActualWidth > 10.0 ? _wideProgressTrack.ActualWidth : 156.0;
-            double ratio = dur > 0.1 ? Math.Clamp(pos / dur, 0.04, 1.0) : 0.12;
-            _wideProgressFill.Width = Math.Max(6.0, trackWidth * ratio);
+            double trackWidth = _wideProgressTrack.ActualWidth > 10.0 ? _wideProgressTrack.ActualWidth : 200.0;
+            double ratio = dur > 0.1 ? Math.Clamp(pos / dur, 0.0, 1.0) : 0.12;
+            double fillW = Math.Clamp(trackWidth * ratio, 3.0, trackWidth);
+            _wideProgressFill.Width = fillW;
+
+            double thumbX = Math.Clamp(fillW - 3.5, 0.0, Math.Max(0.0, trackWidth - 7.0));
+            _wideProgressThumbTranslate.X = thumbX;
+        }
+
+        private void UpdateWideScrubberTheme(Color beatColor, bool isCustom)
+        {
+            Color cStart, cMid, cEnd;
+            if (isCustom)
+            {
+                cStart = Color.FromRgb(
+                    (byte)Math.Clamp(beatColor.R * 0.72 + 255 * 0.28, 0, 255),
+                    (byte)Math.Clamp(beatColor.G * 0.72 + 255 * 0.28, 0, 255),
+                    (byte)Math.Clamp(beatColor.B * 0.72 + 255 * 0.28, 0, 255));
+                cMid = beatColor;
+                cEnd = Color.FromRgb(
+                    (byte)Math.Clamp(beatColor.R * 0.50 + 255 * 0.50, 0, 255),
+                    (byte)Math.Clamp(beatColor.G * 0.55 + 255 * 0.45, 0, 255),
+                    (byte)Math.Clamp(beatColor.B * 0.60 + 255 * 0.40, 0, 255));
+            }
+            else
+            {
+                cStart = Color.FromRgb(
+                    (byte)Math.Clamp(214 * 0.68 + beatColor.R * 0.32, 0, 255),
+                    (byte)Math.Clamp(146 * 0.68 + beatColor.G * 0.32, 0, 255),
+                    (byte)Math.Clamp(255 * 0.72 + beatColor.B * 0.28, 0, 255));
+                cMid = Color.FromRgb(
+                    (byte)Math.Clamp(156 * 0.68 + beatColor.R * 0.32, 0, 255),
+                    (byte)Math.Clamp(132 * 0.68 + beatColor.G * 0.32, 0, 255),
+                    (byte)Math.Clamp(255 * 0.75 + beatColor.B * 0.25, 0, 255));
+                cEnd = Color.FromRgb(
+                    (byte)Math.Clamp(136 * 0.68 + beatColor.R * 0.32, 0, 255),
+                    (byte)Math.Clamp(198 * 0.68 + beatColor.G * 0.32, 0, 255),
+                    (byte)Math.Clamp(255 * 0.78 + beatColor.B * 0.22, 0, 255));
+            }
+
+            var grad = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
+            grad.GradientStops.Add(new GradientStop(cStart, 0.0));
+            grad.GradientStops.Add(new GradientStop(cMid, 0.52));
+            grad.GradientStops.Add(new GradientStop(cEnd, 1.0));
+            grad.Freeze();
+            _wideProgressFill.Background = grad;
         }
 
         private static string FormatRemaining(double remainingSeconds)
@@ -1870,25 +2037,24 @@ namespace WindowsBuddy.BuddyCapsule.Core
             return $"-{mins}:{secs:D2}";
         }
 
-        private static void AnimateViewEntrance(FrameworkElement view, double fromY)
+        private static void AnimateViewEntrance(FrameworkElement view, double fromY = 0.0)
         {
-            if (view.RenderTransform is not TranslateTransform tt)
-            {
-                tt = new TranslateTransform(0, 0);
-                view.RenderTransform = tt;
-            }
-
+            view.Opacity = 0.0;
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            var slideAnim = new DoubleAnimation(fromY, 0.0, TimeSpan.FromMilliseconds(260))
-            {
-                EasingFunction = ease
-            };
-            var fadeAnim = new DoubleAnimation(0.2, 1.0, TimeSpan.FromMilliseconds(220))
+            var fadeAnim = new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(200))
             {
                 EasingFunction = ease
             };
 
-            tt.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            if (view.RenderTransform is TranslateTransform tt && Math.Abs(fromY) > 0.01)
+            {
+                double safeY = Math.Clamp(fromY, -1.5, 1.5);
+                var slideAnim = new DoubleAnimation(safeY, 0.0, TimeSpan.FromMilliseconds(200))
+                {
+                    EasingFunction = ease
+                };
+                tt.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            }
             view.BeginAnimation(OpacityProperty, fadeAnim);
         }
 
@@ -2142,6 +2308,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private void UpdateCollapsedViewState(bool animateCompactEntrance = false)
         {
             EvaluateDynamicVisibility();
+            bool wasMediaVisible = _collapsedMediaView.Visibility == Visibility.Visible ||
+                                   _collapsedMediaWideView.Visibility == Visibility.Visible;
 
             bool showMedia = (_isMusicActive || _isMediaRetained) && AppPreferences.Instance.ShowClosedNowPlaying;
             var timerSnap = WindowsBuddy.Tools.Timer.TimerService.Instance.GetActiveNotchTimer();
@@ -2168,13 +2336,25 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedBannerView.Visibility = Visibility.Visible;
-                bool isCopyOrCut = _bannerTitle.Text == "Copied" || _bannerTitle.Text == "Cut";
+                bool isCopyOrCut = _bannerTitle.Text == "Copied" || _bannerTitle.Text == "Cut" || _bannerIcon.Text == "📋" || _bannerIcon.Text == "✂️" || _bannerIcon.Text == "📁";
                 if (isCopyOrCut)
                 {
                     GetConfiguredRestingDimensions(out double rw, out double rh);
-                    _currentBaseCollapsedWidth = rw;
-                    _currentBaseCollapsedHeight = rh;
-                    _bannerSubtitle.MaxWidth = Math.Max(60.0, rw - 110.0);
+                    if (showMedia)
+                    {
+                        double satW = Math.Round(rh * 1.68);
+                        double gap = 9.0;
+                        double copyMainW = Math.Max(152.0, rw - satW - gap);
+                        _currentBaseCollapsedWidth = copyMainW;
+                        _currentBaseCollapsedHeight = rh;
+                        _bannerSubtitle.MaxWidth = Math.Max(40.0, copyMainW - 96.0);
+                    }
+                    else
+                    {
+                        _currentBaseCollapsedWidth = rw;
+                        _currentBaseCollapsedHeight = rh;
+                        _bannerSubtitle.MaxWidth = Math.Max(60.0, rw - 110.0);
+                    }
                 }
                 else
                 {
@@ -2212,8 +2392,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedMediaView.Visibility = Visibility.Collapsed;
                 _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedMediaWideView.Visibility = Visibility.Visible;
-                _currentBaseCollapsedWidth = MediaWideCollapsedWidth;
-                _currentBaseCollapsedHeight = MediaWideCollapsedHeight;
+                _collapsedMediaWideView.LayoutTransform = Transform.Identity;
+                double scale = Math.Clamp(AppPreferences.Instance.NotchScalePercent / 100.0, 0.75, 1.30);
+                bool isIsland = string.Equals(AppPreferences.Instance.NotchStyle, "Island", StringComparison.OrdinalIgnoreCase);
+                double targetW = isIsland ? 360.0 : MediaWideCollapsedWidth;
+                double targetH = isIsland ? 66.0 : MediaWideCollapsedHeight;
+                _currentBaseCollapsedWidth = Math.Round(targetW * scale);
+                _currentBaseCollapsedHeight = Math.Round(targetH * scale);
                 if (showTimer) _splitIslandsTarget = 1.0;
             }
             else if (_isMinimalModeActive)
@@ -2239,8 +2424,13 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _collapsedMediaWideView.Visibility = Visibility.Collapsed;
                 _collapsedMessageView.Visibility = Visibility.Collapsed;
                 _collapsedMediaView.Visibility = Visibility.Visible;
-                _currentBaseCollapsedWidth = MediaCollapsedWidth;
-                _currentBaseCollapsedHeight = MediaCollapsedHeight;
+                _collapsedMediaView.LayoutTransform = Transform.Identity;
+                double scale = Math.Clamp(AppPreferences.Instance.NotchScalePercent / 100.0, 0.75, 1.30);
+                bool isIsland = string.Equals(AppPreferences.Instance.NotchStyle, "Island", StringComparison.OrdinalIgnoreCase);
+                double targetW = isIsland ? 280.0 : MediaCollapsedWidth;
+                double targetH = isIsland ? 38.0 : MediaCollapsedHeight;
+                _currentBaseCollapsedWidth = Math.Round(targetW * scale);
+                _currentBaseCollapsedHeight = Math.Round(targetH * scale);
                 if (showTimer) _splitIslandsTarget = 1.0;
 
                 if (animateCompactEntrance)
@@ -2276,18 +2466,27 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 GetConfiguredRestingDimensions(out double rw, out double rh);
                 _currentBaseCollapsedWidth = rw;
                 _currentBaseCollapsedHeight = rh;
+                if (wasMediaVisible)
+                {
+                    AnimateViewEntrance(_collapsedNormalView, -4.0);
+                    _edgeLight.TriggerBurst(3.5);
+                }
             }
 
-            if ((_morphProgress <= 0.1 && !_machine.IsOpenOrOpening) ||
-                Math.Abs(prevSplitTarget - _splitIslandsTarget) > 0.01 ||
-                Math.Abs(prevMusicSatTarget - _musicSatelliteTarget) > 0.01)
+            bool needMorph = Math.Abs(_currentBaseCollapsedWidth - _displayedCollapsedWidth) > 0.5 ||
+                             Math.Abs(_currentBaseCollapsedHeight - _displayedCollapsedHeight) > 0.5 ||
+                             Math.Abs(prevSplitTarget - _splitIslandsTarget) > 0.01 ||
+                             Math.Abs(prevMusicSatTarget - _musicSatelliteTarget) > 0.01;
+
+            if (needMorph)
             {
                 if (_morphProgress <= 0.1 && !_machine.IsOpenOrOpening) _targetProgress = 0.0;
+                _lastMorphTickTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
                 _morphTimer.Start();
             }
         }
 
-        private static void GetConfiguredRestingDimensions(out double width, out double height)
+private static void GetConfiguredRestingDimensions(out double width, out double height)
         {
             NotchGeometryBuilder.GetRestingShapeProfile(
                 AppPreferences.Instance.NotchStyle,
@@ -2414,7 +2613,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
             bool hasLiveEvent = _isBannerActive || _isMessageActive || (_isMusicActive && _isMediaWideActive);
             bool eventOverridesTuck = prefs.ShowEventsOverApps && hasLiveEvent;
 
-            InspectWindowUnderNotch(out bool isFgFullscreen, out bool isOccupiedByApp, out bool isFgMaximized);
+            string visMode = prefs.NotchVisibility ?? "Always";
+            bool isSmartMode = string.Equals(visMode, "Smart", StringComparison.OrdinalIgnoreCase);
+
+            InspectWindowUnderNotch(isSmartMode, out bool isFgFullscreen, out bool isOccupiedByApp, out bool isFgMaximized);
+
+            // Dynamically adapt timer rate: 160ms for Smart mode, 320ms for Always/Hidden mode
+            var desiredRate = isSmartMode ? TimeSpan.FromMilliseconds(160) : TimeSpan.FromMilliseconds(320);
+            if (_dynamicVisibilityTimer.Interval != desiredRate)
+            {
+                _dynamicVisibilityTimer.Interval = desiredRate;
+            }
 
             // 1. Hide in fullscreen (unless open or event overrides tuck)
             if (prefs.HideOnFullscreen && isFgFullscreen && !isOpenOrOpening && !eventOverridesTuck)
@@ -2422,8 +2631,6 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 SetAutoHidden(true);
                 return;
             }
-
-            string visMode = prefs.NotchVisibility ?? "Always";
 
             // 2. Hidden mode: invisible when resting, but opens via shortcut/tray or live event when ShowEventsOverApps is enabled
             if (string.Equals(visMode, "Hidden", StringComparison.OrdinalIgnoreCase))
@@ -2537,7 +2744,160 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _musicSatelliteTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
         }
 
-        private void InspectWindowUnderNotch(out bool isFullscreen, out bool isOccupiedByApp, out bool isMaximized)
+        private int _smartTextClearTicks = 10;
+
+        private bool DetectTextUnderNotch(int notchLeft, int notchTop, int notchRight, int notchBottom)
+        {
+            try
+            {
+                // 1. Check if active typing caret is near or under the notch
+                var gui = new NativeMethods.GUITHREADINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.GUITHREADINFO)) };
+                if (NativeMethods.GetGUIThreadInfo(0, ref gui) && gui.hwndCaret != IntPtr.Zero)
+                {
+                    var pt = new NativeMethods.POINT { X = gui.rcCaret.Left, Y = gui.rcCaret.Top };
+                    if (NativeMethods.ClientToScreen(gui.hwndCaret, ref pt))
+                    {
+                        if (pt.Y <= notchBottom + 24 && pt.Y >= notchTop - 10 &&
+                            pt.X >= notchLeft - 36 && pt.X <= notchRight + 36)
+                        {
+                            _smartTextClearTicks = 0;
+                            return true;
+                        }
+                    }
+                }
+
+                // 2. Sample underlying window pixels directly under the notch (WDA_EXCLUDEFROMCAPTURE excludes the notch itself)
+                int sampleW = Math.Clamp(notchRight - notchLeft - 24, 120, 220);
+                int sampleH = 22;
+                int sampleX = notchLeft + ((notchRight - notchLeft) - sampleW) / 2;
+                int sampleY = notchTop + 5;
+
+                IntPtr screenDc = NativeMethods.GetDC(IntPtr.Zero);
+                if (screenDc == IntPtr.Zero) return false;
+                try
+                {
+                    IntPtr memDc = NativeMethods.CreateCompatibleDC(screenDc);
+                    if (memDc == IntPtr.Zero) return false;
+                    try
+                    {
+                        var bmi = new NativeMethods.BITMAPINFO();
+                        bmi.bmiHeader.biSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.BITMAPINFOHEADER));
+                        bmi.bmiHeader.biWidth = sampleW;
+                        bmi.bmiHeader.biHeight = -sampleH; // top-down
+                        bmi.bmiHeader.biPlanes = 1;
+                        bmi.bmiHeader.biBitCount = 32;
+                        bmi.bmiHeader.biCompression = 0;
+
+                        IntPtr hDib = NativeMethods.CreateDIBSection(memDc, ref bmi, 0, out IntPtr ppvBits, IntPtr.Zero, 0);
+                        if (hDib == IntPtr.Zero || ppvBits == IntPtr.Zero) return false;
+                        try
+                        {
+                            IntPtr oldBmp = NativeMethods.SelectObject(memDc, hDib);
+                            bool ok = false;
+                            if (_isAutoHiddenByVisibility)
+                            {
+                                // Notch is already retracted off-screen: sample screen directly
+                                ok = NativeMethods.BitBlt(memDc, 0, 0, sampleW, sampleH, screenDc, sampleX, sampleY, NativeMethods.SRCCOPY);
+                            }
+                            else
+                            {
+                                // Notch is visible on-screen: sample directly from the foreground app DC underneath to avoid sampling the notch itself
+                                IntPtr myHwnd = new WindowInteropHelper(this).Handle;
+                                IntPtr fg = NativeMethods.GetForegroundWindow();
+                                if (fg != IntPtr.Zero && fg != myHwnd && NativeMethods.GetWindowRect(fg, out var fgRect))
+                                {
+                                    if (sampleX >= fgRect.Left && sampleY >= fgRect.Top && sampleX + sampleW <= fgRect.Right)
+                                    {
+                                        IntPtr fgDc = NativeMethods.GetDC(fg);
+                                        if (fgDc != IntPtr.Zero)
+                                        {
+                                            try
+                                            {
+                                                int srcX = sampleX - fgRect.Left;
+                                                int srcY = sampleY - fgRect.Top;
+                                                ok = NativeMethods.BitBlt(memDc, 0, 0, sampleW, sampleH, fgDc, srcX, srcY, NativeMethods.SRCCOPY);
+                                            }
+                                            finally
+                                            {
+                                                NativeMethods.ReleaseDC(fg, fgDc);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            NativeMethods.SelectObject(memDc, oldBmp);
+                            if (!ok) return false;
+
+                            // Scan 5 horizontal lines for high-frequency glyph/text contrast edges
+                            int[] scanRows = { 3, 7, 11, 15, 19 };
+                            int glyphEdges = 0;
+                            foreach (int r in scanRows)
+                            {
+                                if (r >= sampleH) continue;
+                                int rowOffset = r * sampleW * 4;
+                                int prevLum = -1;
+                                int prevDir = 0;
+                                for (int x = 2; x < sampleW - 2; x += 2)
+                                {
+                                    int px = System.Runtime.InteropServices.Marshal.ReadInt32(ppvBits, rowOffset + x * 4);
+                                    int b = px & 0xFF;
+                                    int g = (px >> 8) & 0xFF;
+                                    int red = (px >> 16) & 0xFF;
+                                    int lum = (red * 2 + g * 5 + b) >> 3;
+
+                                    if (prevLum >= 0)
+                                    {
+                                        int diff = lum - prevLum;
+                                        if (Math.Abs(diff) >= 20)
+                                        {
+                                            int dir = diff > 0 ? 1 : -1;
+                                            if (prevDir != 0 && dir != prevDir)
+                                            {
+                                                glyphEdges += 2; // Alternating stroke (background -> glyph -> background)
+                                            }
+                                            else
+                                            {
+                                                glyphEdges += 1;
+                                            }
+                                            prevDir = dir;
+                                        }
+                                    }
+                                    prevLum = lum;
+                                }
+                            }
+
+                            if (glyphEdges >= 9)
+                            {
+                                _smartTextClearTicks = 0;
+                                return true;
+                            }
+                        }
+                        finally
+                        {
+                            NativeMethods.DeleteObject(hDib);
+                        }
+                    }
+                    finally
+                    {
+                        NativeMethods.DeleteDC(memDc);
+                    }
+                }
+                finally
+                {
+                    NativeMethods.ReleaseDC(IntPtr.Zero, screenDc);
+                }
+            }
+            catch { }
+
+            if (_smartTextClearTicks < 3)
+            {
+                _smartTextClearTicks++;
+                return true;
+            }
+            return false;
+        }
+
+        private void InspectWindowUnderNotch(bool checkTextUnderNotch, out bool isFullscreen, out bool isOccupiedByApp, out bool isMaximized)
         {
             isFullscreen = false;
             isOccupiedByApp = false;
@@ -2556,6 +2916,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 int notchBottom = b.Top + (int)notchH;
 
                 var myHwnd = new WindowInteropHelper(this).Handle;
+                bool hasAppWindowInNotchZone = false;
 
                 // 1. Inspect Foreground Window
                 IntPtr fg = NativeMethods.GetForegroundWindow();
@@ -2588,62 +2949,69 @@ namespace WindowsBuddy.BuddyCapsule.Core
                                 return;
                             }
 
-                            // Window is on notch display
                             int cx = (rect.Left + rect.Right) / 2;
                             int cy = (rect.Top + rect.Bottom) / 2;
                             if (b.Contains(cx, cy) || b.Contains(rect.Left + 10, rect.Top + 10))
                             {
-                                // Maximized window: top edge touches the top of screen
                                 if (NativeMethods.IsZoomed(fg) || (rect.Left <= b.Left + 4 && rect.Top <= b.Top + 4 && winW >= b.Width - 10))
                                 {
                                     isMaximized = true;
-                                    isOccupiedByApp = true;
-                                    return;
+                                    hasAppWindowInNotchZone = true;
                                 }
-
-                                // Floating / snapped window intersecting the notch region at the top
-                                if (rect.Top <= notchBottom + 16 && rect.Bottom > notchTop &&
-                                    rect.Left < notchRight && rect.Right > notchLeft)
+                                else if (rect.Top <= notchBottom + 16 && rect.Bottom > notchTop &&
+                                         rect.Left < notchRight && rect.Right > notchLeft)
                                 {
-                                    isOccupiedByApp = true;
-                                    return;
+                                    hasAppWindowInNotchZone = true;
                                 }
                             }
                         }
                     }
                 }
 
-                // 2. Point hit-test directly under the notch to detect any background application covering top center
-                var testPt = new NativeMethods.POINT
+                // 2. Also check if a background window is directly under the notch
+                if (!hasAppWindowInNotchZone)
                 {
-                    X = (notchLeft + notchRight) / 2,
-                    Y = notchTop + 16
-                };
-                IntPtr wndUnder = NativeMethods.WindowFromPoint(testPt);
-                if (wndUnder != IntPtr.Zero && wndUnder != myHwnd)
-                {
-                    IntPtr rootUnder = NativeMethods.GetAncestor(wndUnder, NativeMethods.GA_ROOT);
-                    if (rootUnder == IntPtr.Zero) rootUnder = wndUnder;
-
-                    if (rootUnder != myHwnd)
+                    var testPt = new NativeMethods.POINT
                     {
-                        NativeMethods.GetWindowThreadProcessId(rootUnder, out uint uPid);
-                        if (uPid != (uint)Environment.ProcessId)
-                        {
-                            var sbUnder = new System.Text.StringBuilder(64);
-                            NativeMethods.GetClassName(rootUnder, sbUnder, sbUnder.Capacity);
-                            string clsUnder = sbUnder.ToString();
-                            bool isDesktopUnder = string.Equals(clsUnder, "Progman", StringComparison.OrdinalIgnoreCase) ||
-                                                 string.Equals(clsUnder, "WorkerW", StringComparison.OrdinalIgnoreCase) ||
-                                                 string.Equals(clsUnder, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
-                                                 string.Equals(clsUnder, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase);
+                        X = (notchLeft + notchRight) / 2,
+                        Y = notchTop + 16
+                    };
+                    IntPtr wndUnder = NativeMethods.WindowFromPoint(testPt);
+                    if (wndUnder != IntPtr.Zero && wndUnder != myHwnd)
+                    {
+                        IntPtr rootUnder = NativeMethods.GetAncestor(wndUnder, NativeMethods.GA_ROOT);
+                        if (rootUnder == IntPtr.Zero) rootUnder = wndUnder;
 
-                            if (!isDesktopUnder && NativeMethods.IsWindowVisible(rootUnder))
+                        if (rootUnder != myHwnd)
+                        {
+                            NativeMethods.GetWindowThreadProcessId(rootUnder, out uint uPid);
+                            if (uPid != (uint)Environment.ProcessId)
                             {
-                                isOccupiedByApp = true;
+                                var sbUnder = new System.Text.StringBuilder(64);
+                                NativeMethods.GetClassName(rootUnder, sbUnder, sbUnder.Capacity);
+                                string clsUnder = sbUnder.ToString();
+                                bool isDesktopUnder = string.Equals(clsUnder, "Progman", StringComparison.OrdinalIgnoreCase) ||
+                                                     string.Equals(clsUnder, "WorkerW", StringComparison.OrdinalIgnoreCase) ||
+                                                     string.Equals(clsUnder, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
+                                                     string.Equals(clsUnder, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase);
+
+                                if (!isDesktopUnder && NativeMethods.IsWindowVisible(rootUnder))
+                                {
+                                    hasAppWindowInNotchZone = true;
+                                }
                             }
                         }
                     }
+                }
+
+                if (hasAppWindowInNotchZone && checkTextUnderNotch)
+                {
+                    isOccupiedByApp = DetectTextUnderNotch(notchLeft, notchTop, notchRight, notchBottom);
+                }
+                else
+                {
+                    _smartTextClearTicks = 10;
+                    isOccupiedByApp = false;
                 }
             }
             catch { }
@@ -2852,6 +3220,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             int exStyle = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
             NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, exStyle | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TOPMOST);
+            try { NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_NONE); } catch { }
 
             HotkeyService.Instance.AttachWindow(hwnd);
             HotkeyService.Instance.Pressed += () =>
@@ -3444,7 +3813,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 double dw = _currentBaseCollapsedWidth - _displayedCollapsedWidth;
                 double dh = _currentBaseCollapsedHeight - _displayedCollapsedHeight;
-                sizeSettled = Math.Abs(dw) < 0.4 && Math.Abs(dh) < 0.3;
+                sizeSettled = Math.Abs(dw) < 0.5 && Math.Abs(dh) < 0.4;
 
                 if (sizeSettled)
                 {
@@ -3453,7 +3822,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
                 else
                 {
-                    double lerpFactor = Math.Clamp(dt * 14.0, 0.12, 0.35);
+                    double lerpFactor = Math.Clamp(dt * 8.5, 0.08, 0.22);
                     _displayedCollapsedWidth += dw * lerpFactor;
                     _displayedCollapsedHeight += dh * lerpFactor;
                 }
@@ -3486,11 +3855,15 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
 
             bool allSettled = morphSettled && sizeSettled && splitSettled && musicSettled;
-            _edgeLight.SetMorphing(!allSettled);
+            _edgeLight.SetMorphing(!morphSettled);
 
             if (allSettled)
             {
                 _morphTimer.Stop();
+                if (_morphProgress <= 0.01 && _targetProgress <= 0.01)
+                {
+                    TrimWorkingSet();
+                }
             }
 
             UpdateMorphVisuals(_morphProgress);
@@ -3517,7 +3890,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _capsuleCard.Cursor = t > 0.5 ? Cursors.Arrow : Cursors.Hand;
 
             string geoStyle = isIsland ? "Island" : (isLine ? "Line" : (AppPreferences.Instance.NotchShape ?? "Shouldered"));
-            double bottomRadius = 15.0 + (24.0 - 15.0) * ease;
+            double collapsedBottomRadius = Math.Clamp(baseH * 0.215, 15.0, 19.5);
+            double bottomRadius = collapsedBottomRadius + (24.0 - collapsedBottomRadius) * ease;
             var geo = NotchGeometryBuilder.BuildSilhouetteCore(geoStyle, curW, curH, bottomRadius, isOutline: false);
 
             _notchBackdropPath.Data = geo;
@@ -3531,14 +3905,83 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _collapsedContent.Visibility = collapsedOpacity <= 0.001 ? Visibility.Collapsed : Visibility.Visible;
             _collapsedContent.IsHitTestVisible = t < 0.25;
 
-            // Pin collapsed content width to resting width and center it so resting items don't stretch or shift horizontally during morph
-            double earOffset = (isIsland || isLine) ? 0.0 : EarUnitW;
+            // Inset content comfortably inside the notch silhouette
+            // For Notch/Shouldered: side clearance of 26.0 protects against shoulders without starving width
+            double sideClearance = (isIsland || isLine) ? 20.0 : 26.0;
+            double topClearance = isIsland ? islandGap : (isLine ? 3.0 : 6.5);
+            double bottomClearance = (isIsland || isLine) ? 4.0 : 7.0;
+
             double collapsedInnerWidth = _isBannerActive
-                ? Math.Max(40.0, baseW - ((isIsland || isLine) ? 12.0 : 32.0))
-                : Math.Max(40.0, baseW - (earOffset + 10) * 2);
-            _collapsedContent.Width = collapsedInnerWidth;
+                ? Math.Max(40.0, baseW - ((isIsland || isLine) ? 16.0 : 36.0))
+                : Math.Max(40.0, baseW - sideClearance);
+            double collapsedInnerHeight = isIsland
+                ? Math.Max(16.0, baseH)
+                : Math.Max(16.0, baseH - topClearance - bottomClearance);
+
+            if (Math.Abs(_collapsedContent.Width - collapsedInnerWidth) > 0.4)
+            {
+                _collapsedContent.Width = collapsedInnerWidth;
+            }
+            if (Math.Abs(_collapsedContent.Height - collapsedInnerHeight) > 0.4)
+            {
+                _collapsedContent.Height = collapsedInnerHeight;
+            }
             _collapsedContent.HorizontalAlignment = HorizontalAlignment.Center;
-            _collapsedContent.Margin = new Thickness(0, islandGap, 0, 0);
+            _collapsedContent.VerticalAlignment = isIsland ? VerticalAlignment.Center : VerticalAlignment.Top;
+            _collapsedContent.Margin = new Thickness(0, isIsland ? islandGap : topClearance, 0, 0);
+
+            // Confine media views strictly within inner bounds and constrain text MaxWidth to prevent grid blowouts
+            _collapsedMediaView.Width = collapsedInnerWidth;
+            _collapsedMediaWideView.Width = collapsedInnerWidth;
+
+            double availableCenterW = Math.Max(40.0, collapsedInnerWidth - (isIsland ? 56.0 : 64.0));
+            if (Math.Abs(_mediaCombinedText.MaxWidth - availableCenterW) > 1.0)
+            {
+                _mediaCombinedText.MaxWidth = availableCenterW;
+            }
+
+            double availableRightW = Math.Max(40.0, collapsedInnerWidth - (isIsland ? 56.0 : 64.0));
+            double targetTrackMaxW = Math.Max(40.0, availableRightW - 48.0);
+            if (Math.Abs(_wideMediaTrackText.MaxWidth - targetTrackMaxW) > 1.0)
+            {
+                _wideMediaTrackText.MaxWidth = targetTrackMaxW;
+            }
+            double targetArtistMaxW = Math.Max(40.0, availableRightW - 8.0);
+            if (Math.Abs(_wideMediaArtistText.MaxWidth - targetArtistMaxW) > 1.0)
+            {
+                _wideMediaArtistText.MaxWidth = targetArtistMaxW;
+            }
+
+            // Responsive styling for Island vs Notch / Line
+            if (isIsland)
+            {
+                _waveformProgress.Visibility = Visibility.Collapsed;
+                _wideWaveformProgress.Visibility = Visibility.Collapsed;
+                _mediaCombinedText.TextAlignment = TextAlignment.Left;
+                _mediaCombinedText.HorizontalAlignment = HorizontalAlignment.Left;
+                _collapsedMediaView.VerticalAlignment = VerticalAlignment.Center;
+                _collapsedMediaWideView.VerticalAlignment = VerticalAlignment.Center;
+                _albumArtThumb.UpdateDimensions(20.0, 5.0);
+                _albumArtThumb.Margin = new Thickness(0, 0, 8, 0);
+                _wideAlbumArtThumb.UpdateDimensions(36.0, 7.5);
+                _wideAlbumArtThumb.Margin = new Thickness(0, 0, 10, 0);
+                _miniEqualizer.Margin = new Thickness(8, 0, 0, 0);
+            }
+            else
+            {
+                _waveformProgress.Visibility = Visibility.Visible;
+                _wideWaveformProgress.Visibility = Visibility.Visible;
+                _mediaCombinedText.TextAlignment = TextAlignment.Left;
+                _mediaCombinedText.HorizontalAlignment = HorizontalAlignment.Left;
+                _collapsedMediaView.VerticalAlignment = VerticalAlignment.Center;
+                _collapsedMediaWideView.VerticalAlignment = VerticalAlignment.Center;
+                _albumArtThumb.UpdateDimensions(22.0, 5.5);
+                _albumArtThumb.Margin = new Thickness(5, 0, 8, 0);
+                _wideAlbumArtThumb.UpdateDimensions(38.0, 8.0);
+                _wideAlbumArtThumb.Margin = new Thickness(4, 0, 10, 0);
+                _miniEqualizer.Margin = new Thickness(8, 0, 5, 0);
+            }
+
             _collapsedMessageView.Margin = new Thickness(0, islandGap, 0, 0);
             _expandedContent.Margin = new Thickness(0, 10 + islandGap * ease, 0, 12);
 
@@ -3556,17 +3999,36 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 _musicSatelliteIsland.Visibility = Visibility.Visible;
 
-                // Smooth cubic ease-out emergence from behind the center notch to the left
+                // Smooth cubic ease-out emergence from behind the center notch to the right
                 double musicEase = 1.0 - Math.Pow(1.0 - musicFactor, 3);
-                double gap = 8.0;
-                double satW = 36.0;
+                double gap = 9.0;
+                double satH = baseH;
+                double satW = Math.Round(satH * 1.68);
 
+                _musicSatelliteIsland.Width = satW;
+                _musicSatelliteIsland.Height = satH;
+                _musicSatelliteIsland.CornerRadius = new CornerRadius(satH / 2.0);
+                _musicSatelliteIsland.Margin = new Thickness(0, islandGap, 0, 0);
+
+                // Update artwork / glyph sizing to fit responsive satH
+                double artSize = Math.Max(16.0, satH - 10.0);
+                if (_musicSatelliteArtGrid != null && Math.Abs(_musicSatelliteArtworkImage.Width - artSize) > 0.5)
+                {
+                    _musicSatelliteArtGrid.Width = artSize;
+                    _musicSatelliteArtGrid.Height = artSize;
+                    _musicSatelliteArtworkImage.Width = artSize;
+                    _musicSatelliteArtworkImage.Height = artSize;
+                    _musicSatelliteArtworkImage.Clip = new EllipseGeometry(new Point(artSize / 2.0, artSize / 2.0), artSize / 2.0, artSize / 2.0);
+                    _musicSatelliteBeatRing.Width = artSize + 2.0;
+                    _musicSatelliteBeatRing.Height = artSize + 2.0;
+                }
+
+                // Smooth cubic ease-out emergence from behind the center notch to the LEFT
                 double startLeftX = -(baseW / 2.0 - satW / 2.0 - 8.0);
                 double fullLeftX = -(baseW / 2.0 + gap + satW / 2.0);
-
                 _musicSatelliteTranslate.X = startLeftX + (fullLeftX - startLeftX) * musicEase;
 
-                double satScale = 0.78 + 0.22 * musicEase;
+                double satScale = 0.85 + 0.15 * musicEase;
                 _musicSatelliteScale.ScaleX = satScale;
                 _musicSatelliteScale.ScaleY = satScale;
 
@@ -3587,6 +4049,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
             else
             {
+                _leftTimerIsland.Height = baseH;
+                _leftTimerIsland.CornerRadius = new CornerRadius(baseH / 2.0);
+                _leftTimerIsland.Margin = new Thickness(0, islandGap, 0, 0);
+
+                _rightTimerIsland.Height = baseH;
+                _rightTimerIsland.CornerRadius = new CornerRadius(baseH / 2.0);
+                _rightTimerIsland.Margin = new Thickness(0, islandGap, 0, 0);
+
                 // If music satellite is occupying the left slot during notification, hide left timer ring so only right timer digits show
                 _leftTimerIsland.Visibility = musicFactor > 0.005 ? Visibility.Collapsed : Visibility.Visible;
                 _rightTimerIsland.Visibility = Visibility.Visible;
@@ -3674,23 +4144,29 @@ namespace WindowsBuddy.BuddyCapsule.Core
             }
             var p = CapsuleTheme.Current;
             _notchBackdropPath.Fill = CapsuleTheme.Brush(p.Bg);
+            bool outlineEnabled = AppPreferences.Instance.SurfaceOutline;
+            var outlineBrush = outlineEnabled
+                ? (AppPreferences.Instance.TintOutlineFromWallpaper ? CapsuleTheme.Brush(p.Accent) : CapsuleTheme.Brush(p.BorderStrong))
+                : Brushes.Transparent;
+            var outlineThickness = outlineEnabled ? new Thickness(1.0) : new Thickness(0);
+
             if (_musicSatelliteIsland != null)
             {
                 _musicSatelliteIsland.Background = CapsuleTheme.Brush(p.Bg);
-                _musicSatelliteIsland.BorderBrush = Brushes.Transparent;
-                _musicSatelliteIsland.BorderThickness = new Thickness(0);
+                _musicSatelliteIsland.BorderBrush = outlineBrush;
+                _musicSatelliteIsland.BorderThickness = outlineThickness;
             }
             if (_leftTimerIsland != null)
             {
                 _leftTimerIsland.Background = CapsuleTheme.Brush(p.Bg);
-                _leftTimerIsland.BorderBrush = Brushes.Transparent;
-                _leftTimerIsland.BorderThickness = new Thickness(0);
+                _leftTimerIsland.BorderBrush = outlineBrush;
+                _leftTimerIsland.BorderThickness = outlineThickness;
             }
             if (_rightTimerIsland != null)
             {
                 _rightTimerIsland.Background = CapsuleTheme.Brush(p.Bg);
-                _rightTimerIsland.BorderBrush = Brushes.Transparent;
-                _rightTimerIsland.BorderThickness = new Thickness(0);
+                _rightTimerIsland.BorderBrush = outlineBrush;
+                _rightTimerIsland.BorderThickness = outlineThickness;
             }
 
             // Sync OpensOnClick to state machine
@@ -3740,7 +4216,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 _notchBackdropPath.Effect = null;
             }
 
-            bool outlineEnabled = AppPreferences.Instance.SurfaceOutline;
+            outlineEnabled = AppPreferences.Instance.SurfaceOutline;
             _notchOutlinePath.Visibility = outlineEnabled ? Visibility.Visible : Visibility.Collapsed;
             if (outlineEnabled)
             {
@@ -3814,6 +4290,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             UpdateCollapsedViewState();
             UpdateMorphVisuals(_morphProgress);
+        }
+
+        public static void TrimWorkingSet()
+        {
+            try
+            {
+                GC.Collect(2, GCCollectionMode.Optimized, false, false);
+                using var proc = System.Diagnostics.Process.GetCurrentProcess();
+                NativeMethods.SetProcessWorkingSetSize(proc.Handle, new IntPtr(-1), new IntPtr(-1));
+            }
+            catch { }
         }
 
         public void ToggleFromExternal()

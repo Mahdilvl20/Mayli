@@ -23,6 +23,9 @@ namespace WindowsBuddy.Tools.ScreenTime
         private DayScreenTimeRecord _todayRecord;
         private readonly DispatcherTimer _pollTimer;
         private DateTime _lastPollUtc = DateTime.UtcNow;
+        private IntPtr _lastHwnd = IntPtr.Zero;
+        private string _lastAppName = null;
+        private string _lastExePath = null;
 
         public event Action UsageUpdated;
 
@@ -107,13 +110,24 @@ namespace WindowsBuddy.Tools.ScreenTime
                 IntPtr hwnd = GetForegroundWindow();
                 if (hwnd != IntPtr.Zero)
                 {
-                    GetWindowThreadProcessId(hwnd, out uint pid);
-                    if (pid != 0)
+                    if (hwnd == _lastHwnd && !string.IsNullOrWhiteSpace(_lastAppName))
                     {
-                        using var proc = Process.GetProcessById((int)pid);
-                        string procName = proc.ProcessName;
-                        exePath = GetProcessExePath(pid);
-                        appName = ResolveFriendlyName(procName, exePath);
+                        appName = _lastAppName;
+                        exePath = _lastExePath;
+                    }
+                    else
+                    {
+                        _lastHwnd = hwnd;
+                        GetWindowThreadProcessId(hwnd, out uint pid);
+                        if (pid != 0)
+                        {
+                            using var proc = Process.GetProcessById((int)pid);
+                            string procName = proc.ProcessName;
+                            exePath = GetProcessExePath(pid);
+                            appName = ResolveFriendlyName(procName, exePath);
+                            _lastAppName = appName;
+                            _lastExePath = exePath;
+                        }
                     }
                 }
             }

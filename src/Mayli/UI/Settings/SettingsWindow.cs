@@ -824,26 +824,6 @@ namespace WindowsBuddy.UI.Settings
                 windPicker
             ));
 
-            // Row 6: Language (Strictly English and فارسی with Vazirmatn font)
-            string currentLang = AppPreferences.Instance.IsPersian ? "فارسی" : "English";
-            var langPicker = new MayliSegmentedControl(new[] { "English", "فارسی" }, currentLang);
-            langPicker.SelectionChanged += val =>
-            {
-                string targetLang = (val == "فارسی") ? "fa" : "en";
-                if (AppPreferences.Instance.Language != targetLang)
-                {
-                    LocalizationService.SetLanguage(targetLang);
-                    LocalizationService.ApplyToWindow(this);
-                    UpdateSidebarLocalization();
-                    _mainContentArea.Content = BuildGeneralPage();
-                }
-            };
-            stack.Children.Add(new MayliSettingRow(
-                LocalizationService.T("general.lang_title", "Language"),
-                LocalizationService.T("general.lang_desc", "Choose display language (English or Persian)"),
-                langPicker
-            ));
-
             return stack;
         }
 

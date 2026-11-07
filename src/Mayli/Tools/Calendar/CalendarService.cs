@@ -274,17 +274,16 @@ namespace WindowsBuddy.Tools.Calendar
 
         public string GetDisplayHeaderTitle()
         {
-            bool isPersian = AppPreferences.Instance.IsPersian;
             if (CurrentCalendarType == CalendarType.Jalali)
             {
-                string mName = isPersian ? PersianMonthNames[DisplayMonth - 1] : PersianMonthNamesLatin[DisplayMonth - 1];
-                string yStr = isPersian ? ToPersianDigits(DisplayYear.ToString()) : DisplayYear.ToString();
+                string mName = PersianMonthNames[DisplayMonth - 1];
+                string yStr = ToPersianDigits(DisplayYear.ToString());
                 return $"{mName} {yStr}";
             }
             else
             {
-                string mName = isPersian ? GregorianMonthNamesPersian[DisplayMonth - 1] : GregorianMonthNames[DisplayMonth - 1];
-                string yStr = isPersian ? ToPersianDigits(DisplayYear.ToString()) : DisplayYear.ToString();
+                string mName = GregorianMonthNames[DisplayMonth - 1];
+                string yStr = DisplayYear.ToString();
                 return $"{mName} {yStr}";
             }
         }
