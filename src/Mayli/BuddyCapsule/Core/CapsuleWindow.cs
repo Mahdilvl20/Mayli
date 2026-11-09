@@ -248,10 +248,22 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly DispatcherTimer _mediaSettleExitTimer;
         private readonly DispatcherTimer _dynamicVisibilityTimer;
 
+        public static CapsuleWindow Current { get; private set; }
         public bool IsTucked => _isTucked;
+
+        public static void ToggleWindow()
+        {
+            Current?.Dispatcher?.InvokeAsync(() => Current.ToggleFromExternal());
+        }
+
+        public static void ToggleTuckWindow()
+        {
+            Current?.Dispatcher?.InvokeAsync(() => Current.ToggleTuck());
+        }
 
         public CapsuleWindow()
         {
+            Current = this;
             ToolRegistry.RegisterDefaults();
             ToolRegistry.OnToolNavigationRequested = id => NavigateToTool(id);
             WindowsBuddy.Tools.Weather.WeatherService.Instance.WeatherUpdated += () =>
@@ -1740,6 +1752,16 @@ namespace WindowsBuddy.BuddyCapsule.Core
             // Alt+1 .. Alt+0, Alt+M, Alt+S Navigation Shortcuts
             PreviewKeyDown += (_, e) =>
             {
+                if (e.Key == Key.Escape)
+                {
+                    if (_morphProgress > 0.05 || _machine.IsOpenOrOpening)
+                    {
+                        _machine.RequestClose("escape-key");
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
                 if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
                 {
                     string target = (e.SystemKey != Key.None ? e.SystemKey : e.Key) switch

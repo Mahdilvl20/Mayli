@@ -14,7 +14,7 @@
 
 <br/>
 
-**[Download Latest Installer (v1.1.64)](https://github.com/Mahdilvl20/Mayli/releases/latest)** • **[Features](#features)** • **[Shortcuts](#essential-shortcuts--interactions-)** • **[راهنمای فارسی](#-معرفی-مایلی-mayli---ناچ-هوشمند-ویندوز)**
+**[Download Latest Installer (v1.1.64)](https://github.com/Mahdilvl20/Mayli/releases/latest)** • **[Features](#features)** • **[Essential Shortcuts](#-essential-shortcuts--interactions--جدول-شورتکاتها-و-کلیدهای-میانبر-ناچ)** • **[راهنمای فارسی](#-معرفی-مایلی-mayli---ناچ-هوشمند-ویندوز)**
 
 ---
 
@@ -73,23 +73,43 @@ Hover or click the notch to expand into a unified, glassmorphism dashboard:
 
 ---
 
-## Essential Shortcuts & Interactions | جدول کلیدهای میانبر
+## ⌨️ Essential Shortcuts & Interactions | جدول شورت‌کارت‌ها و کلیدهای میانبر ناچ
 
-| Shortcut / Interaction | کلید میانبر / روش تعامل | Action Description | توضیحات عملکرد |
+Below are the dedicated shortcuts and interaction gestures built into Mayli:
+
+### 1. Global Notch Controls | کلیدهای اصلی کنترل ناچ
+| Shortcut | کلید میانبر | Action Description | توضیحات عملکرد |
 | :--- | :--- | :--- | :--- |
-| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>N</kbd> | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>N</kbd> | **Toggle Notch Dashboard** | باز کردن / بستن داشبورد کامل ناچ |
-| <kbd>Alt</kbd> + <kbd>Shift</kbd> | <kbd>Alt</kbd> + <kbd>Shift</kbd> | **Switch Language (Notch Banner)** | تغییر زبان کیبورد با بنر انیمیشنی کره زمین |
-| <kbd>Win</kbd> + <kbd>Space</kbd> | <kbd>Win</kbd> + <kbd>Space</kbd> | **Cycle Input Layout** | پیمایش زبان‌های ورودی با نمایش فوری در ناچ |
-| <kbd>Ctrl</kbd> + <kbd>C</kbd> | <kbd>Ctrl</kbd> + <kbd>C</kbd> | **Copy Notification** | نمایش بنر کپی با انیمیشن کارت و تیک |
-| <kbd>Ctrl</kbd> + <kbd>X</kbd> / <kbd>Shift</kbd> + <kbd>Del</kbd> | <kbd>Ctrl</kbd> + <kbd>X</kbd> | **Cut Notification** | نمایش بنر برش با انیمیشن قیچی |
-| <kbd>Win</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> | <kbd>Win</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> | **Screenshot Detection** | اسکرین‌شات Snipping Tool با پیش‌نمایش در ناچ |
-| **Hover on Notch** | **نگه داشتن موس روی ناچ** | **Quick Peek / Clock** | پیش‌نمایش سریع ساعت، وضعیت موزیک یا تایمر |
-| **Click on Notch** | **کلیک چپ روی ناچ** | **Expand Dashboard** | باز کردن کارت‌های ابزار و داشبورد گسترده |
-| **Right-Click on Notch** | **کلیک راست روی ناچ** | **Notch Quick Menu / Settings** | دسترسی سریع به تنظیمات و منوی زمینه |
-| **Drag & Drop to Notch** | **کشیدن و رها کردن فایل** | **Drop into File Shelf** | نگهداری موقت فایل‌ها و عکس‌ها در قفسه ناچ |
-| **Notch Media Controls** | **دکمه‌های روی ناچ** | **Play / Pause / Next / Prev** | کنترل پخش موسیقی و ویدیو بدون ترک برنامه فعال |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>N</kbd> | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>N</kbd> | **Toggle Notch Dashboard**<br/>*(Works globally, or with your custom shortcut e.g. `Ctrl+Shift+Space`)* | **باز کردن / بستن داشبورد ناچ**<br/>*(شورت‌کات سراسری، یا کلید سفارشی تعیین‌شده در تنظیمات)* |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>H</kbd><br/>*Fallback: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd>* | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>H</kbd><br/>*جایگزین: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd>* | **Tuck / Hide Notch**<br/>*(Smoothly slides and hides notch completely off-screen; press again to restore)* | **مخفی کردن کامل ناچ (Tuck)**<br/>*(ناچ را به نرمی به بالا کشیده و مخفی می‌کند؛ با فشردن مجدد ناچ ظاهر می‌شود)* |
+| <kbd>Esc</kbd> | <kbd>Esc</kbd> | **Close Expanded Notch**<br/>*(Instantly collapses open dashboard back to compact notch)* | **بستن فوری داشبورد ناچ**<br/>*(داشبورد باز شده را بلافاصله جمع کرده و به ناچ فشرده بازمی‌گرداند)* |
 
-*(Note: The global dashboard shortcut `Ctrl + Alt + N` can be customized in Mayli Settings).*
+### 2. Fast Tool Navigation | جابجایی مستقیم بین ابزارهای ناچ *(هنگام باز بودن داشبورد)*
+| Shortcut | کلید میانبر | Tool / Dashboard Tab | ابزار مقصد در ناچ |
+| :--- | :--- | :--- | :--- |
+| <kbd>Alt</kbd> + <kbd>1</kbd> | <kbd>Alt</kbd> + <kbd>1</kbd> | **Home** (Central Dashboard & Active Widgets) | **صفحه اصلی** (ابزارک‌ها و کارت‌های برتر) |
+| <kbd>Alt</kbd> + <kbd>2</kbd> | <kbd>Alt</kbd> + <kbd>2</kbd> | **System** (CPU, RAM & Disk Monitor) | **مانیتور سیستم** (پردازنده، حافظه و هارد) |
+| <kbd>Alt</kbd> + <kbd>3</kbd> | <kbd>Alt</kbd> + <kbd>3</kbd> | **Clipboard** (History Cards & Search) | **تاریخچه کلیپ‌بورد** (کپی‌ها و عکس‌ها) |
+| <kbd>Alt</kbd> + <kbd>4</kbd> | <kbd>Alt</kbd> + <kbd>4</kbd> | **Notes** (Quick Scratchpad) | **یادداشت‌ها** (یادداشت سریع و ذخیره آنی) |
+| <kbd>Alt</kbd> + <kbd>5</kbd> | <kbd>Alt</kbd> + <kbd>5</kbd> | **Focus & Timer** (Pomodoro & Countdown) | **تایمر و تمرکز** (پومودورو، آلارم و کرنومتر) |
+| <kbd>Alt</kbd> + <kbd>6</kbd> | <kbd>Alt</kbd> + <kbd>6</kbd> | **File Shelf** (Temporary Drag & Drop Storage) | **قفسه فایل** (نگهداری موقت و انتقال فایل) |
+| <kbd>Alt</kbd> + <kbd>7</kbd> | <kbd>Alt</kbd> + <kbd>7</kbd> | **Weather** (Live Forecast & Metrics) | **آب و هوا** (دما، سرعت باد و پیش‌بینی) |
+| <kbd>Alt</kbd> + <kbd>8</kbd> | <kbd>Alt</kbd> + <kbd>8</kbd> | **Clock** (World Clock & Stopwatch) | **ساعت** (ساعت جهانی و زمان‌سنج) |
+| <kbd>Alt</kbd> + <kbd>9</kbd> / <kbd>Alt</kbd> + <kbd>C</kbd> | <kbd>Alt</kbd> + <kbd>9</kbd> / <kbd>Alt</kbd> + <kbd>C</kbd> | **Calendar** (Jalali شمسی & Gregorian) | **تقویم** (تقویم هجری شمسی و میلادی) |
+| <kbd>Alt</kbd> + <kbd>0</kbd> / <kbd>Alt</kbd> + <kbd>U</kbd> | <kbd>Alt</kbd> + <kbd>0</kbd> / <kbd>Alt</kbd> + <kbd>U</kbd> | **Units Converter** (Currencies & Measures) | **تبدیل واحدها** (واحدهای اندازه‌گیری و ارز) |
+| <kbd>Alt</kbd> + <kbd>L</kbd> | <kbd>Alt</kbd> + <kbd>L</kbd> | **Quick Links** (Favorite Web Bookmarks) | **لینک‌های سریع** (دسترسی به سایت‌های منتخب) |
+| <kbd>Alt</kbd> + <kbd>M</kbd> | <kbd>Alt</kbd> + <kbd>M</kbd> | **Messages** (AI Companion Chat & Notes) | **پیام‌ها** (یادآورها و تعامل با همراه) |
+| <kbd>Alt</kbd> + <kbd>S</kbd> | <kbd>Alt</kbd> + <kbd>S</kbd> | **Screen Time** (Daily App Usage Stats) | **زمان مصرف صفحه** (نمودار مصرف برنامه‌ها) |
+
+### 3. Mouse Gestures & Interactions | روش‌های تعامل با نشانگر موس روی ناچ
+| Action | تعامل موس | Effect | نتیجه تعامل |
+| :--- | :--- | :--- | :--- |
+| **Hover on Notch** | **نگه داشتن موس روی ناچ** | Quick peek at digital clock, now playing track, or running timer without expanding. | پیش‌نمایش سریع ساعت، موزیک در حال پخش یا زمان باقیمانده بدون نیاز به کلیک |
+| **Click on Notch** | **کلیک چپ روی ناچ** | Expands the notch into the full glassmorphic dashboard. | باز کردن ناچ به داشبورد کامل شیشه‌ای ابزارها |
+| **Right-Click on Notch** | **کلیک راست روی ناچ** | Opens Notch quick settings and customization panel. | باز کردن سریع پنل تنظیمات ناچ و شخصی‌سازی |
+| **Drag & Drop to Notch** | **کشیدن و رها کردن فایل روی ناچ** | Instantly drops files, photos, or documents into the temporary Notch File Shelf. | ذخیره آنی فایل‌ها و عکس‌ها در قفسه ناچ جهت انتقال سریع |
+| **Click System Tray Icon** | **کلیک روی آیکون ترای (سینی ویندوز)** | Toggles notch dashboard and allows choosing Mayli companion moods. | باز/بسته کردن ناچ و تغییر حالات حیوان خانگی همراه مایلی |
+| **Notch Media Controls** | **دکمه‌های مالتی‌مدیا روی ناچ** | Click play, pause, next track, or previous track directly inside the notch. | کنترل مستقیم پخش موزیک (پخش، توقف، بعدی، قبلی) از داخل ناچ |
 
 ---
 
@@ -119,7 +139,7 @@ dotnet build src/Mayli/Mayli.csproj -c Release
 
 ## 🇮🇷 معرفی مایلی (Mayli) - ناچ هوشمند ویندوز
 
-**مایلی (Mayli)** نرم‌افزاری مدرن، سریع و سبک است که تجربه جذاب و کاربردی **ناچ مک‌بوک (MacBook Notch)** و **داینامیک آیلند (Dynamic Island)** را با بالاترین کیفیت بصری به ویندوز ۱۰ و ۱۱ می‌آورد. این برنامه بدون افت فریم و با استفاده حداقلی از منابع سیستم، لبه بالایی مانیتور شما را به یک مرکز کنترل هوشمند و زنده تبدیل می‌کند.
+**مایلی (Mayli)** نرم‌افزاری مدرن، فوق‌العاده سریع و سبک است که تجربه جذاب و کاربردی **ناچ مک‌بوک (MacBook Notch)** و **داینامیک آیلند (Dynamic Island)** را با بالاترین کیفیت بصری به ویندوز ۱۰ و ۱۱ می‌آورد. این برنامه بدون افت فریم و با استفاده حداقلی از منابع سیستم، لبه بالایی مانیتور شما را به یک مرکز کنترل هوشمند و زنده تبدیل می‌کند.
 
 ### قابلیت‌های برجسته مایلی:
 1. **استایل‌های متنوع ناچ:** امکان انتخاب میان حالت **ناچ متصل به لبه (Notch)**، **جزیره شناور (Dynamic Island)** و **خط مینیمال (Line)** با سایزهای کامپکت، عریض و کلاسیک.
@@ -127,8 +147,9 @@ dotnet build src/Mayli/Mayli.csproj -c Release
 3. **انیمیشن تغییر زبان کیبورد (جدید در نسخه ۱.۱.۶۴):** نمایش بنر انیمیشنی کره زمین با اولویت بالا هنگام فشردن `Alt + Shift` یا `Win + Space` با تشخیص آنی و نمایش عنوان زبان (`فارسی · FA` و `English · EN`).
 4. **جزیره‌های ماهواره‌ای جداشونده (Split Satellite Islands):** هنگام پخش آهنگ و ورود اعلان یا تایمر، کاور آهنگ به صورت خودکار به جزیره سمت چپ و ارقام تایمر به جزیره سمت راست منتقل می‌شوند.
 5. **بنر کپی و کات اختصاصی:** انیمیشن‌های روان وکتوری برای کپی و کات متن، تصویر و فایل‌ها با امکان تنظیم سایز فونت بنر در تنظیمات.
-6. **داشبورد ابزارها:** دسترسی آسان با کلیک یا کلید میانبر به مانیتور سیستم (CPU/RAM/Disk)، زمان مصرف صفحه (Screen Time)، وضعیت آب و هوا، تایمر و پومودورو، تقویم دوزبانه شمسی و میلادی، یادداشت‌ها و قفسه فایل موقت.
-7. **پشتیبانی کامل از زبان فارسی:** رابط کاربری کاملاً دوزبانه (فارسی و انگلیسی) همراه با تقویم هجری شمسی و تم‌های دارک و لایت.
+6. **مخفی‌سازی آنی ناچ با شورت‌کات `Ctrl + Shift + H`:** هر زمان که نیاز داشته باشید، می‌توانید ناچ را به طور کامل مخفی کنید تا تمام فضای بالای صفحه آزاد شود و با فشردن مجدد آن را بازگردانید.
+7. **داشبورد ابزارها:** دسترسی آسان با کلیک یا کلید میانبر `Ctrl + Alt + N` به مانیتور سیستم (CPU/RAM/Disk)، زمان مصرف صفحه (Screen Time)، وضعیت آب و هوا، تایمر و پومودورو، تقویم دوزبانه شمسی و میلادی، یادداشت‌ها و قفسه فایل موقت.
+8. **پشتیبانی کامل از زبان فارسی:** رابط کاربری کاملاً دوزبانه (فارسی و انگلیسی) همراه با تقویم هجری شمسی و تم‌های دارک و لایت.
 
 ---
 

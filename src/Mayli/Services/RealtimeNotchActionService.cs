@@ -145,6 +145,8 @@ namespace WindowsBuddy.Services
         private static IntPtr _lastKnownHkl = IntPtr.Zero;
         private static IntPtr _lastForegroundWindow = IntPtr.Zero;
         private static DateTime _lastLanguageSwitchTime = DateTime.MinValue;
+        private static DateTime _lastToggleNotchUtc = DateTime.MinValue;
+        private static DateTime _lastTuckNotchUtc = DateTime.MinValue;
         private static NativeMethods.LowLevelKeyboardProc _llKeyboardProc;
         private static IntPtr _llKeyboardHook = IntPtr.Zero;
 
@@ -296,6 +298,40 @@ namespace WindowsBuddy.Services
                         _layoutSwitchComboDetected = true;
                         LogNotif("LowLevelKeyboard: Shift+Ctrl detected");
                         ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
+                    }
+
+                    // 4. Mayli Global Hotkey: Toggle Notch (Ctrl + Alt + N or Custom Configured Hotkey)
+                    int customMod = AppPreferences.Instance.Raw.HotkeyModifiers;
+                    int customVk = AppPreferences.Instance.Raw.HotkeyKey;
+                    bool customModMatches = true;
+                    if ((customMod & 1) != 0 && !alt) customModMatches = false;
+                    if ((customMod & 2) != 0 && !ctrl) customModMatches = false;
+                    if ((customMod & 4) != 0 && !shift) customModMatches = false;
+                    if ((customMod & 8) != 0 && !win) customModMatches = false;
+
+                    bool isDefaultCtrlAltN = ctrl && alt && (vkCode == 0x4E || vkCode == 'N');
+                    bool isCustomMatch = customModMatches && (vkCode == customVk) && customVk != 0;
+
+                    if (isDefaultCtrlAltN || isCustomMatch)
+                    {
+                        if ((DateTime.UtcNow - _lastToggleNotchUtc).TotalMilliseconds > 350)
+                        {
+                            _lastToggleNotchUtc = DateTime.UtcNow;
+                            LogNotif("LowLevelKeyboard: Toggle Notch triggered via hook!");
+                            BuddyCapsule.Core.CapsuleWindow.ToggleWindow();
+                        }
+                    }
+
+                    // 5. Mayli Global Hotkey: Tuck / Hide Notch (Ctrl + Shift + H or Ctrl + Alt + H)
+                    if ((ctrl && shift && (vkCode == 0x48 || vkCode == 'H')) ||
+                        (ctrl && alt && (vkCode == 0x48 || vkCode == 'H')))
+                    {
+                        if ((DateTime.UtcNow - _lastTuckNotchUtc).TotalMilliseconds > 350)
+                        {
+                            _lastTuckNotchUtc = DateTime.UtcNow;
+                            LogNotif("LowLevelKeyboard: Tuck Notch triggered via hook!");
+                            BuddyCapsule.Core.CapsuleWindow.ToggleTuckWindow();
+                        }
                     }
                 }
                 else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
