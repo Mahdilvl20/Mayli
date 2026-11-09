@@ -1,6 +1,6 @@
 {
-  "version": "1.1.63",
-  "name": "Mayli v1.1.63",
-  "notes": "Fix notch and line media text jitter, align title to left in compact notch, stabilize wide notch countdown width, and optimize equalizer margin layout.",
+  "version": "1.1.64",
+  "name": "Mayli v1.1.64",
+  "notes": "Add animated keyboard language switch banner with AnimateIcons Globe, real-time Windows layout switch detection (Alt+Shift, Win+Space), live activities toggle, improved light mode contrast, fixed wide media time, and optimized music track detection.",
   "url": "https://github.com/Mahdilvl20/Mayli/releases"
 }

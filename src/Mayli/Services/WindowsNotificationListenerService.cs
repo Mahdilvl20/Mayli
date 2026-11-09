@@ -92,8 +92,33 @@ namespace WindowsBuddy.Services
                             Log($"Pre-populate error: {ex.Message}");
                         }
 
+                        try
+                        {
+                            _listener.NotificationChanged += async (s, e) =>
+                            {
+                                try
+                                {
+                                    var current = await _listener.GetNotificationsAsync(NotificationKinds.Toast);
+                                    if (current != null)
+                                    {
+                                        foreach (var notif in current)
+                                        {
+                                            if (!_seenNotificationIds.Contains(notif.Id))
+                                            {
+                                                _seenNotificationIds.Add(notif.Id);
+                                                Log($"*** NEW EVENT-DRIVEN NOTIFICATION DETECTED: ID={notif.Id} ***");
+                                                await ProcessNotificationAsync(notif);
+                                            }
+                                        }
+                                    }
+                                }
+                                catch { }
+                            };
+                        }
+                        catch { }
+
                         _isRunning = true;
-                        Log("Starting background MTA polling loop at 250ms interval...");
+                        Log("Starting background MTA polling loop at 1800ms interval...");
                         await BackgroundPollerLoopAsync();
                     }
                 }
@@ -153,7 +178,7 @@ namespace WindowsBuddy.Services
                     Log($"[BackgroundPollerLoopAsync ERROR loop #{loopCount}] {ex}");
                 }
 
-                await Task.Delay(550);
+                await Task.Delay(2500);
             }
         }
 

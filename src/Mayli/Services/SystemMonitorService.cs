@@ -257,7 +257,11 @@ namespace WindowsBuddy.Services
                 var session = mgr?.GetCurrentSession();
                 if (session != null)
                 {
-                    Task.Run(async () => await session.TryTogglePlayPauseAsync());
+                    Task.Run(async () =>
+                    {
+                        await session.TryTogglePlayPauseAsync();
+                        RealtimeNotchActionService.Instance.TriggerImmediateMediaPoll();
+                    });
                     State.IsPlaying = !State.IsPlaying;
                     StateChanged?.Invoke();
                     return;
@@ -280,7 +284,11 @@ namespace WindowsBuddy.Services
                 var session = mgr?.GetCurrentSession();
                 if (session != null)
                 {
-                    Task.Run(async () => await session.TrySkipNextAsync());
+                    Task.Run(async () =>
+                    {
+                        await session.TrySkipNextAsync();
+                        RealtimeNotchActionService.Instance.TriggerImmediateMediaPoll();
+                    });
                     State.PositionSeconds = 0;
                     StateChanged?.Invoke();
                     return;
@@ -303,7 +311,11 @@ namespace WindowsBuddy.Services
                 var session = mgr?.GetCurrentSession();
                 if (session != null)
                 {
-                    Task.Run(async () => await session.TrySkipPreviousAsync());
+                    Task.Run(async () =>
+                    {
+                        await session.TrySkipPreviousAsync();
+                        RealtimeNotchActionService.Instance.TriggerImmediateMediaPoll();
+                    });
                     State.PositionSeconds = 0;
                     StateChanged?.Invoke();
                     return;

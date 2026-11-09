@@ -71,7 +71,8 @@ namespace WindowsBuddy
                 LocalizationService.Initialize();
                 LogWriter.WriteNow("boot", "Step 0: Pre-CoreAudio");
                 _ = CoreAudioService.Instance;
-                LogWriter.WriteNow("boot", "Step 1: CoreAudio done");
+                _ = ScreenBrightnessService.Instance;
+                LogWriter.WriteNow("boot", "Step 1: CoreAudio & Brightness done");
 
                 StartIpcServer(app);
                 LogWriter.WriteNow("boot", "Step 2: StartIpcServer done");
@@ -110,6 +111,7 @@ namespace WindowsBuddy
                     _trayIcon.Dispose();
                 }
                 HotkeyService.Instance.Dispose();
+                ScreenBrightnessService.Instance.Dispose();
             }
         }
 

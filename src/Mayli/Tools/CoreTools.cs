@@ -102,8 +102,10 @@ namespace WindowsBuddy.Tools
         // Card 4: Focus
         private TextBlock _focusTimeText;
         private TextBlock _focusStatusText;
-        private Border _focusToggleBtn;
-        private TextBlock _focusToggleIcon;
+        private BuddyGlassButton _focusToggleBtn;
+        private System.Windows.Shapes.Path _focusPlayIconPath;
+        private BuddyGlassButton _focusResetBtn;
+        private TextBox _focusCustomMinsBox;
 
         // Card 5: Clipboard
         private StackPanel _clipRowsStack;
@@ -117,7 +119,7 @@ namespace WindowsBuddy.Tools
         private TextBlock _musicCardTitleText;
         private TextBlock _musicCardArtistText;
         private System.Windows.Shapes.Path _musicCardPlayIconPath;
-        private Border _musicCardPlayBtn;
+        private BuddyGlassButton _musicCardPlayBtn;
         private Border _musicCardProgressBarFill;
         private Border _musicCardProgressBarTrack;
         private MiniEqualizerControl _musicCardMiniEq;
@@ -321,8 +323,8 @@ namespace WindowsBuddy.Tools
 
             _wIcon = new TextBlock
             {
-                Text = "☁",
-                FontSize = 32,
+                Text = (DateTime.Now.Hour < 6 || DateTime.Now.Hour >= 18) ? "🌙" : "☀️",
+                FontSize = 30,
                 Foreground = CapsuleTheme.Brush(p.Accent),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 4, 0)
@@ -334,83 +336,175 @@ namespace WindowsBuddy.Tools
             weatherCard.Child = wDock;
 
             // -------------------------------------------------------------
-            // CARD 4: FOCUS (Row 1, Col 0) - Synchronized with Timers
+            // CARD 4: TIMER (Row 1, Col 0) - Synchronized with Countdown Timer
             // -------------------------------------------------------------
             var focusCard = new BuddyCard { Margin = new Thickness(3), Cursor = Cursors.Hand };
             focusCard.MouseLeftButtonUp += (_, _) => ToolRegistry.OnToolNavigationRequested?.Invoke("focus");
 
             var fDock = new DockPanel();
 
-            var fHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            fHeader.Children.Add(new TextBlock
+            var fHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var fHeaderLeft = new StackPanel { Orientation = Orientation.Horizontal };
+            fHeaderLeft.Children.Add(new TextBlock
             {
                 Text = "⏱ ",
                 FontSize = 10,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
-            fHeader.Children.Add(new TextBlock
+            fHeaderLeft.Children.Add(new TextBlock
             {
-                Text = LocalizationService.T("home.focus", "FOCUS"),
+                Text = LocalizationService.T("home.timer", "TIMER"),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             });
+            DockPanel.SetDock(fHeaderLeft, Dock.Left);
+            fHeader.Children.Add(fHeaderLeft);
+
+            _focusStatusText = new TextBlock
+            {
+                Text = "Ready",
+                FontSize = 9.5,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            DockPanel.SetDock(_focusStatusText, Dock.Right);
+            fHeader.Children.Add(_focusStatusText);
+
             DockPanel.SetDock(fHeader, Dock.Top);
             fDock.Children.Add(fHeader);
 
-            var fContent = new Grid { VerticalAlignment = VerticalAlignment.Center };
+            var fContent = new Grid { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) };
             fContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             fContent.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var fLeft = new StackPanel();
+            var fLeft = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             _focusTimeText = new TextBlock
             {
-                Text = "25:00",
-                FontSize = 24,
+                Text = "15:00",
+                FontSize = 23,
                 FontWeight = FontWeights.Bold,
                 Foreground = CapsuleTheme.Brush(p.Text)
             };
-            _focusStatusText = new TextBlock
-            {
-                Text = "Focusing",
-                FontSize = 11,
-                Foreground = CapsuleTheme.Brush(p.Text2),
-                Margin = new Thickness(0, 2, 0, 0)
-            };
             fLeft.Children.Add(_focusTimeText);
-            fLeft.Children.Add(_focusStatusText);
+
+            // Stepper & Custom Minutes Input Row
+            var stepperRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 4, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var minusBtn = BuddyGlassButton.CreatePill(
+                glyph: null,
+                text: "-5m",
+                onClick: () =>
+                {
+                    WindowsBuddy.Tools.Timer.TimerService.Instance.AdjustCountdownComponents(0, -5, 0);
+                    UpdateFocusState();
+                },
+                height: 20.0,
+                style: BuddyGlassButtonStyle.GlassPill,
+                tooltip: "Subtract 5 minutes");
+            minusBtn.Padding = new Thickness(6, 1, 6, 1);
+            minusBtn.Margin = new Thickness(0, 0, 4, 0);
+            stepperRow.Children.Add(minusBtn);
+
+            _focusCustomMinsBox = new TextBox
+            {
+                Width = 34,
+                Height = 20,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                TextAlignment = TextAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Foreground = CapsuleTheme.Brush(p.Text),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(0),
+                ToolTip = "Custom minutes (press Enter to apply)"
+            };
+            _focusCustomMinsBox.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                _focusCustomMinsBox.Focus();
+                e.Handled = true;
+            };
+            _focusCustomMinsBox.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+            };
+            _focusCustomMinsBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter)
+                {
+                    CommitCustomMinutes();
+                    Keyboard.ClearFocus();
+                    e.Handled = true;
+                }
+            };
+            _focusCustomMinsBox.LostFocus += (s, e) =>
+            {
+                CommitCustomMinutes();
+            };
+            stepperRow.Children.Add(_focusCustomMinsBox);
+
+            var plusBtn = BuddyGlassButton.CreatePill(
+                glyph: null,
+                text: "+5m",
+                onClick: () =>
+                {
+                    WindowsBuddy.Tools.Timer.TimerService.Instance.AdjustCountdownComponents(0, 5, 0);
+                    UpdateFocusState();
+                },
+                height: 20.0,
+                style: BuddyGlassButtonStyle.GlassPill,
+                tooltip: "Add 5 minutes");
+            plusBtn.Padding = new Thickness(6, 1, 6, 1);
+            plusBtn.Margin = new Thickness(4, 0, 0, 0);
+            stepperRow.Children.Add(plusBtn);
+
+            fLeft.Children.Add(stepperRow);
             Grid.SetColumn(fLeft, 0);
             fContent.Children.Add(fLeft);
 
-            _focusToggleBtn = new Border
+            // Right Transport Buttons: Reset & Play/Pause
+            var fRight = new StackPanel
             {
-                Width = 36,
-                Height = 36,
-                CornerRadius = new CornerRadius(18),
-                Background = CapsuleTheme.Brush(p.Surface2),
-                Cursor = Cursors.Hand,
+                Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 0, 0, 0)
+                HorizontalAlignment = HorizontalAlignment.Right
             };
-            _focusToggleIcon = new TextBlock
+
+            _focusResetBtn = BuddyGlassButton.CreateHeader("↺", tooltip: "Reset Timer", btnSize: 24.0);
+            _focusResetBtn.Margin = new Thickness(0, 0, 5, 0);
+            _focusResetBtn.Clicked += () =>
             {
-                Text = "▶",
-                FontSize = 13,
-                Foreground = CapsuleTheme.Brush(p.Text),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            _focusToggleBtn.Child = _focusToggleIcon;
-            _focusToggleBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                TimerClockTool.ToggleRunning();
+                WindowsBuddy.Tools.Timer.TimerService.Instance.ResetCountdown();
                 UpdateFocusState();
             };
-            Grid.SetColumn(_focusToggleBtn, 1);
-            fContent.Children.Add(_focusToggleBtn);
+            fRight.Children.Add(_focusResetBtn);
+
+            _focusToggleBtn = BuddyGlassButton.CreateVector(
+                "M 3.8,2.0 L 10.2,6.0 L 3.8,10.0 Z",
+                btnSize: 30.0,
+                iconSize: 12.0,
+                style: BuddyGlassButtonStyle.Primary,
+                tooltip: "Start / Pause Timer");
+            _focusPlayIconPath = _focusToggleBtn.VectorPath;
+            _focusToggleBtn.Clicked += () =>
+            {
+                WindowsBuddy.Tools.Timer.TimerService.Instance.ToggleCountdown();
+                UpdateFocusState();
+            };
+            fRight.Children.Add(_focusToggleBtn);
+
+            Grid.SetColumn(fRight, 1);
+            fContent.Children.Add(fRight);
 
             fDock.Children.Add(fContent);
             focusCard.Child = fDock;
@@ -564,7 +658,7 @@ namespace WindowsBuddy.Tools
             {
                 Height = 3,
                 CornerRadius = new CornerRadius(1.5),
-                Background = CapsuleTheme.Brush(Color.FromArgb(35, 255, 255, 255)),
+                Background = CapsuleTheme.Brush(p.IsLight ? Color.FromArgb(35, 0, 0, 0) : Color.FromArgb(35, 255, 255, 255)),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 2, 0, 4)
             };
@@ -588,83 +682,44 @@ namespace WindowsBuddy.Tools
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            var prevIconCanvas = new Canvas { Width = 12, Height = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            prevIconCanvas.Children.Add(new System.Windows.Shapes.Path
+            var prevBtn = BuddyGlassButton.CreateVector(
+                "M 2.0,2.5 L 3.3,2.5 L 3.3,9.5 L 2.0,9.5 Z M 9.8,2.2 L 4.0,6.0 L 9.8,9.8 Z",
+                btnSize: 24.0,
+                iconSize: 12.0,
+                style: BuddyGlassButtonStyle.Ghost,
+                tooltip: "Previous Track");
+            prevBtn.Margin = new Thickness(0, 0, 6, 0);
+            prevBtn.Clicked += () =>
             {
-                Data = Geometry.Parse("M 2.0,2.5 L 3.3,2.5 L 3.3,9.5 L 2.0,9.5 Z M 9.8,2.2 L 4.0,6.0 L 9.8,9.8 Z"),
-                Fill = Brushes.White,
-                Opacity = 0.90
-            });
-            var prevBtn = new Border
-            {
-                Width = 24,
-                Height = 24,
-                CornerRadius = new CornerRadius(12),
-                Background = Brushes.Transparent,
-                Cursor = Cursors.Hand,
-                Margin = new Thickness(0, 0, 6, 0),
-                Child = prevIconCanvas
-            };
-            prevBtn.MouseEnter += (_, _) => prevBtn.Background = CapsuleTheme.Brush(Color.FromArgb(38, 255, 255, 255));
-            prevBtn.MouseLeave += (_, _) => prevBtn.Background = Brushes.Transparent;
-            prevBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
                 if (string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack)) return;
                 MediaService.Instance.PreviousTrack();
             };
             mControlsRow.Children.Add(prevBtn);
 
-            var playIconCanvas = new Canvas { Width = 12, Height = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            _musicCardPlayIconPath = new System.Windows.Shapes.Path
+            _musicCardPlayBtn = BuddyGlassButton.CreateVector(
+                "M 3.8,2.0 L 10.2,6.0 L 3.8,10.0 Z",
+                btnSize: 26.0,
+                iconSize: 12.0,
+                style: BuddyGlassButtonStyle.Primary,
+                tooltip: "Play / Pause");
+            _musicCardPlayBtn.Margin = new Thickness(0, 0, 6, 0);
+            _musicCardPlayIconPath = _musicCardPlayBtn.VectorPath;
+            _musicCardPlayBtn.Clicked += () =>
             {
-                Data = Geometry.Parse("M 3.8,2.0 L 10.2,6.0 L 3.8,10.0 Z"),
-                Fill = new SolidColorBrush(Color.FromRgb(16, 18, 26))
-            };
-            playIconCanvas.Children.Add(_musicCardPlayIconPath);
-
-            _musicCardPlayBtn = new Border
-            {
-                Width = 26,
-                Height = 26,
-                CornerRadius = new CornerRadius(13),
-                Background = Brushes.White,
-                Cursor = Cursors.Hand,
-                Margin = new Thickness(0, 0, 6, 0),
-                Child = playIconCanvas
-            };
-            _musicCardPlayBtn.MouseEnter += (_, _) => _musicCardPlayBtn.Background = new SolidColorBrush(Color.FromRgb(230, 234, 242));
-            _musicCardPlayBtn.MouseLeave += (_, _) => _musicCardPlayBtn.Background = Brushes.White;
-            _musicCardPlayBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
                 if (string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack)) return;
                 MediaService.Instance.TogglePlayPause();
                 RefreshMusicCard();
             };
             mControlsRow.Children.Add(_musicCardPlayBtn);
 
-            var nextIconCanvas = new Canvas { Width = 12, Height = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            nextIconCanvas.Children.Add(new System.Windows.Shapes.Path
+            var nextBtn = BuddyGlassButton.CreateVector(
+                "M 8.7,2.5 L 10.0,2.5 L 10.0,9.5 L 8.7,9.5 Z M 2.2,2.2 L 8.0,6.0 L 2.2,9.8 Z",
+                btnSize: 24.0,
+                iconSize: 12.0,
+                style: BuddyGlassButtonStyle.Ghost,
+                tooltip: "Next Track");
+            nextBtn.Clicked += () =>
             {
-                Data = Geometry.Parse("M 8.7,2.5 L 10.0,2.5 L 10.0,9.5 L 8.7,9.5 Z M 2.2,2.2 L 8.0,6.0 L 2.2,9.8 Z"),
-                Fill = Brushes.White,
-                Opacity = 0.90
-            });
-            var nextBtn = new Border
-            {
-                Width = 24,
-                Height = 24,
-                CornerRadius = new CornerRadius(12),
-                Background = Brushes.Transparent,
-                Cursor = Cursors.Hand,
-                Child = nextIconCanvas
-            };
-            nextBtn.MouseEnter += (_, _) => nextBtn.Background = CapsuleTheme.Brush(Color.FromArgb(38, 255, 255, 255));
-            nextBtn.MouseLeave += (_, _) => nextBtn.Background = Brushes.Transparent;
-            nextBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
                 if (string.IsNullOrWhiteSpace(RealtimeNotchActionService.Instance.CurrentTrack)) return;
                 MediaService.Instance.NextTrack();
             };
@@ -858,9 +913,30 @@ namespace WindowsBuddy.Tools
                 try { rootGrid.Dispatcher.BeginInvoke((Action)RefreshMusicCard); } catch { }
             };
 
+            WindowsBuddy.Tools.Timer.TimerService.Instance.Tick += () =>
+            {
+                if (_activeRootGrid != null && _activeRootGrid.IsVisible)
+                {
+                    try { _activeRootGrid.Dispatcher.BeginInvoke((Action)UpdateFocusState); } catch { }
+                }
+            };
+
+            WindowsBuddy.Tools.Timer.TimerService.Instance.StateChanged += () =>
+            {
+                if (_activeRootGrid != null && _activeRootGrid.IsVisible)
+                {
+                    try { _activeRootGrid.Dispatcher.BeginInvoke((Action)UpdateFocusState); } catch { }
+                }
+            };
+
             MediaService.Instance.StateChanged += () =>
             {
                 try { rootGrid.Dispatcher.BeginInvoke((Action)RefreshMusicCard); } catch { }
+            };
+
+            CapsuleTheme.ThemeChanged += () =>
+            {
+                try { rootGrid.Dispatcher.BeginInvoke((Action)RefreshAllCards); } catch { }
             };
 
             _lastClipSignature = null;
@@ -943,17 +1019,20 @@ namespace WindowsBuddy.Tools
                 _wTempText.Text = $"{tempDisplay}°";
                 _wCityText.Text = $"{w.Condition} · {w.City}";
                 _wRangeText.Text = $"H {hiDisplay}°  L {loDisplay}°";
+                int nowHour = DateTime.Now.Hour;
+                bool isNight = nowHour < 6 || nowHour >= 18;
+
                 _wIcon.Text = w.WeatherCode switch
                 {
-                    0 => "☀",
-                    1 or 2 => "⛅",
-                    3 => "☁",
-                    45 or 48 => "🌫",
-                    >= 51 and <= 67 => "🌧",
-                    >= 71 and <= 77 => "❄",
-                    >= 80 and <= 82 => "🌧",
-                    >= 95 and <= 99 => "⛈",
-                    _ => "☁"
+                    0 => isNight ? "🌙" : "☀️",
+                    1 or 2 => isNight ? "☁️" : "⛅",
+                    3 => "☁️",
+                    45 or 48 => "🌫️",
+                    >= 51 and <= 67 => "🌧️",
+                    >= 71 and <= 77 => "❄️",
+                    >= 80 and <= 82 => "🌧️",
+                    >= 95 and <= 99 => "⛈️",
+                    _ => isNight ? "🌙" : "☀️"
                 };
             }
 
@@ -1010,6 +1089,17 @@ namespace WindowsBuddy.Tools
             var artwork = hasMedia ? rsvc.CurrentArtwork : null;
             var beatColor = rsvc.CurrentBeatColor;
 
+            _musicCardTitleText.Foreground = CapsuleTheme.Brush(p.Text);
+            _musicCardArtistText.Foreground = CapsuleTheme.Brush(p.Text2);
+            if (_musicCardProgressBarTrack != null)
+            {
+                _musicCardProgressBarTrack.Background = CapsuleTheme.Brush(p.IsLight ? Color.FromArgb(35, 0, 0, 0) : Color.FromArgb(35, 255, 255, 255));
+            }
+            if (_musicCardProgressBarFill != null)
+            {
+                _musicCardProgressBarFill.Background = CapsuleTheme.Brush(p.Accent);
+            }
+
             _musicCardTitleText.Text = !hasMedia
                 ? LocalizationService.T("home.nomedia", "No Media Playing")
                 : track;
@@ -1023,6 +1113,7 @@ namespace WindowsBuddy.Tools
                 _musicCardPlayIconPath.Data = isPlaying
                     ? Geometry.Parse("M 2.8,2.2 L 4.8,2.2 L 4.8,9.8 L 2.8,9.8 Z M 7.2,2.2 L 9.2,2.2 L 9.2,9.8 L 7.2,9.8 Z")
                     : Geometry.Parse("M 3.8,2.0 L 10.2,6.0 L 3.8,10.0 Z");
+                _musicCardPlayBtn?.ApplyVisualState(_musicCardPlayBtn.IsMouseOver);
             }
 
             if (_musicCardPlayBtn != null)
@@ -1101,12 +1192,50 @@ namespace WindowsBuddy.Tools
             }
         }
 
+        private void CommitCustomMinutes()
+        {
+            if (_focusCustomMinsBox == null) return;
+            if (int.TryParse(_focusCustomMinsBox.Text.Trim(), out int mins) && mins > 0 && mins <= 1440)
+            {
+                WindowsBuddy.Tools.Timer.TimerService.Instance.SetCountdownPreset(mins * 60, autoStart: false);
+            }
+            UpdateFocusState();
+        }
+
         private void UpdateFocusState()
         {
             if (_focusTimeText == null) return;
-            _focusTimeText.Text = TimerClockTool.FormatTime(TimerClockTool.RemainingSeconds);
-            _focusStatusText.Text = TimerClockTool.IsRunning ? "Focusing" : "Paused";
-            _focusToggleIcon.Text = TimerClockTool.IsRunning ? "⏸" : "▶";
+            var s = WindowsBuddy.Tools.Timer.TimerService.Instance;
+            int rem = s.CountRemainingSeconds;
+            int total = s.CountTotalSeconds;
+            bool running = s.CountIsRunning;
+
+            _focusTimeText.Text = TimerClockTool.FormatTime(rem);
+            _focusStatusText.Text = running
+                ? LocalizationService.T("home.focusing", "Running")
+                : (rem < total ? LocalizationService.T("home.paused", "Paused") : "Ready");
+
+            if (_focusPlayIconPath != null)
+            {
+                _focusPlayIconPath.Data = running
+                    ? Geometry.Parse("M 2.8,2.2 L 4.8,2.2 L 4.8,9.8 L 2.8,9.8 Z M 7.2,2.2 L 9.2,2.2 L 9.2,9.8 L 7.2,9.8 Z")
+                    : Geometry.Parse("M 3.8,2.0 L 10.2,6.0 L 3.8,10.0 Z");
+                _focusToggleBtn?.ApplyVisualState(_focusToggleBtn.IsMouseOver);
+            }
+
+            if (_focusCustomMinsBox != null)
+            {
+                var p = CapsuleTheme.Current;
+                _focusCustomMinsBox.Background = CapsuleTheme.Brush(p.Surface2);
+                _focusCustomMinsBox.Foreground = CapsuleTheme.Brush(p.Text);
+                _focusCustomMinsBox.BorderBrush = CapsuleTheme.Brush(p.Border);
+
+                if (!_focusCustomMinsBox.IsFocused)
+                {
+                    int totalMins = Math.Max(1, total / 60);
+                    _focusCustomMinsBox.Text = totalMins.ToString();
+                }
+            }
         }
 
         private static Border CreateClipRow(string title, string time)
@@ -1335,31 +1464,13 @@ namespace WindowsBuddy.Tools
             Grid.SetColumn(stack, 0);
             mainGrid.Children.Add(stack);
 
-            var plusBtn = new Border
+            var plusBtn = BuddyGlassButton.CreatePill(null, "+1", () =>
             {
-                Width = 28,
-                Height = 28,
-                CornerRadius = new CornerRadius(14),
-                Background = CapsuleTheme.Brush(p.Surface2),
-                Cursor = Cursors.Hand,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 0, 0, 0)
-            };
-            plusBtn.Child = new TextBlock
-            {
-                Text = "+1",
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = CapsuleTheme.Brush(p.Accent),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            plusBtn.MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
                 _waterGlasses = Math.Min(12, _waterGlasses + 1);
                 glassText.Text = $"{_waterGlasses} / 8 glasses";
-            };
+            }, height: 26, style: BuddyGlassButtonStyle.Accent, tooltip: "Log 1 Glass (250ml)");
+            plusBtn.Margin = new Thickness(4, 0, 0, 0);
+            plusBtn.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(plusBtn, 1);
             mainGrid.Children.Add(plusBtn);
 
@@ -1587,10 +1698,20 @@ namespace WindowsBuddy.Tools
         public string Title => LocalizationService.T("tool.focus", "Timers");
         public string IconGlyph => "⏱";
 
-        public static int RemainingSeconds => WindowsBuddy.Tools.Timer.TimerService.Instance.PomoRemainingSeconds;
-        public static bool IsRunning => WindowsBuddy.Tools.Timer.TimerService.Instance.PomoIsRunning;
-        public static void ToggleRunning() => WindowsBuddy.Tools.Timer.TimerService.Instance.TogglePomo();
-        public static string FormatTime(int totalSec) => $"{totalSec / 60:D2}:{totalSec % 60:D2}";
+        public static int RemainingSeconds => WindowsBuddy.Tools.Timer.TimerService.Instance.CountRemainingSeconds;
+        public static bool IsRunning => WindowsBuddy.Tools.Timer.TimerService.Instance.CountIsRunning;
+        public static void ToggleRunning() => WindowsBuddy.Tools.Timer.TimerService.Instance.ToggleCountdown();
+        public static string FormatTime(int totalSec)
+        {
+            if (totalSec >= 3600)
+            {
+                int h = totalSec / 3600;
+                int m = (totalSec % 3600) / 60;
+                int s = totalSec % 60;
+                return $"{h:D2}:{m:D2}:{s:D2}";
+            }
+            return $"{totalSec / 60:D2}:{totalSec % 60:D2}";
+        }
 
         private WindowsBuddy.BuddyCapsule.UI.TimerToolView _view;
 

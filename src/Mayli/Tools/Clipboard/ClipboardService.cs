@@ -108,49 +108,7 @@ namespace WindowsBuddy.Tools.Clipboard
 
         private void SeedInitialItems()
         {
-            var svgItem = new ClipboardItem
-            {
-                Kind = ClipKind.Svg,
-                FormatType = "image/svg+xml",
-                Text = "<svg xmlns=\"http://www.w3.org/2000/svg\"\n     viewBox=\"0 0 128 128\"\n     width=\"128\" height=\"128\">\n\n  <defs>\n    <radialGradient id=\"orbGradient\"\n                    cx=\"35%\" cy=\"25%\" r=\"75%\">\n      <stop offset=\"0%\" stop-color=\"#B9F7FF\"/>\n      <stop offset=\"50%\" stop-color=\"#5B86E5\"/>\n      <stop offset=\"100%\" stop-color=\"#36096D\"/>\n    </radialGradient>\n  </defs>\n\n  <circle cx=\"64\" cy=\"64\" r=\"60\" fill=\"url(#orbGradient)\"/>\n</svg>",
-                LineCount = 81,
-                CharCount = 2300,
-                WordCount = 142,
-                SourceApp = "Google Chrome",
-                SourceAppExe = "chrome.exe",
-                TimestampLocal = DateTime.Now.AddMinutes(-49)
-            };
-            _items.Add(svgItem);
-
-            var persianText = new ClipboardItem
-            {
-                Kind = ClipKind.Text,
-                FormatType = "text/plain",
-                Text = "متن نمونه در کلیپ‌برد Mayli",
-                LineCount = 1,
-                CharCount = 28,
-                WordCount = 5,
-                SourceApp = "Telegram",
-                SourceAppExe = "telegram.exe",
-                TimestampLocal = DateTime.Now.AddHours(-1)
-            };
-            _items.Add(persianText);
-
-            var linkItem = new ClipboardItem
-            {
-                Kind = ClipKind.Link,
-                FormatType = "text/uri-list",
-                Text = "https://github.com/morluto/rea",
-                LinkHost = "github.com",
-                LinkUri = new Uri("https://github.com/morluto/rea"),
-                LineCount = 1,
-                CharCount = 31,
-                WordCount = 1,
-                SourceApp = "Google Chrome",
-                SourceAppExe = "chrome.exe",
-                TimestampLocal = DateTime.Now.AddHours(-2)
-            };
-            _items.Add(linkItem);
+            // Fresh installations start with an empty clipboard history
         }
 
         private System.Windows.Threading.DispatcherTimer _captureDebounceTimer;
@@ -607,12 +565,19 @@ namespace WindowsBuddy.Tools.Clipboard
             ItemsChanged?.Invoke();
         }
 
-        public void ClearAll()
+        public void ClearAll(bool keepPinned = true)
         {
             lock (_lock)
             {
-                _items.RemoveAll(i => !i.IsPinned);
-                ClipboardDatabase.Instance.ClearAll(keepPinned: true);
+                if (keepPinned)
+                {
+                    _items.RemoveAll(i => !i.IsPinned);
+                }
+                else
+                {
+                    _items.Clear();
+                }
+                ClipboardDatabase.Instance.ClearAll(keepPinned: keepPinned);
             }
             ItemsChanged?.Invoke();
         }

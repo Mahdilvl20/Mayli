@@ -42,7 +42,9 @@ namespace WindowsBuddy.Services
         public bool ShowBatteryActivity { get; set; } = true;
         public bool ShowTimerActivity { get; set; } = true;
         public bool VolumeActivity { get; set; } = true;
+        public bool BrightnessActivity { get; set; } = true;
         public bool ClipboardCopiedActivity { get; set; } = true;
+        public bool KeyboardLanguageActivity { get; set; } = true;
         public bool HideCopiedText { get; set; } = true;
         public bool RunningTimersActivity { get; set; } = true;
         public bool TimerFinishAlerts { get; set; } = true;
@@ -50,9 +52,10 @@ namespace WindowsBuddy.Services
         public string CalendarSystem { get; set; } = "jalali"; // "jalali", "gregorian"
         public string RemindersTarget { get; set; } = "Notch only";
         public string LiveActivityEventDuration { get; set; } = "3 s";
+        public string BannerFontSize { get; set; } = "Medium";
 
         // Notch Page detailed preferences (matching exact screenshots)
-        public string NotchVisibility { get; set; } = "Smart"; // "Always", "Smart", "Minimal", "Hidden"
+        public string NotchVisibility { get; set; } = "Always"; // "Always", "Smart", "Minimal", "Hidden"
         public string NotchStyle { get; set; } = "Notch"; // "Line", "Notch", "Island"
         public string NotchShape { get; set; } = "Compact"; // "Compact", "Wide", "Classic", "Ultra-Compact"
         public int NotchScalePercent { get; set; } = 90; // 60 - 140
@@ -142,9 +145,9 @@ namespace WindowsBuddy.Services
         {
             Raw = PersistenceHelper.SafeReadJson<AppPreferencesModel>(FileName);
             Raw.Language = "en";
-            if (string.IsNullOrWhiteSpace(Raw.NotchVisibility) || string.Equals(Raw.NotchVisibility, "Always", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(Raw.NotchVisibility))
             {
-                Raw.NotchVisibility = "Smart";
+                Raw.NotchVisibility = "Always";
             }
             if (Raw.HomeWidgets != null)
             {
@@ -380,10 +383,22 @@ namespace WindowsBuddy.Services
             set { Raw.VolumeActivity = value; Save(); }
         }
 
+        public bool BrightnessActivity
+        {
+            get => Raw.BrightnessActivity;
+            set { Raw.BrightnessActivity = value; Save(); }
+        }
+
         public bool ClipboardCopiedActivity
         {
             get => Raw.ClipboardCopiedActivity;
             set { Raw.ClipboardCopiedActivity = value; Save(); }
+        }
+
+        public bool KeyboardLanguageActivity
+        {
+            get => Raw.KeyboardLanguageActivity;
+            set { Raw.KeyboardLanguageActivity = value; Save(); }
         }
 
         public bool HideCopiedText
@@ -426,6 +441,12 @@ namespace WindowsBuddy.Services
         {
             get => Raw.LiveActivityEventDuration;
             set { Raw.LiveActivityEventDuration = value; Save(); }
+        }
+
+        public string BannerFontSize
+        {
+            get => Raw.BannerFontSize ?? "Medium";
+            set { Raw.BannerFontSize = value; Save(); }
         }
 
         public string NotchVisibility
@@ -604,7 +625,7 @@ namespace WindowsBuddy.Services
 
         public void ResetNotchDefaults()
         {
-            Raw.NotchVisibility = "Smart";
+            Raw.NotchVisibility = "Always";
             Raw.NotchStyle = "Notch";
             Raw.NotchShape = "Compact";
             Raw.NotchSilhouette = "Shouldered";
@@ -741,7 +762,9 @@ namespace WindowsBuddy.Services
             Raw.MusicBeatColor = "Artwork";
             Raw.ShowBatteryActivity = true;
             Raw.VolumeActivity = true;
+            Raw.BrightnessActivity = true;
             Raw.ClipboardCopiedActivity = true;
+            Raw.KeyboardLanguageActivity = true;
             Raw.HideCopiedText = true;
             Raw.RunningTimersActivity = true;
             Raw.TimerFinishAlerts = true;

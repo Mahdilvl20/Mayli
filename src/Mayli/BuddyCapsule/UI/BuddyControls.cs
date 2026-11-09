@@ -9,10 +9,334 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using WindowsBuddy.BuddyCapsule.Renderer;
 using WindowsBuddy.BuddyCapsule.Theme;
+using WindowsBuddy.UI.AnimateIcons;
 
 namespace WindowsBuddy.BuddyCapsule.UI
 {
-    public class BuddyCard : Border
+    public enum BuddyGlassButtonStyle
+    {
+        Ghost,      // Transparent resting, subtle glassmorphic hover (e.g. Next/Prev, Header buttons)
+        GlassPill,  // Subtle translucent glass surface (e.g. Action pills, Tool buttons)
+        Primary,    // High-contrast filled circle/pill (e.g. Play/Pause button)
+        Accent      // Theme accent filled circle/pill
+    }
+
+    /// <summary>
+    /// Universal Glassmorphic Button Pattern for the Notch and Expanded Notch.
+    /// Provides consistent vector icons, glassmorphic backgrounds, tactile scale-press feedback, and theme reactivity.
+    /// </summary>
+    public class BuddyGlassButton : Border
+    {
+        private BuddyGlassButtonStyle _style;
+        private bool _isPressed;
+        private readonly ScaleTransform _scaleTransform;
+        private readonly FrameworkElement _content;
+        private System.Windows.Shapes.Path _vectorPath;
+        private TextBlock _label;
+        private AnimateIcon _animateIcon;
+
+        public event Action Clicked;
+
+        public new BuddyGlassButtonStyle Style
+        {
+            get => _style;
+            set
+            {
+                _style = value;
+                ApplyVisualState(IsMouseOver);
+            }
+        }
+
+        public FrameworkElement ButtonContent => _content;
+        public System.Windows.Shapes.Path VectorPath => _vectorPath;
+        public TextBlock Label => _label;
+        public AnimateIcon AnimateIcon => _animateIcon;
+
+        public BuddyGlassButton(
+            FrameworkElement content,
+            double width = 26.0,
+            double height = 26.0,
+            double cornerRadius = -1.0,
+            BuddyGlassButtonStyle style = BuddyGlassButtonStyle.Ghost,
+            string tooltip = null)
+        {
+            _content = content;
+            _style = style;
+            if (!double.IsNaN(width)) Width = width;
+            if (!double.IsNaN(height)) Height = height;
+            CornerRadius = new CornerRadius(cornerRadius < 0 ? (double.IsNaN(height) ? 13.0 : height / 2.0) : cornerRadius);
+            Cursor = Cursors.Hand;
+            if (!string.IsNullOrEmpty(tooltip)) ToolTip = tooltip;
+
+            if (content is AnimateIcon ai)
+            {
+                _animateIcon = ai;
+            }
+            else if (content is TextBlock tb)
+            {
+                _label = tb;
+            }
+            else if (content is System.Windows.Shapes.Path vp)
+            {
+                _vectorPath = vp;
+            }
+            else if (content is Panel pnl)
+            {
+                foreach (UIElement child in pnl.Children)
+                {
+                    if (child is System.Windows.Shapes.Path cp) { _vectorPath = cp; break; }
+                }
+            }
+
+            _scaleTransform = new ScaleTransform(1.0, 1.0);
+            RenderTransform = _scaleTransform;
+            RenderTransformOrigin = new Point(0.5, 0.5);
+
+            Child = content;
+
+            ApplyVisualState(false);
+
+            MouseEnter += (_, _) =>
+            {
+                ApplyVisualState(true);
+                _animateIcon?.Play();
+            };
+            MouseLeave += (_, _) =>
+            {
+                _isPressed = false;
+                ApplyVisualState(false);
+            };
+            MouseLeftButtonDown += (_, e) =>
+            {
+                _isPressed = true;
+                _scaleTransform.ScaleX = 0.94;
+                _scaleTransform.ScaleY = 0.94;
+            };
+            MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                if (_isPressed)
+                {
+                    _isPressed = false;
+                    _scaleTransform.ScaleX = 1.0;
+                    _scaleTransform.ScaleY = 1.0;
+                    Clicked?.Invoke();
+                }
+            };
+
+            CapsuleTheme.ThemeChanged += () => ApplyVisualState(IsMouseOver);
+        }
+
+        public static BuddyGlassButton CreateVector(
+            string pathData,
+            double btnSize = 26.0,
+            double iconSize = 12.0,
+            BuddyGlassButtonStyle style = BuddyGlassButtonStyle.Ghost,
+            string tooltip = null,
+            Brush iconBrush = null)
+        {
+            var defaultFill = iconBrush ?? (style == BuddyGlassButtonStyle.Primary && !CapsuleTheme.Current.IsLight
+                ? new SolidColorBrush(Color.FromRgb(16, 18, 26))
+                : Brushes.White);
+            var path = new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse(pathData),
+                Fill = defaultFill,
+                Stretch = Stretch.Uniform,
+                Width = iconSize,
+                Height = iconSize,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var grid = new Grid
+            {
+                Width = iconSize,
+                Height = iconSize,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            grid.Children.Add(path);
+
+            var btn = new BuddyGlassButton(grid, btnSize, btnSize, btnSize / 2.0, style, tooltip);
+            btn._vectorPath = path;
+            btn.ApplyVisualState(false);
+            return btn;
+        }
+
+        public static BuddyGlassButton CreateHeader(
+            AnimateIconType iconType,
+            string tooltip = null,
+            double btnSize = 26.0)
+        {
+            var p = CapsuleTheme.Current;
+            var animIcon = new AnimateIcon(iconType, size: 14, brush: CapsuleTheme.Brush(p.Text2))
+            {
+                AutoAnimateOnHover = false,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var btn = new BuddyGlassButton(animIcon, btnSize, btnSize, btnSize / 2.0, BuddyGlassButtonStyle.Ghost, tooltip);
+            btn._animateIcon = animIcon;
+            btn.ApplyVisualState(false);
+            return btn;
+        }
+
+        public static BuddyGlassButton CreateHeader(
+            string glyph,
+            string tooltip = null,
+            double btnSize = 26.0)
+        {
+            var p = CapsuleTheme.Current;
+            var tb = new TextBlock
+            {
+                Text = glyph,
+                FontSize = 13,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
+            var btn = new BuddyGlassButton(tb, btnSize, btnSize, btnSize / 2.0, BuddyGlassButtonStyle.Ghost, tooltip);
+            btn._label = tb;
+            btn.ApplyVisualState(false);
+            return btn;
+        }
+
+        public static BuddyGlassButton CreateHeader(
+            FrameworkElement icon,
+            string tooltip = null,
+            double btnSize = 26.0)
+        {
+            return new BuddyGlassButton(icon, btnSize, btnSize, btnSize / 2.0, BuddyGlassButtonStyle.Ghost, tooltip);
+        }
+
+        public static BuddyGlassButton CreatePill(
+            string glyph,
+            string text,
+            Action onClick = null,
+            double height = 24.0,
+            BuddyGlassButtonStyle style = BuddyGlassButtonStyle.GlassPill,
+            string tooltip = null)
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            TextBlock glyphTb = null;
+            if (!string.IsNullOrEmpty(glyph))
+            {
+                glyphTb = new TextBlock
+                {
+                    Text = glyph,
+                    FontSize = 11.0,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, string.IsNullOrEmpty(text) ? 0 : 5, 0)
+                };
+                row.Children.Add(glyphTb);
+            }
+            TextBlock lbl = null;
+            if (!string.IsNullOrEmpty(text))
+            {
+                lbl = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 11.5,
+                    FontWeight = FontWeights.SemiBold,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                row.Children.Add(lbl);
+            }
+
+            var btn = new BuddyGlassButton(row, double.NaN, height, height / 2.0, style, tooltip)
+            {
+                Padding = new Thickness(10, 2, 10, 2)
+            };
+            btn._label = lbl ?? glyphTb;
+            if (onClick != null) btn.Clicked += onClick;
+            btn.ApplyVisualState(false);
+            return btn;
+        }
+
+        public void SetVectorData(string pathData, Brush fill = null)
+        {
+            if (_vectorPath != null)
+            {
+                _vectorPath.Data = Geometry.Parse(pathData);
+                if (fill != null) _vectorPath.Fill = fill;
+            }
+        }
+
+        public void ApplyVisualState(bool hovered)
+        {
+            var p = CapsuleTheme.Current;
+            bool isLight = p.IsLight;
+            _scaleTransform.ScaleX = _isPressed ? 0.94 : (hovered ? 1.03 : 1.0);
+            _scaleTransform.ScaleY = _isPressed ? 0.94 : (hovered ? 1.03 : 1.0);
+
+            switch (_style)
+            {
+                case BuddyGlassButtonStyle.Primary:
+                    if (isLight)
+                    {
+                        Background = hovered ? CapsuleTheme.Brush(Color.FromRgb(38, 42, 54)) : CapsuleTheme.Brush(Color.FromRgb(20, 22, 28));
+                        BorderBrush = Brushes.Transparent;
+                        BorderThickness = new Thickness(0);
+                        if (_vectorPath != null) _vectorPath.Fill = Brushes.White;
+                        if (_label != null) _label.Foreground = Brushes.White;
+                        if (_animateIcon != null) _animateIcon.StrokeBrush = Brushes.White;
+                    }
+                    else
+                    {
+                        Background = hovered ? new SolidColorBrush(Color.FromRgb(230, 234, 242)) : Brushes.White;
+                        BorderBrush = Brushes.Transparent;
+                        BorderThickness = new Thickness(0);
+                        var darkInk = CapsuleTheme.Brush(Color.FromRgb(16, 18, 26));
+                        if (_vectorPath != null) _vectorPath.Fill = darkInk;
+                        if (_label != null) _label.Foreground = darkInk;
+                        if (_animateIcon != null) _animateIcon.StrokeBrush = darkInk;
+                    }
+                    break;
+
+                case BuddyGlassButtonStyle.Accent:
+                    Background = CapsuleTheme.Brush(hovered ? p.Accent : p.AccentSoft);
+                    BorderBrush = CapsuleTheme.Brush(Color.FromArgb(90, p.Accent.R, p.Accent.G, p.Accent.B));
+                    BorderThickness = new Thickness(1);
+                    if (_vectorPath != null) _vectorPath.Fill = CapsuleTheme.Brush(p.AccentFg);
+                    if (_label != null) _label.Foreground = CapsuleTheme.Brush(p.AccentFg);
+                    if (_animateIcon != null) _animateIcon.StrokeBrush = CapsuleTheme.Brush(p.AccentFg);
+                    break;
+
+                case BuddyGlassButtonStyle.GlassPill:
+                    Background = CapsuleTheme.Brush(isLight
+                        ? (hovered ? Color.FromArgb(32, 0, 0, 0) : Color.FromArgb(16, 0, 0, 0))
+                        : (hovered ? Color.FromArgb(48, 255, 255, 255) : Color.FromArgb(24, 255, 255, 255)));
+                    BorderBrush = CapsuleTheme.Brush(isLight
+                        ? (hovered ? Color.FromArgb(48, 0, 0, 0) : Color.FromArgb(24, 0, 0, 0))
+                        : (hovered ? Color.FromArgb(64, 255, 255, 255) : Color.FromArgb(32, 255, 255, 255)));
+                    BorderThickness = new Thickness(1);
+                    if (_vectorPath != null) _vectorPath.Fill = CapsuleTheme.Brush(hovered ? p.Text : p.Text2);
+                    if (_label != null) _label.Foreground = CapsuleTheme.Brush(hovered ? p.Text : p.Text2);
+                    if (_animateIcon != null) _animateIcon.StrokeBrush = CapsuleTheme.Brush(hovered ? p.Text : p.Text2);
+                    break;
+
+                case BuddyGlassButtonStyle.Ghost:
+                default:
+                    Background = CapsuleTheme.Brush(isLight
+                        ? (hovered ? Color.FromArgb(24, 0, 0, 0) : Colors.Transparent)
+                        : (hovered ? Color.FromArgb(38, 255, 255, 255) : Colors.Transparent));
+                    BorderBrush = Brushes.Transparent;
+                    BorderThickness = new Thickness(0);
+                    if (_vectorPath != null) _vectorPath.Fill = CapsuleTheme.Brush(hovered ? p.Text : (isLight ? p.Text2 : Color.FromArgb(230, 255, 255, 255)));
+                    if (_label != null) _label.Foreground = CapsuleTheme.Brush(hovered ? p.Text : p.Text2);
+                    if (_animateIcon != null) _animateIcon.StrokeBrush = CapsuleTheme.Brush(hovered ? p.Text : p.Text2);
+                    break;
+            }
+        }
+    }
+
+        public class BuddyCard : Border
     {
         public BuddyCard()
         {
@@ -611,12 +935,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
     {
         private static readonly double[][] CometLayers =
         {
-            new[] { 0.014, 1.00 },
-            new[] { 0.032, 0.34 },
-            new[] { 0.064, 0.30 },
-            new[] { 0.100, 0.26 },
-            new[] { 0.140, 0.22 },
-            new[] { 0.180, 0.18 }
+            new[] { 0.016, 1.00 },
+            new[] { 0.052, 0.45 },
+            new[] { 0.110, 0.25 },
+            new[] { 0.175, 0.14 }
         };
 
         private struct CometStrokeEntry
@@ -662,8 +984,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             _glowLayer = new Grid
             {
-                Opacity = 0.52,
-                Effect = new BlurEffect { Radius = 5.0, KernelType = KernelType.Box, RenderingBias = RenderingBias.Performance }
+                Opacity = 0.70
             };
             _coreLayer = new Grid
             {
@@ -703,7 +1024,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _pulseContainer.Children.Add(_coreLayer);
             Children.Add(_pulseContainer);
 
-            _animTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(25) };
+            _animTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(42) };
             _animTimer.Tick += OnAnimTick;
             _animTimer.Start();
 
@@ -730,6 +1051,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 StrokeDashCap = PenLineCap.Round,
                 StrokeDashArray = new DoubleCollection { 1.0, 10.0 }
             };
+        }
+
+        public void Stop()
+        {
+            _animTimer.Stop();
+            _pulseContainer.Opacity = 0.0;
         }
 
         public void SetMorphing(bool isMorphing)
@@ -961,6 +1288,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     if (_burstOpacity <= 0.005)
                     {
                         _pulseContainer.Opacity = 0.0;
+                        _animTimer.Stop();
                         return;
                     }
                 }
@@ -1597,18 +1925,44 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 _bars[i] = pill;
                 Children.Add(pill);
             }
+
+            CapsuleTheme.ThemeChanged += () => SetBeatColor(_beatColor);
         }
 
         private static Brush BuildBarBrush(Color c)
         {
-            Color top = Color.FromRgb(
-                (byte)Math.Clamp(c.R * 0.45 + 255 * 0.55, 0, 255),
-                (byte)Math.Clamp(c.G * 0.45 + 255 * 0.55, 0, 255),
-                (byte)Math.Clamp(c.B * 0.45 + 255 * 0.55, 0, 255));
-            Color bot = Color.FromRgb(
-                (byte)Math.Clamp(c.R * 0.70 + 140 * 0.30, 0, 255),
-                (byte)Math.Clamp(c.G * 0.70 + 190 * 0.30, 0, 255),
-                (byte)Math.Clamp(c.B * 0.70 + 255 * 0.30, 0, 255));
+            var p = CapsuleTheme.Current;
+            bool isLight = p.IsLight;
+            Color top, bot;
+            if (isLight)
+            {
+                double lum = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255.0;
+                double maxC = Math.Max(c.R, Math.Max(c.G, c.B));
+                double minC = Math.Min(c.R, Math.Min(c.G, c.B));
+                double sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+
+                // When beat color is near-white or washed out, use theme accent for high contrast
+                Color baseColor = (lum > 0.72 || sat < 0.22) ? p.Accent : c;
+                top = Color.FromRgb(
+                    (byte)Math.Clamp(baseColor.R * 0.60, 0, 255),
+                    (byte)Math.Clamp(baseColor.G * 0.60, 0, 255),
+                    (byte)Math.Clamp(baseColor.B * 0.60, 0, 255));
+                bot = Color.FromRgb(
+                    (byte)Math.Clamp(baseColor.R * 0.35 + 10 * 0.65, 0, 255),
+                    (byte)Math.Clamp(baseColor.G * 0.35 + 30 * 0.65, 0, 255),
+                    (byte)Math.Clamp(baseColor.B * 0.35 + 60 * 0.65, 0, 255));
+            }
+            else
+            {
+                top = Color.FromRgb(
+                    (byte)Math.Clamp(c.R * 0.45 + 255 * 0.55, 0, 255),
+                    (byte)Math.Clamp(c.G * 0.45 + 255 * 0.55, 0, 255),
+                    (byte)Math.Clamp(c.B * 0.45 + 255 * 0.55, 0, 255));
+                bot = Color.FromRgb(
+                    (byte)Math.Clamp(c.R * 0.70 + 140 * 0.30, 0, 255),
+                    (byte)Math.Clamp(c.G * 0.70 + 190 * 0.30, 0, 255),
+                    (byte)Math.Clamp(c.B * 0.70 + 255 * 0.30, 0, 255));
+            }
 
             var grad = new LinearGradientBrush(top, bot, 90.0);
             grad.Freeze();
@@ -1690,6 +2044,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
             Height = 10.5;
             IsHitTestVisible = false;
             SnapsToDevicePixels = true;
+
+            CapsuleTheme.ThemeChanged += () =>
+            {
+                _cachedBarBrush = null;
+                InvalidateVisual();
+            };
         }
 
         public void SetBeatColor(Color color, bool isCustomColor = false)
@@ -1706,8 +2066,24 @@ namespace WindowsBuddy.BuddyCapsule.UI
             if (_cachedBarBrush != null && Math.Abs(_cachedBrushWidth - width) < 4.0) return;
             _cachedBrushWidth = Math.Max(40.0, width);
 
+            var p = CapsuleTheme.Current;
+            bool isLight = p.IsLight;
             Color cLeft, cMidLeft, cCenter, cMidRight, cRight;
-            if (_isCustomColor)
+            if (isLight)
+            {
+                double lum = (0.299 * _beatColor.R + 0.587 * _beatColor.G + 0.114 * _beatColor.B) / 255.0;
+                double maxC = Math.Max(_beatColor.R, Math.Max(_beatColor.G, _beatColor.B));
+                double minC = Math.Min(_beatColor.R, Math.Min(_beatColor.G, _beatColor.B));
+                double sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+
+                Color effectiveBeat = (lum > 0.72 || sat < 0.22) ? p.Accent : _beatColor;
+                cLeft = Color.FromRgb(2, 132, 199);
+                cMidLeft = Blend(Color.FromRgb(37, 99, 235), effectiveBeat, 0.35);
+                cCenter = Blend(Color.FromRgb(79, 70, 229), effectiveBeat, 0.35);
+                cMidRight = Blend(Color.FromRgb(124, 58, 237), effectiveBeat, 0.35);
+                cRight = Color.FromRgb(147, 51, 234);
+            }
+            else if (_isCustomColor)
             {
                 cLeft = Blend(_beatColor, Color.FromRgb(120, 210, 255), 0.25);
                 cMidLeft = Lighten(_beatColor, 0.35);
@@ -1909,11 +2285,12 @@ namespace WindowsBuddy.BuddyCapsule.UI
             Height = size;
             CornerRadius = new CornerRadius(cornerRadius);
             ClipToBounds = true;
-            Background = CapsuleTheme.Brush(Color.FromRgb(18, 20, 28));
-            BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
+            ApplyArtworkTheme();
             BorderThickness = new Thickness(1);
             VerticalAlignment = VerticalAlignment.Center;
             Margin = new Thickness(0, 0, size > 30 ? 10 : 8, 0);
+
+            CapsuleTheme.ThemeChanged += ApplyArtworkTheme;
 
             var grid = new Grid();
             var updateClip = new Action(() =>
@@ -1990,6 +2367,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
             Width = size;
             Height = size;
             CornerRadius = new CornerRadius(cornerRadius);
+        }
+
+        private void ApplyArtworkTheme()
+        {
+            var p = CapsuleTheme.Current;
+            Background = CapsuleTheme.Brush(p.IsLight ? p.Surface3 : Color.FromRgb(18, 20, 28));
+            BorderBrush = CapsuleTheme.Brush(p.IsLight ? p.BorderStrong : Color.FromArgb(40, 255, 255, 255));
         }
 
         public void SetArtwork(ImageSource source, string artistName = null)

@@ -127,7 +127,7 @@ namespace WindowsBuddy.Tools.Timer
         private CancellationTokenSource _soundCts;
 
         // Track last interacted/started mode so Notch prioritizes what the user most recently used
-        public TimerMode LastActiveMode { get; set; } = TimerMode.Pomodoro;
+        public TimerMode LastActiveMode { get; set; } = TimerMode.Alarm;
 
         // Pomodoro State
         public int PomoWorkSeconds { get; set; } = 25 * 60;

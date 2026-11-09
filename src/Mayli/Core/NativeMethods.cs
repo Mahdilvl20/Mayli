@@ -35,6 +35,12 @@ namespace WindowsBuddy.Core
         public const int VK_LCONTROL = 0xA2;
         public const int VK_RCONTROL = 0xA3;
         public const int VK_SHIFT = 0x10;
+        public const int VK_MENU = 0x12;
+        public const int VK_LMENU = 0xA4;
+        public const int VK_RMENU = 0xA5;
+        public const int VK_SPACE = 0x20;
+        public const int VK_LWIN = 0x5B;
+        public const int VK_RWIN = 0x5C;
         public const int VK_DELETE = 0x2E;
         public const int VK_X = 0x58;
         public const int VK_C = 0x43;
@@ -136,6 +142,9 @@ namespace WindowsBuddy.Core
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetKeyboardLayout(uint idThread);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);

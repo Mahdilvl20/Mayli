@@ -14,12 +14,16 @@ namespace WindowsBuddy.UI.AnimateIcons
         Activity,
         Bluetooth,
         Volume,
+        VolumeMute,
+        Brightness,
         Sparkles,
         Message,
         Notes,
         FileShelf,
         Links,
         Weather,
-        Calendar
+        Calendar,
+        Globe,
+        Keyboard
     }
 }

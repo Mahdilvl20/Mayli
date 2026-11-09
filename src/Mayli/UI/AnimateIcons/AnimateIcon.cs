@@ -223,6 +223,12 @@ namespace WindowsBuddy.UI.AnimateIcons
                 case AnimateIconType.Volume:
                     BuildVolume();
                     break;
+                case AnimateIconType.VolumeMute:
+                    BuildVolumeMute();
+                    break;
+                case AnimateIconType.Brightness:
+                    BuildBrightness();
+                    break;
                 case AnimateIconType.Sparkles:
                     BuildSparkles();
                     break;
@@ -243,6 +249,12 @@ namespace WindowsBuddy.UI.AnimateIcons
                     break;
                 case AnimateIconType.Calendar:
                     BuildCalendar();
+                    break;
+                case AnimateIconType.Globe:
+                    BuildGlobe();
+                    break;
+                case AnimateIconType.Keyboard:
+                    BuildKeyboard();
                     break;
             }
         }
@@ -679,6 +691,98 @@ namespace WindowsBuddy.UI.AnimateIcons
             };
         }
 
+        private void BuildVolumeMute()
+        {
+            var horn = CreatePath("M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z");
+            var slash1 = CreatePath("M22 9l-6 6");
+            var slash2 = CreatePath("M16 9l6 6");
+
+            var hornScale = new ScaleTransform(1, 1, 6.5, 12);
+            horn.RenderTransform = hornScale;
+
+            var xScale = new ScaleTransform(1, 1, 19, 12);
+            var xRot = new RotateTransform(0, 19, 12);
+            var xGroup = new TransformGroup();
+            xGroup.Children.Add(xScale);
+            xGroup.Children.Add(xRot);
+            slash1.RenderTransform = xGroup;
+            slash2.RenderTransform = xGroup;
+
+            _canvas.Children.Add(horn);
+            _canvas.Children.Add(slash1);
+            _canvas.Children.Add(slash2);
+
+            _playAction = () =>
+            {
+                var hAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                hAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                hAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0.90, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140))));
+                hAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.05, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(320))));
+                hAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(480))));
+
+                var sAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                sAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0.75, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                sAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.22, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180))));
+                sAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(480))));
+
+                var rAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                rAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                rAnim.KeyFrames.Add(new SplineDoubleKeyFrame(-12, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140))));
+                rAnim.KeyFrames.Add(new SplineDoubleKeyFrame(8, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(280))));
+                rAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(480))));
+                rAnim.Completed += (_, _) => _isPlaying = false;
+
+                hornScale.BeginAnimation(ScaleTransform.ScaleXProperty, hAnim);
+                hornScale.BeginAnimation(ScaleTransform.ScaleYProperty, hAnim);
+                xScale.BeginAnimation(ScaleTransform.ScaleXProperty, sAnim);
+                xScale.BeginAnimation(ScaleTransform.ScaleYProperty, sAnim);
+                xRot.BeginAnimation(RotateTransform.AngleProperty, rAnim);
+            };
+        }
+
+        private void BuildBrightness()
+        {
+            var sunCore = CreatePath("M12 8a4 4 0 1 0 0 8 4 4 0 1 0 0-8z");
+            var coreScale = new ScaleTransform(1, 1, 12, 12);
+            sunCore.RenderTransform = coreScale;
+
+            var sunRays = CreatePath("M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M6.34 17.66l-1.41 1.41 M19.07 4.93l-1.41 1.41");
+            var raysScale = new ScaleTransform(1, 1, 12, 12);
+            var raysRot = new RotateTransform(0, 12, 12);
+            var raysGroup = new TransformGroup();
+            raysGroup.Children.Add(raysScale);
+            raysGroup.Children.Add(raysRot);
+            sunRays.RenderTransform = raysGroup;
+
+            _canvas.Children.Add(sunCore);
+            _canvas.Children.Add(sunRays);
+
+            _playAction = () =>
+            {
+                var cAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                cAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                cAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.16, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220))));
+                cAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0.95, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(420))));
+                cAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600))));
+
+                var rsAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                rsAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                rsAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.08, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220))));
+                rsAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600))));
+
+                var rrAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                rrAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                rrAnim.KeyFrames.Add(new SplineDoubleKeyFrame(45, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(560)), new KeySpline(0.22, 0.0, 0.2, 1.0)));
+                rrAnim.Completed += (_, _) => _isPlaying = false;
+
+                coreScale.BeginAnimation(ScaleTransform.ScaleXProperty, cAnim);
+                coreScale.BeginAnimation(ScaleTransform.ScaleYProperty, cAnim);
+                raysScale.BeginAnimation(ScaleTransform.ScaleXProperty, rsAnim);
+                raysScale.BeginAnimation(ScaleTransform.ScaleYProperty, rsAnim);
+                raysRot.BeginAnimation(RotateTransform.AngleProperty, rrAnim);
+            };
+        }
+
         private void BuildSparkles()
         {
             var mainStar = CreatePath("M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z");
@@ -893,6 +997,97 @@ namespace WindowsBuddy.UI.AnimateIcons
 
                 scale.BeginAnimation(ScaleTransform.ScaleXProperty, sAnim);
                 scale.BeginAnimation(ScaleTransform.ScaleYProperty, sAnim);
+            };
+        }
+
+        private void BuildGlobe()
+        {
+            var circle = CreatePath("M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2");
+            _canvas.Children.Add(circle);
+
+            var equator = CreatePath("M2 12h20");
+            _canvas.Children.Add(equator);
+
+            var meridian = CreatePath("M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20");
+            var meridianScale = new ScaleTransform(1, 1, 12, 12);
+            meridian.RenderTransform = meridianScale;
+            _canvas.Children.Add(meridian);
+
+            var wholeScale = new ScaleTransform(1, 1, 12, 12);
+            _canvas.RenderTransform = wholeScale;
+
+            _playAction = () =>
+            {
+                var mAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                mAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                mAnim.KeyFrames.Add(new SplineDoubleKeyFrame(-1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(420)), new KeySpline(0.42, 0, 0.58, 1)));
+                mAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(850)), new KeySpline(0.42, 0, 0.58, 1)));
+                mAnim.Completed += (_, _) => _isPlaying = false;
+
+                var pAnim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                pAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                pAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.14, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180)), new KeySpline(0.25, 0.1, 0.25, 1)));
+                pAnim.KeyFrames.Add(new SplineDoubleKeyFrame(0.96, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(450))));
+                pAnim.KeyFrames.Add(new SplineDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(750))));
+
+                meridianScale.BeginAnimation(ScaleTransform.ScaleXProperty, mAnim);
+                wholeScale.BeginAnimation(ScaleTransform.ScaleXProperty, pAnim);
+                wholeScale.BeginAnimation(ScaleTransform.ScaleYProperty, pAnim);
+            };
+        }
+
+        private void BuildKeyboard()
+        {
+            var body = CreatePath("M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z");
+            _canvas.Children.Add(body);
+
+            var k1 = CreatePath("M6 8h.01");
+            var k2 = CreatePath("M8 12h.01");
+            var k3 = CreatePath("M10 8h.01");
+            var k4 = CreatePath("M12 12h.01");
+            var k5 = CreatePath("M14 8h.01");
+            var k6 = CreatePath("M16 12h.01");
+            var k7 = CreatePath("M18 8h.01");
+            var space = CreatePath("M7 16h10");
+
+            var t1 = new TranslateTransform(0, 0); k1.RenderTransform = t1;
+            var t2 = new TranslateTransform(0, 0); k2.RenderTransform = t2;
+            var t3 = new TranslateTransform(0, 0); k3.RenderTransform = t3;
+            var t4 = new TranslateTransform(0, 0); k4.RenderTransform = t4;
+            var t5 = new TranslateTransform(0, 0); k5.RenderTransform = t5;
+            var t6 = new TranslateTransform(0, 0); k6.RenderTransform = t6;
+            var t7 = new TranslateTransform(0, 0); k7.RenderTransform = t7;
+            var tsp = new TranslateTransform(0, 0); space.RenderTransform = tsp;
+
+            _canvas.Children.Add(k1);
+            _canvas.Children.Add(k2);
+            _canvas.Children.Add(k3);
+            _canvas.Children.Add(k4);
+            _canvas.Children.Add(k5);
+            _canvas.Children.Add(k6);
+            _canvas.Children.Add(k7);
+            _canvas.Children.Add(space);
+
+            _playAction = () =>
+            {
+                void AnimateKey(TranslateTransform tt, double dy, int delayMs, EventHandler onDone = null)
+                {
+                    var a = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+                    a.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+                    a.KeyFrames.Add(new SplineDoubleKeyFrame(dy, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(delayMs + 90))));
+                    a.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(delayMs + 200))));
+                    if (onDone != null) a.Completed += onDone;
+                    tt.BeginAnimation(TranslateTransform.YProperty, a);
+                }
+
+                AnimateKey(t1, 1.6, 0);
+                AnimateKey(t2, 1.6, 30);
+                AnimateKey(t3, 1.6, 60);
+                AnimateKey(t4, 1.6, 90);
+                AnimateKey(t5, 1.6, 120);
+                AnimateKey(t6, 1.6, 150);
+                AnimateKey(t7, 1.6, 180);
+                AnimateKey(tsp, 1.2, 220, (_, _) => _isPlaying = false);
             };
         }
 

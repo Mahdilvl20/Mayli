@@ -35,6 +35,7 @@ namespace WindowsBuddy.Services
         private float _peakDb = -32f;
         private bool _live;
         private volatile bool _running;
+        private volatile bool _isActive;
         private Thread _thread;
 
         private AudioSpectrumService()
@@ -60,6 +61,41 @@ namespace WindowsBuddy.Services
                 _thread.SetApartmentState(ApartmentState.MTA);
                 _thread.Start();
             }
+        }
+
+        public void SetActive(bool active)
+        {
+            _isActive = active;
+        }
+
+        private struct BandBinRange
+        {
+            public int Bin0;
+            public int Bin1;
+            public double Tilt;
+        }
+        private static BandBinRange[] _cachedBandBins;
+        private static int _cachedSampleRate = -1;
+
+        private static BandBinRange[] GetBandBins(int sampleRate)
+        {
+            if (_cachedBandBins != null && _cachedSampleRate == sampleRate) return _cachedBandBins;
+            int halfFft = FftSize / 2;
+            var res = new BandBinRange[Bands];
+            for (int b = 0; b < Bands; b++)
+            {
+                double t0 = Math.Pow((double)b / Bands, 2.2);
+                double t1 = Math.Pow((double)(b + 1) / Bands, 2.2);
+                double f0 = 40.0 * Math.Pow(12000.0 / 40.0, t0);
+                double f1 = 40.0 * Math.Pow(12000.0 / 40.0, t1);
+                int bin0 = Math.Clamp((int)(f0 * FftSize / sampleRate), 1, halfFft - 1);
+                int bin1 = Math.Clamp((int)(f1 * FftSize / sampleRate), bin0, halfFft - 1);
+                double tilt = 1.0 + (b / (double)Bands) * 2.2;
+                res[b] = new BandBinRange { Bin0 = bin0, Bin1 = bin1, Tilt = tilt };
+            }
+            _cachedSampleRate = sampleRate;
+            _cachedBandBins = res;
+            return res;
         }
 
         public void Stop()
@@ -144,6 +180,12 @@ namespace WindowsBuddy.Services
         {
             while (_running)
             {
+                while (_running && !_isActive)
+                {
+                    Thread.Sleep(300);
+                }
+                if (!_running) break;
+
                 IMMDeviceEnumerator enumerator = null;
                 IMMDevice device = null;
                 IAudioClient client = null;
@@ -213,7 +255,7 @@ namespace WindowsBuddy.Services
                     int frameStride = Math.Max(1, channels * bytesPerSample);
                     DateTime lastActiveSoundUtc = DateTime.MinValue;
 
-                    while (_running)
+                    while (_running && _isActive)
                     {
                         bool isStillLive = (DateTime.UtcNow - lastActiveSoundUtc).TotalMilliseconds < 450;
                         Thread.Sleep(isStillLive ? 25 : 85);
@@ -312,21 +354,30 @@ namespace WindowsBuddy.Services
             {
                 lastActiveSoundUtc = DateTime.UtcNow;
             }
+            else
+            {
+                lock (_lock)
+                {
+                    for (int b = 0; b < Bands; b++)
+                    {
+                        _smooth[b] *= 0.72f;
+                        _levels[b] = _smooth[b] < 0.005f ? 0f : _smooth[b];
+                    }
+                    _live = false;
+                }
+                return;
+            }
 
             Fft(_re, _im);
 
-            int halfFft = FftSize / 2;
+            var bandBins = GetBandBins(sampleRate);
             float maxBandDb = -100f;
 
             for (int b = 0; b < Bands; b++)
             {
-                double t0 = Math.Pow((double)b / Bands, 2.2);
-                double t1 = Math.Pow((double)(b + 1) / Bands, 2.2);
-                double f0 = 40.0 * Math.Pow(12000.0 / 40.0, t0);
-                double f1 = 40.0 * Math.Pow(12000.0 / 40.0, t1);
-
-                int bin0 = Math.Clamp((int)(f0 * FftSize / sampleRate), 1, halfFft - 1);
-                int bin1 = Math.Clamp((int)(f1 * FftSize / sampleRate), bin0, halfFft - 1);
+                ref readonly var bb = ref bandBins[b];
+                int bin0 = bb.Bin0;
+                int bin1 = bb.Bin1;
 
                 double magSum = 0.0;
                 int count = 0;
@@ -338,8 +389,7 @@ namespace WindowsBuddy.Services
                 }
 
                 double avgMag = count > 0 ? magSum / count : 0.0;
-                // Slight high-frequency tilt compensation so mid/high bands look balanced
-                double tilt = 1.0 + (b / (double)Bands) * 2.2;
+                double tilt = bb.Tilt;
                 float db = (float)(20.0 * Math.Log10(avgMag * tilt + 1e-9));
                 if (db > maxBandDb) maxBandDb = db;
                 _target[b] = db;

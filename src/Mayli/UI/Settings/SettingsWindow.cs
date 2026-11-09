@@ -1311,6 +1311,32 @@ namespace WindowsBuddy.UI.Settings
                 sizeSlider
             ));
 
+            // Banner Font Size Setting
+            string fSmallLbl = LocalizationService.T("settings.banner.fontsize.small", "Small");
+            string fMedLbl = LocalizationService.T("settings.banner.fontsize.medium", "Medium");
+            string fLrgLbl = LocalizationService.T("settings.banner.fontsize.large", "Large");
+            string fXlrgLbl = LocalizationService.T("settings.banner.fontsize.xlarge", "Extra Large");
+            string curFontLbl = AppPreferences.Instance.BannerFontSize switch
+            {
+                "Small" => fSmallLbl,
+                "Large" => fLrgLbl,
+                "Extra Large" => fXlrgLbl,
+                _ => fMedLbl
+            };
+            var bannerFontPicker = new MayliSegmentedControl(new[] { fSmallLbl, fMedLbl, fLrgLbl, fXlrgLbl }, curFontLbl);
+            bannerFontPicker.SelectionChanged += f =>
+            {
+                if (f == fSmallLbl || f == "Small") AppPreferences.Instance.BannerFontSize = "Small";
+                else if (f == fLrgLbl || f == "Large") AppPreferences.Instance.BannerFontSize = "Large";
+                else if (f == fXlrgLbl || f == "Extra Large") AppPreferences.Instance.BannerFontSize = "Extra Large";
+                else AppPreferences.Instance.BannerFontSize = "Medium";
+            };
+            stack.Children.Add(new MayliSettingRow(
+                LocalizationService.T("settings.banner.fontsize.title", "Banner text size"),
+                LocalizationService.T("settings.banner.fontsize.desc", "Font size for Copy, Cut and notifications in the notch"),
+                bannerFontPicker
+            ));
+
             // Resting layout
             string cornersLbl = LocalizationService.T("notch.layout.corners", "Corners");
             string centerLbl = LocalizationService.T("notch.layout.center", "Center");
@@ -2972,9 +2998,9 @@ namespace WindowsBuddy.UI.Settings
             stack.Children.Add(chargingRow);
 
             // -------------------------------------------------------------
-            // SECTION 3: VOLUME
+            // SECTION 3: VOLUME & BRIGHTNESS
             // -------------------------------------------------------------
-            stack.Children.Add(new MayliSectionHeader("VOLUME"));
+            stack.Children.Add(new MayliSectionHeader("VOLUME & BRIGHTNESS"));
 
             var volumeRow = new MayliActivityRow(
                 "Volume",
@@ -2985,6 +3011,16 @@ namespace WindowsBuddy.UI.Settings
             );
             volumeRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.VolumeActivity = chk;
             stack.Children.Add(volumeRow);
+
+            var brightnessRow = new MayliActivityRow(
+                "Brightness",
+                "When you adjust screen brightness",
+                Color.FromRgb(255, 204, 0),
+                "☀",
+                AppPreferences.Instance.BrightnessActivity
+            );
+            brightnessRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.BrightnessActivity = chk;
+            stack.Children.Add(brightnessRow);
 
             // -------------------------------------------------------------
             // SECTION 4: COPIED
@@ -3036,9 +3072,80 @@ namespace WindowsBuddy.UI.Settings
 
             stack.Children.Add(hideCopiedGrid);
 
+            // Banner Font Size Setting
+            var fontGrid = new Grid { Margin = new Thickness(0, 8, 0, 16) };
+            fontGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            fontGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var fontTextStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(50, 0, 16, 0)
+            };
+            fontTextStack.Children.Add(new TextBlock
+            {
+                Text = LocalizationService.T("settings.banner.fontsize.title", "Banner text size"),
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            });
+            fontTextStack.Children.Add(new TextBlock
+            {
+                Text = LocalizationService.T("settings.banner.fontsize.desc", "Font size for Copy, Cut and notifications in the notch"),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 140)),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            Grid.SetColumn(fontTextStack, 0);
+            fontGrid.Children.Add(fontTextStack);
+
+            string liveSmallLbl = LocalizationService.T("settings.banner.fontsize.small", "Small");
+            string liveMedLbl = LocalizationService.T("settings.banner.fontsize.medium", "Medium");
+            string liveLrgLbl = LocalizationService.T("settings.banner.fontsize.large", "Large");
+            string liveXlrgLbl = LocalizationService.T("settings.banner.fontsize.xlarge", "Extra Large");
+            string curLiveFontLbl = AppPreferences.Instance.BannerFontSize switch
+            {
+                "Small" => liveSmallLbl,
+                "Large" => liveLrgLbl,
+                "Extra Large" => liveXlrgLbl,
+                _ => liveMedLbl
+            };
+
+            var fontSeg = new MayliSegmentedControl(
+                new[] { liveSmallLbl, liveMedLbl, liveLrgLbl, liveXlrgLbl },
+                curLiveFontLbl
+            );
+            fontSeg.SelectionChanged += val =>
+            {
+                if (val == liveSmallLbl || val == "Small") AppPreferences.Instance.BannerFontSize = "Small";
+                else if (val == liveLrgLbl || val == "Large") AppPreferences.Instance.BannerFontSize = "Large";
+                else if (val == liveXlrgLbl || val == "Extra Large") AppPreferences.Instance.BannerFontSize = "Extra Large";
+                else AppPreferences.Instance.BannerFontSize = "Medium";
+            };
+            fontSeg.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(fontSeg, 1);
+            fontGrid.Children.Add(fontSeg);
+
+            stack.Children.Add(fontGrid);
+
             // -------------------------------------------------------------
             // SECTION 5: REMINDERS
             // -------------------------------------------------------------
+            // -------------------------------------------------------------
+            // SECTION 4b: KEYBOARD & INPUT
+            // -------------------------------------------------------------
+            stack.Children.Add(new MayliSectionHeader(LocalizationService.T("settings.live.header.keyboard", "KEYBOARD & INPUT")));
+
+            var langRow = new MayliActivityRow(
+                LocalizationService.T("settings.live.keyboard.title", "Keyboard layout switch"),
+                LocalizationService.T("settings.live.keyboard.desc", "Show animated notification when switching input language (Alt+Shift, Win+Space)"),
+                Color.FromRgb(10, 132, 255),
+                "🌐",
+                AppPreferences.Instance.KeyboardLanguageActivity
+            );
+            langRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.KeyboardLanguageActivity = chk;
+            stack.Children.Add(langRow);
+
             stack.Children.Add(new MayliSectionHeader("REMINDERS"));
 
             var runningTimersRow = new MayliActivityRow(
@@ -3475,6 +3582,7 @@ namespace WindowsBuddy.UI.Settings
                 e.Handled = true;
                 try
                 {
+                    WindowsBuddy.Tools.Clipboard.ClipboardService.Instance.ClearAll(keepPinned: false);
                     Clipboard.Clear();
                     MessageBox.Show("Clipboard history cleared successfully.", "Mayli Privacy", MessageBoxButton.OK, MessageBoxImage.Information);
                 }

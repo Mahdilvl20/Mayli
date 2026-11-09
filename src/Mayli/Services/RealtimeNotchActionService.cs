@@ -81,7 +81,7 @@ namespace WindowsBuddy.Services
 
             StartGsmtcBackgroundWorker();
 
-            _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+            _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(12.0) };
             _pollTimer.Tick += (_, _) =>
             {
                 if (System.Threading.Interlocked.CompareExchange(ref _isBackgroundPolling, 1, 0) != 0)
@@ -109,6 +109,17 @@ namespace WindowsBuddy.Services
             InitScreenshotWatchers();
             InitKeyboardHook();
             Task.Run(InitKnownBluetoothDevices);
+
+            try
+            {
+                _lastKnownHkl = GetCurrentKeyboardLayout();
+                _lastForegroundWindow = NativeMethods.GetForegroundWindow();
+            }
+            catch { }
+
+            _inputLayoutTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _inputLayoutTimer.Tick += (_, _) => CheckKeyboardLayout(isComboTrigger: false);
+            _inputLayoutTimer.Start();
         }
 
         public void TriggerNotification(NotchNotificationPayload payload)
@@ -122,11 +133,18 @@ namespace WindowsBuddy.Services
 
         #region 1. Clipboard & Screenshot Detection (WM_CLIPBOARDUPDATE)
 
+        private readonly DispatcherTimer _inputLayoutTimer;
         private static DateTime _lastCutTimestamp = DateTime.MinValue;
         private static DateTime _lastCopyTimestamp = DateTime.MinValue;
         private static DateTime _lastCopiedTextTime = DateTime.MinValue;
         private static volatile bool _isCtrlDown = false;
         private static volatile bool _isShiftDown = false;
+        private static volatile bool _isAltDown = false;
+        private static volatile bool _isWinDown = false;
+        private static volatile bool _layoutSwitchComboDetected = false;
+        private static IntPtr _lastKnownHkl = IntPtr.Zero;
+        private static IntPtr _lastForegroundWindow = IntPtr.Zero;
+        private static DateTime _lastLanguageSwitchTime = DateTime.MinValue;
         private static NativeMethods.LowLevelKeyboardProc _llKeyboardProc;
         private static IntPtr _llKeyboardHook = IntPtr.Zero;
 
@@ -174,12 +192,25 @@ namespace WindowsBuddy.Services
                     {
                         _isShiftDown = true;
                     }
+                    else if (vkCode == NativeMethods.VK_MENU || vkCode == NativeMethods.VK_LMENU || vkCode == NativeMethods.VK_RMENU)
+                    {
+                        _isAltDown = true;
+                    }
+                    else if (vkCode == NativeMethods.VK_LWIN || vkCode == NativeMethods.VK_RWIN)
+                    {
+                        _isWinDown = true;
+                    }
 
                     bool ctrl = _isCtrlDown ||
                                 (NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) & 0x8000) != 0 ||
                                 (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LCONTROL) & 0x8000) != 0 ||
                                 (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RCONTROL) & 0x8000) != 0;
                     bool shift = _isShiftDown || (NativeMethods.GetAsyncKeyState(NativeMethods.VK_SHIFT) & 0x8000) != 0;
+                    bool alt = _isAltDown || (NativeMethods.GetAsyncKeyState(NativeMethods.VK_MENU) & 0x8000) != 0 ||
+                               (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LMENU) & 0x8000) != 0 ||
+                               (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RMENU) & 0x8000) != 0;
+                    bool win = _isWinDown || (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LWIN) & 0x8000) != 0 ||
+                               (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RWIN) & 0x8000) != 0;
 
                     // Sync state if physically released
                     if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) & 0x8000) == 0 &&
@@ -194,6 +225,21 @@ namespace WindowsBuddy.Services
                     {
                         _isShiftDown = false;
                         shift = false;
+                    }
+
+                    if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_MENU) & 0x8000) == 0 &&
+                        (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LMENU) & 0x8000) == 0 &&
+                        (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RMENU) & 0x8000) == 0)
+                    {
+                        _isAltDown = false;
+                        alt = false;
+                    }
+
+                    if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_LWIN) & 0x8000) == 0 &&
+                        (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RWIN) & 0x8000) == 0)
+                    {
+                        _isWinDown = false;
+                        win = false;
                     }
 
                     if (vkCode == NativeMethods.VK_X && ctrl)
@@ -216,6 +262,41 @@ namespace WindowsBuddy.Services
                         _lastCopyTimestamp = DateTime.UtcNow;
                         LogNotif("LowLevelKeyboard: Ctrl+Insert detected");
                     }
+
+                    // Keyboard layout switch shortcuts:
+                    // 1. Win + Space
+                    if (vkCode == NativeMethods.VK_SPACE && win)
+                    {
+                        _layoutSwitchComboDetected = true;
+                        LogNotif("LowLevelKeyboard: Win+Space detected");
+                        ScheduleKeyboardLayoutCheck(delayMs: 35, isComboTrigger: true);
+                    }
+                    // 2. Alt + Shift
+                    else if ((vkCode == NativeMethods.VK_SHIFT || vkCode == 0xA0 || vkCode == 0xA1) && alt)
+                    {
+                        _layoutSwitchComboDetected = true;
+                        LogNotif("LowLevelKeyboard: Alt+Shift detected");
+                        ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
+                    }
+                    else if ((vkCode == NativeMethods.VK_MENU || vkCode == NativeMethods.VK_LMENU || vkCode == NativeMethods.VK_RMENU) && shift)
+                    {
+                        _layoutSwitchComboDetected = true;
+                        LogNotif("LowLevelKeyboard: Shift+Alt detected");
+                        ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
+                    }
+                    // 3. Ctrl + Shift
+                    else if ((vkCode == NativeMethods.VK_SHIFT || vkCode == 0xA0 || vkCode == 0xA1) && ctrl)
+                    {
+                        _layoutSwitchComboDetected = true;
+                        LogNotif("LowLevelKeyboard: Ctrl+Shift detected");
+                        ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
+                    }
+                    else if ((vkCode == NativeMethods.VK_CONTROL || vkCode == NativeMethods.VK_LCONTROL || vkCode == NativeMethods.VK_RCONTROL) && shift)
+                    {
+                        _layoutSwitchComboDetected = true;
+                        LogNotif("LowLevelKeyboard: Shift+Ctrl detected");
+                        ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
+                    }
                 }
                 else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
                 {
@@ -227,10 +308,175 @@ namespace WindowsBuddy.Services
                     {
                         _isShiftDown = false;
                     }
+                    else if (vkCode == NativeMethods.VK_MENU || vkCode == NativeMethods.VK_LMENU || vkCode == NativeMethods.VK_RMENU)
+                    {
+                        _isAltDown = false;
+                    }
+                    else if (vkCode == NativeMethods.VK_LWIN || vkCode == NativeMethods.VK_RWIN)
+                    {
+                        _isWinDown = false;
+                    }
+
+                    if (_layoutSwitchComboDetected)
+                    {
+                        ScheduleKeyboardLayoutCheck(delayMs: 25, isComboTrigger: true);
+                    }
                 }
             }
 
             return NativeMethods.CallNextHookEx(_llKeyboardHook, nCode, wParam, lParam);
+        }
+
+        private static void ScheduleKeyboardLayoutCheck(int delayMs, bool isComboTrigger)
+        {
+            Task.Delay(delayMs).ContinueWith(_ =>
+            {
+                try
+                {
+                    CheckKeyboardLayout(isComboTrigger);
+                }
+                catch (Exception ex)
+                {
+                    LogNotif($"ScheduleKeyboardLayoutCheck error: {ex}");
+                }
+            });
+        }
+
+        private static IntPtr GetCurrentKeyboardLayout()
+        {
+            try
+            {
+                IntPtr fg = NativeMethods.GetForegroundWindow();
+                uint tid = 0;
+                if (fg != IntPtr.Zero)
+                {
+                    tid = NativeMethods.GetWindowThreadProcessId(fg, out _);
+                }
+                IntPtr hkl = NativeMethods.GetKeyboardLayout(tid);
+                if (hkl == IntPtr.Zero)
+                {
+                    hkl = NativeMethods.GetKeyboardLayout(0);
+                }
+                return hkl;
+            }
+            catch
+            {
+                return IntPtr.Zero;
+            }
+        }
+
+        private static (string title, string subtitle) GetLanguageDisplayInfo(IntPtr hkl)
+        {
+            int lcid = (int)(hkl.ToInt64() & 0xFFFF);
+            try
+            {
+                switch (lcid)
+                {
+                    case 0x0429: // Persian (Iran)
+                        return ("فارسی", "· FA");
+                    case 0x0409: // English (US)
+                        return ("English", "· EN");
+                    case 0x0809: // English (UK)
+                        return ("English", "· UK");
+                    case 0x0c09: // English (Australia)
+                        return ("English", "· AU");
+                    case 0x1009: // English (Canada)
+                        return ("English", "· CA");
+                    case 0x0401: // Arabic (Saudi)
+                        return ("العربية", "· AR");
+                    case 0x0407: // German
+                        return ("Deutsch", "· DE");
+                    case 0x040C: // French
+                        return ("Français", "· FR");
+                    case 0x0410: // Italian
+                        return ("Italiano", "· IT");
+                    case 0x040A: // Spanish
+                        return ("Español", "· ES");
+                    case 0x0419: // Russian
+                        return ("Русский", "· RU");
+                    case 0x041F: // Turkish
+                        return ("Türkçe", "· TR");
+                    case 0x0411: // Japanese
+                        return ("日本語", "· JA");
+                    case 0x0412: // Korean
+                        return ("한국어", "· KO");
+                    case 0x0804: // Chinese (Simplified)
+                        return ("中文", "· ZH");
+                }
+
+                var ci = new CultureInfo(lcid);
+                string native = ci.NativeName?.Split('(')[0]?.Trim();
+                string english = ci.EnglishName?.Split('(')[0]?.Trim();
+                string iso = ci.TwoLetterISOLanguageName?.ToUpperInvariant() ?? "";
+
+                string title = !string.IsNullOrWhiteSpace(native) ? native : english;
+                string sub = !string.IsNullOrWhiteSpace(iso) ? $"· {iso}" : "";
+                return (title, sub);
+            }
+            catch
+            {
+                return ($"0x{lcid:X4}", "· Layout");
+            }
+        }
+
+        private static void CheckKeyboardLayout(bool isComboTrigger)
+        {
+            if (!AppPreferences.Instance.KeyboardLanguageActivity)
+                return;
+
+            IntPtr fg = NativeMethods.GetForegroundWindow();
+            uint tid = 0;
+            if (fg != IntPtr.Zero)
+            {
+                tid = NativeMethods.GetWindowThreadProcessId(fg, out _);
+            }
+            IntPtr hkl = NativeMethods.GetKeyboardLayout(tid);
+            if (hkl == IntPtr.Zero)
+            {
+                hkl = NativeMethods.GetKeyboardLayout(0);
+            }
+
+            if (hkl == IntPtr.Zero) return;
+
+            bool layoutChanged = (hkl != _lastKnownHkl);
+            bool sameWindow = (fg == _lastForegroundWindow && fg != IntPtr.Zero);
+            double elapsedSinceLastSwitch = (DateTime.UtcNow - _lastLanguageSwitchTime).TotalMilliseconds;
+
+            if ((isComboTrigger && layoutChanged) || (sameWindow && layoutChanged) || (isComboTrigger && elapsedSinceLastSwitch > 400 && layoutChanged))
+            {
+                _lastKnownHkl = hkl;
+                _lastForegroundWindow = fg;
+                _lastLanguageSwitchTime = DateTime.UtcNow;
+                _layoutSwitchComboDetected = false;
+
+                var (title, subtitle) = GetLanguageDisplayInfo(hkl);
+                LogNotif($"Keyboard layout changed: HKL={hkl:X8}, Title='{title}', Subtitle='{subtitle}'");
+
+                int durationMs = AppPreferences.Instance.LiveActivityEventDuration switch
+                {
+                    "1 s" => 1200,
+                    "2 s" => 1800,
+                    "5 s" => 3500,
+                    _ => 1800
+                };
+
+                Application.Current?.Dispatcher?.InvokeAsync(() =>
+                {
+                    Instance?.NotificationRequested?.Invoke(new NotchNotificationPayload
+                    {
+                        Icon = "🌐",
+                        Title = title,
+                        Subtitle = subtitle,
+                        AppName = "",
+                        DurationMs = durationMs
+                    });
+                });
+            }
+            else
+            {
+                _lastKnownHkl = hkl;
+                _lastForegroundWindow = fg;
+            }
         }
 
         private bool CheckIfCutOperation(IDataObject data)
@@ -631,7 +877,7 @@ namespace WindowsBuddy.Services
                 await InitNativeGsmtcAsync();
             });
 
-            _gsmtcPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(380) };
+            _gsmtcPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2200) };
             _gsmtcPollTimer.Tick += (_, _) =>
             {
                 Task.Run(async () => await PollGsmtcStateAsync());
@@ -758,13 +1004,34 @@ namespace WindowsBuddy.Services
 
                 var info = session.GetPlaybackInfo();
                 bool isPlaying = info != null && info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+
+                // Adaptive poll rate: 1000ms during playback, 2200ms when resting/idle
+                var targetInterval = isPlaying ? TimeSpan.FromMilliseconds(1000) : TimeSpan.FromMilliseconds(2200);
+                if (_gsmtcPollTimer != null && _gsmtcPollTimer.Interval != targetInterval)
+                {
+                    Application.Current?.Dispatcher?.InvokeAsync(() => { if (_gsmtcPollTimer != null) _gsmtcPollTimer.Interval = targetInterval; });
+                }
                 bool isStoppedOrClosed = info == null ||
                                          info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed ||
                                          info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Stopped;
 
                 var tl = session.GetTimelineProperties();
-                double posSec = tl != null ? Math.Max(0.0, tl.Position.TotalSeconds) : 0;
-                double durSec = tl != null ? Math.Max(0.0, tl.EndTime.TotalSeconds) : 0;
+                double posSec = 0;
+                double durSec = 0;
+                if (tl != null)
+                {
+                    durSec = Math.Max(0.0, (tl.EndTime - tl.StartTime).TotalSeconds);
+                    double basePos = Math.Max(0.0, (tl.Position - tl.StartTime).TotalSeconds);
+                    if (isPlaying && tl.LastUpdatedTime > DateTimeOffset.MinValue)
+                    {
+                        double elapsedSinceLastUpdate = Math.Max(0.0, (DateTimeOffset.UtcNow - tl.LastUpdatedTime).TotalSeconds);
+                        posSec = durSec > 0 ? Math.Clamp(basePos + elapsedSinceLastUpdate, 0.0, durSec) : (basePos + elapsedSinceLastUpdate);
+                    }
+                    else
+                    {
+                        posSec = durSec > 0 ? Math.Clamp(basePos, 0.0, durSec) : basePos;
+                    }
+                }
                 string srcApp = session.SourceAppUserModelId ?? "";
 
                 if (isPlaying && !string.IsNullOrWhiteSpace(srcApp) && AppPreferences.Instance.IsAudioAppExcluded(srcApp))
@@ -832,12 +1099,32 @@ namespace WindowsBuddy.Services
                             catch { }
                         }
 
+                        // Fallback to media player application icon if no cover art thumbnail
+                        if (thumbBmp == null && !string.IsNullOrWhiteSpace(srcApp))
+                        {
+                            thumbBmp = GetMediaAppIcon(srcApp);
+                        }
+
                         _cachedGsmtcTitle = title;
                         _cachedGsmtcArtist = artist;
                         _cachedGsmtcArtwork = thumbBmp;
                         _cachedGsmtcBeatColor = DominantColorExtractor.ExtractBeatColor(_cachedGsmtcArtwork, title, artist);
                         _cachedGsmtcTrackKey = newKey;
                         _needMediaPropsRefresh = false;
+
+                        // If thumbnail was null at first query, retry after a short delay in case Windows GSMTC took a moment to load it
+                        if (props.Thumbnail == null)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                await Task.Delay(260);
+                                if (!string.IsNullOrEmpty(_cachedGsmtcTitle) && (_cachedGsmtcArtwork == null || _cachedGsmtcArtwork == GetMediaAppIcon(srcApp)))
+                                {
+                                    _needMediaPropsRefresh = true;
+                                    await PollGsmtcStateAsync();
+                                }
+                            });
+                        }
                     }
                 }
 
@@ -931,6 +1218,127 @@ namespace WindowsBuddy.Services
                     SourceApp = srcApp
                 });
             });
+        }
+
+
+        public void TriggerImmediateMediaPoll()
+        {
+            _needMediaPropsRefresh = true;
+            Task.Run(async () =>
+            {
+                await PollGsmtcStateAsync();
+                await Task.Delay(140);
+                _needMediaPropsRefresh = true;
+                await PollGsmtcStateAsync();
+                await Task.Delay(350);
+                await PollGsmtcStateAsync();
+            });
+        }
+
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, BitmapSource> _mediaAppIconCache = new(StringComparer.OrdinalIgnoreCase);
+
+        private BitmapSource GetMediaAppIcon(string srcApp)
+        {
+            if (string.IsNullOrWhiteSpace(srcApp)) return null;
+            if (_mediaAppIconCache.TryGetValue(srcApp, out var cached)) return cached;
+
+            try
+            {
+                string exePath = null;
+                string appLower = srcApp.ToLowerInvariant();
+
+                if (File.Exists(srcApp))
+                {
+                    exePath = srcApp;
+                }
+
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    if (appLower.Contains("spotify"))
+                    {
+                        string p1 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Spotify", "Spotify.exe");
+                        string p2 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps", "Spotify.exe");
+                        if (File.Exists(p1)) exePath = p1;
+                        else if (File.Exists(p2)) exePath = p2;
+                    }
+                    else if (appLower.Contains("chrome"))
+                    {
+                        string p = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+                        if (File.Exists(p)) exePath = p;
+                    }
+                    else if (appLower.Contains("edge") || appLower.Contains("msedge"))
+                    {
+                        string p = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
+                        if (File.Exists(p)) exePath = p;
+                    }
+                    else if (appLower.Contains("brave"))
+                    {
+                        string p = @"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe";
+                        if (File.Exists(p)) exePath = p;
+                    }
+                    else if (appLower.Contains("firefox"))
+                    {
+                        string p = @"C:\Program Files\Mozilla Firefox\firefox.exe";
+                        if (File.Exists(p)) exePath = p;
+                    }
+                    else if (appLower.Contains("vlc"))
+                    {
+                        string p = @"C:\Program Files\VideoLAN\VLC\vlc.exe";
+                        if (File.Exists(p)) exePath = p;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    var procs = Process.GetProcesses();
+                    foreach (var p in procs)
+                    {
+                        try
+                        {
+                            string pName = p.ProcessName.ToLowerInvariant();
+                            if (appLower.Contains(pName) || pName.Contains(appLower))
+                            {
+                                string pathMod = p.MainModule?.FileName;
+                                if (!string.IsNullOrEmpty(pathMod) && File.Exists(pathMod))
+                                {
+                                    exePath = pathMod;
+                                    break;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+                {
+                    using var icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                    if (icon != null)
+                    {
+                        var bmp = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                            icon.Handle,
+                            Int32Rect.Empty,
+                            BitmapSizeOptions.FromEmptyOptions());
+                        bmp.Freeze();
+                        _mediaAppIconCache[srcApp] = bmp;
+                        return bmp;
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                var iconSrc = WindowsBuddy.Tools.ScreenTime.AppIconExtractor.GetIcon(srcApp);
+                if (iconSrc is BitmapSource bs)
+                {
+                    _mediaAppIconCache[srcApp] = bs;
+                    return bs;
+                }
+            }
+            catch { }
+
+            return null;
         }
 
         private static void CleanTitleAndArtist(ref string title, ref string artist)

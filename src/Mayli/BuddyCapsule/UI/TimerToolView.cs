@@ -24,7 +24,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
     /// </summary>
     public sealed class TimerToolView : UserControl
     {
-        private TimerMode _currentMode = TimerMode.Pomodoro;
+        private TimerMode _currentMode = TimerMode.Alarm;
 
         // Left Sidebar Rows
         private Border _rowPomo;
@@ -224,10 +224,10 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 out _iconWater,
                 () => SwitchMode(TimerMode.Water));
 
-            leftStack.Children.Add(_rowPomo);
-            leftStack.Children.Add(_rowCountdown);
             leftStack.Children.Add(_rowAlarm);
             leftStack.Children.Add(_rowStopwatch);
+            leftStack.Children.Add(_rowCountdown);
+            leftStack.Children.Add(_rowPomo);
             leftStack.Children.Add(_rowWater);
 
             Grid.SetColumn(leftStack, 0);

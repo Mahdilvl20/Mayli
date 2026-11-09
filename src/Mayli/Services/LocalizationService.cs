@@ -215,6 +215,7 @@ namespace WindowsBuddy.Services
             ["home.system"] = "سیستم",
             ["home.weather"] = "آب‌وهوا",
             ["home.focus"] = "تمرکز",
+            ["home.timer"] = "تایمر",
             ["home.clipboard"] = "کلیپ‌بورد",
             ["home.notes"] = "یادداشت‌ها",
             ["home.nowplaying"] = "در حال پخش",
@@ -449,7 +450,16 @@ namespace WindowsBuddy.Services
             ["notch.excluded.quick"] = "افزودن سریع: ",
             ["notch.excluded.empty"] = "هیچ برنامه‌ای مستثنی نشده است. صدای تمام پخش‌کننده‌ها و مرورگرها در ناچ نمایش داده می‌شود.",
             ["notch.restore"] = "بازگردانی به پیش‌فرض",
-            ["notch.restore_msg"] = "تنظیمات بخش ناچ به حالت پیش‌فرض بازگردانده شد."
+            ["notch.restore_msg"] = "تنظیمات بخش ناچ به حالت پیش‌فرض بازگردانده شد.",
+            ["settings.banner.fontsize.title"] = "اندازه قلم اعلان‌ها و بنر",
+            ["settings.banner.fontsize.desc"] = "تنظیم اندازه فونت متون کپی، کات و نوتیفیکیشن‌ها در ناچ",
+            ["settings.banner.fontsize.small"] = "کوچک",
+            ["settings.banner.fontsize.medium"] = "متوسط",
+            ["settings.banner.fontsize.large"] = "بزرگ",
+            ["settings.banner.fontsize.xlarge"] = "خیلی بزرگ",
+            ["settings.live.header.keyboard"] = "صفحه‌کلید و ورودی",
+            ["settings.live.keyboard.title"] = "تغییر زبان کیبورد",
+            ["settings.live.keyboard.desc"] = "نمایش بنر انیمیشنی ناچ هنگام تغییر زبان صفحه‌کلید (Alt+Shift و Win+Space)",
         };
 
         private static readonly Dictionary<string, string> _en = new(StringComparer.OrdinalIgnoreCase)
@@ -607,6 +617,7 @@ namespace WindowsBuddy.Services
             ["home.system"] = "SYSTEM",
             ["home.weather"] = "WEATHER",
             ["home.focus"] = "FOCUS",
+            ["home.timer"] = "TIMER",
             ["home.clipboard"] = "CLIPBOARD",
             ["home.notes"] = "NOTES",
             ["home.nowplaying"] = "NOW PLAYING",
@@ -841,7 +852,16 @@ namespace WindowsBuddy.Services
             ["notch.excluded.quick"] = "Quick add: ",
             ["notch.excluded.empty"] = "No apps excluded. Audio and media from all players and browsers will show on the notch.",
             ["notch.restore"] = "Restore defaults",
-            ["notch.restore_msg"] = "Notch settings have been restored to factory defaults."
+            ["notch.restore_msg"] = "Notch settings have been restored to factory defaults.",
+            ["settings.banner.fontsize.title"] = "Banner text size",
+            ["settings.banner.fontsize.desc"] = "Font size for Copy, Cut and notifications inside the notch",
+            ["settings.banner.fontsize.small"] = "Small",
+            ["settings.banner.fontsize.medium"] = "Medium",
+            ["settings.banner.fontsize.large"] = "Large",
+            ["settings.banner.fontsize.xlarge"] = "Extra Large",
+            ["settings.live.header.keyboard"] = "KEYBOARD & INPUT",
+            ["settings.live.keyboard.title"] = "Keyboard layout switch",
+            ["settings.live.keyboard.desc"] = "Show animated notch banner when switching input language (Alt+Shift, Win+Space)",
         };
 
         public static string T(string key, string fallback = null)
