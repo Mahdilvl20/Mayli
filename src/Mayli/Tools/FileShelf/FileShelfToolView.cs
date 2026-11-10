@@ -45,6 +45,7 @@ namespace WindowsBuddy.Tools.FileShelf
         private ScrollViewer _filesScrollViewer;
         private WrapPanel _filesWrapPanel;
         private StackPanel _filesListStack;
+        private Grid _previewModalHost;
 
         // Drag & Drop State
         private Point _dragStartPoint;
@@ -416,7 +417,42 @@ namespace WindowsBuddy.Tools.FileShelf
                 Content = _filesWrapPanel,
                 Visibility = Visibility.Collapsed
             };
+            _filesScrollViewer.SizeChanged += (s, e) =>
+            {
+                if (_filesScrollViewer.ViewportWidth > 0)
+                {
+                    _filesWrapPanel.Width = _filesScrollViewer.ViewportWidth;
+                }
+            };
+            _filesScrollViewer.PreviewMouseWheel += (s, e) =>
+            {
+                _filesScrollViewer.ScrollToVerticalOffset(_filesScrollViewer.VerticalOffset - e.Delta);
+                e.Handled = true;
+            };
             _dropZoneGrid.Children.Add(_filesScrollViewer);
+
+            _previewModalHost = new Grid
+            {
+                Visibility = Visibility.Collapsed,
+                Background = new SolidColorBrush(Color.FromArgb(175, 8, 8, 12))
+            };
+            _previewModalHost.MouseLeftButtonDown += (s, e) =>
+            {
+                if (e.OriginalSource == _previewModalHost)
+                {
+                    HideFilePreview();
+                }
+            };
+            _dropZoneGrid.Children.Add(_previewModalHost);
+
+            PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Escape && _previewModalHost != null && _previewModalHost.Visibility == Visibility.Visible)
+                {
+                    HideFilePreview();
+                    e.Handled = true;
+                }
+            };
 
             rightArea.Children.Add(_dropZoneGrid);
 
@@ -839,6 +875,14 @@ namespace WindowsBuddy.Tools.FileShelf
             else
             {
                 _filesWrapPanel.Children.Clear();
+                if (_filesScrollViewer.ViewportWidth > 0)
+                {
+                    _filesWrapPanel.Width = _filesScrollViewer.ViewportWidth;
+                }
+                else if (_dropZoneGrid.ActualWidth > 0)
+                {
+                    _filesWrapPanel.Width = Math.Max(100.0, _dropZoneGrid.ActualWidth - 12.0);
+                }
                 _filesScrollViewer.Content = _filesWrapPanel;
                 foreach (var file in fileList)
                 {
@@ -906,7 +950,29 @@ namespace WindowsBuddy.Tools.FileShelf
             };
 
             var thumb = _service.GetThumbnailOrIcon(file.FilePath);
-            if (thumb != null)
+            bool isImg = _service.IsImageFile(file.FilePath);
+            if (isImg && thumb != null)
+            {
+                var imgBorder = new Border
+                {
+                    Width = 98,
+                    Height = 52,
+                    CornerRadius = new CornerRadius(5),
+                    ClipToBounds = true,
+                    Background = CapsuleTheme.Brush(p.Surface2),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                var img = new Image
+                {
+                    Source = thumb,
+                    Stretch = Stretch.UniformToFill,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                imgBorder.Child = img;
+                contentStack.Children.Add(imgBorder);
+            }
+            else if (thumb != null)
             {
                 var img = new Image
                 {
@@ -970,13 +1036,20 @@ namespace WindowsBuddy.Tools.FileShelf
                 closeBtn.Visibility = Visibility.Collapsed;
             };
 
-            // Double Click to Launch
+            // Double Click to Preview (or launch non-previewable)
             card.MouseLeftButtonDown += (s, e) =>
             {
                 if (e.ClickCount == 2)
                 {
                     e.Handled = true;
-                    LaunchFile(file.FilePath);
+                    if (_service.IsImageFile(file.FilePath) || _service.IsTextFile(file.FilePath))
+                    {
+                        ShowFilePreview(file);
+                    }
+                    else
+                    {
+                        LaunchFile(file.FilePath);
+                    }
                 }
                 else
                 {
@@ -1113,7 +1186,14 @@ namespace WindowsBuddy.Tools.FileShelf
                 if (e.ClickCount == 2)
                 {
                     e.Handled = true;
-                    LaunchFile(file.FilePath);
+                    if (_service.IsImageFile(file.FilePath) || _service.IsTextFile(file.FilePath))
+                    {
+                        ShowFilePreview(file);
+                    }
+                    else
+                    {
+                        LaunchFile(file.FilePath);
+                    }
                 }
                 else
                 {
@@ -1147,6 +1227,10 @@ namespace WindowsBuddy.Tools.FileShelf
         private ContextMenu BuildFileContextMenu(ParkedFile file)
         {
             var cm = new ContextMenu();
+
+            var miPreview = new MenuItem { Header = "Quick Look / Preview", Icon = new TextBlock { Text = "👁" } };
+            miPreview.Click += (_, _) => ShowFilePreview(file);
+            cm.Items.Add(miPreview);
 
             var miOpen = new MenuItem { Header = "Open", Icon = new TextBlock { Text = "▶" } };
             miOpen.Click += (_, _) => LaunchFile(file.FilePath);
@@ -1308,6 +1392,239 @@ namespace WindowsBuddy.Tools.FileShelf
                 }
             };
             timer.Start();
+        }
+
+        private void ShowFilePreview(ParkedFile file)
+        {
+            if (file == null || _previewModalHost == null) return;
+            _previewModalHost.Children.Clear();
+
+            var p = CapsuleTheme.Current;
+            var card = new Border
+            {
+                Background = CapsuleTheme.Brush(p.Surface),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(14),
+                MaxWidth = 460,
+                MaxHeight = 290,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 24,
+                    ShadowDepth = 4,
+                    Opacity = 0.45,
+                    Color = Colors.Black
+                }
+            };
+
+            var mainDock = new DockPanel();
+
+            // Header (Dock.Top)
+            var headerDock = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+            var closeBtn = new Border
+            {
+                Width = 22,
+                Height = 22,
+                CornerRadius = new CornerRadius(11),
+                Background = CapsuleTheme.Brush(p.Surface2),
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            var closeTxt = new TextBlock
+            {
+                Text = "✕",
+                FontSize = 10,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            closeBtn.Child = closeTxt;
+            closeBtn.MouseEnter += (_, _) => closeTxt.Foreground = new SolidColorBrush(Color.FromRgb(255, 69, 58));
+            closeBtn.MouseLeave += (_, _) => closeTxt.Foreground = CapsuleTheme.Brush(p.Text2);
+            closeBtn.MouseLeftButtonUp += (_, _) => HideFilePreview();
+            DockPanel.SetDock(closeBtn, Dock.Right);
+            headerDock.Children.Add(closeBtn);
+
+            var titleStack = new StackPanel { Orientation = Orientation.Horizontal };
+            var extBadge = new Border
+            {
+                Background = CapsuleTheme.Brush(p.Accent),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(5, 2, 5, 2),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            extBadge.Child = new TextBlock
+            {
+                Text = file.Extension.TrimStart('.').ToUpperInvariant(),
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            titleStack.Children.Add(extBadge);
+
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = file.FileName,
+                FontSize = 13.0,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 300
+            });
+            headerDock.Children.Add(titleStack);
+            DockPanel.SetDock(headerDock, Dock.Top);
+            mainDock.Children.Add(headerDock);
+
+            // Footer (Dock.Bottom)
+            var footerDock = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
+            var actionBtns = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var openBtn = CreatePreviewButton("▶ Open", () => { HideFilePreview(); LaunchFile(file.FilePath); }, isAccent: true);
+            var revealBtn = CreatePreviewButton("📂 Reveal", () => { RevealInExplorer(file.FilePath); });
+            var copyBtn = CreatePreviewButton("📋 Copy", () =>
+            {
+                var col = new System.Collections.Specialized.StringCollection { file.FilePath };
+                System.Windows.Clipboard.SetFileDropList(col);
+                FlashStatus("File copied!");
+            });
+            actionBtns.Children.Add(openBtn);
+            actionBtns.Children.Add(CreateSpacer(6));
+            actionBtns.Children.Add(revealBtn);
+            actionBtns.Children.Add(CreateSpacer(6));
+            actionBtns.Children.Add(copyBtn);
+            DockPanel.SetDock(actionBtns, Dock.Right);
+            footerDock.Children.Add(actionBtns);
+
+            var metaText = new TextBlock
+            {
+                Text = $"{file.DisplaySize} · {file.AddedAt:MMM d, HH:mm}",
+                FontSize = 11,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            footerDock.Children.Add(metaText);
+            DockPanel.SetDock(footerDock, Dock.Bottom);
+            mainDock.Children.Add(footerDock);
+
+            // Center Content (Preview Body)
+            if (_service.IsImageFile(file.FilePath))
+            {
+                var imgBmp = _service.GetFullPreviewImage(file.FilePath);
+                if (imgBmp != null)
+                {
+                    var previewImg = new Image
+                    {
+                        Source = imgBmp,
+                        Stretch = Stretch.Uniform,
+                        MaxHeight = 180,
+                        MaxWidth = 430
+                    };
+                    var imgBorder = new Border
+                    {
+                        Background = CapsuleTheme.Brush(p.Surface2),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(4),
+                        Child = previewImg
+                    };
+                    mainDock.Children.Add(imgBorder);
+                }
+            }
+            else if (_service.IsTextFile(file.FilePath))
+            {
+                string textContent = _service.GetTextFilePreview(file.FilePath);
+                var textScroll = new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    MaxHeight = 180,
+                    Background = CapsuleTheme.Brush(p.Surface2),
+                    Padding = new Thickness(8)
+                };
+                textScroll.Content = new TextBlock
+                {
+                    Text = textContent,
+                    FontFamily = new FontFamily("Consolas, Cascadia Code, Courier New"),
+                    FontSize = 11,
+                    Foreground = CapsuleTheme.Brush(p.Text),
+                    TextWrapping = TextWrapping.Wrap
+                };
+                var textBorder = new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    Child = textScroll
+                };
+                mainDock.Children.Add(textBorder);
+            }
+            else
+            {
+                var detailsStack = new StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(16)
+                };
+                var iconSource = _service.GetThumbnailOrIcon(file.FilePath);
+                if (iconSource != null)
+                {
+                    detailsStack.Children.Add(new Image { Source = iconSource, Width = 48, Height = 48, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 0, 8) });
+                }
+                detailsStack.Children.Add(new TextBlock
+                {
+                    Text = file.FilePath,
+                    FontSize = 11,
+                    Foreground = CapsuleTheme.Brush(p.Text2),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxWidth = 400,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                mainDock.Children.Add(detailsStack);
+            }
+
+            card.Child = mainDock;
+            _previewModalHost.Children.Add(card);
+            _previewModalHost.Visibility = Visibility.Visible;
+        }
+
+        private void HideFilePreview()
+        {
+            if (_previewModalHost != null)
+            {
+                _previewModalHost.Visibility = Visibility.Collapsed;
+                _previewModalHost.Children.Clear();
+            }
+        }
+
+        private Border CreatePreviewButton(string text, Action onClick, bool isAccent = false)
+        {
+            var p = CapsuleTheme.Current;
+            var border = new Border
+            {
+                Background = isAccent ? CapsuleTheme.Brush(p.Accent) : CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 4, 10, 4),
+                Cursor = Cursors.Hand
+            };
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = isAccent ? Brushes.White : CapsuleTheme.Brush(p.Text)
+            };
+            border.Child = tb;
+            border.MouseEnter += (_, _) => border.Opacity = 0.85;
+            border.MouseLeave += (_, _) => border.Opacity = 1.0;
+            border.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                onClick?.Invoke();
+            };
+            return border;
         }
     }
 }

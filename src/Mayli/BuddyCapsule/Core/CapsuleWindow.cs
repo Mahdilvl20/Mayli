@@ -478,7 +478,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 Visibility = Visibility.Collapsed,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                FlowDirection = FlowDirection.LeftToRight
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = new Thickness(2, 0, 2, 0)
             };
             _collapsedTimerView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _collapsedTimerView.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -3746,7 +3747,14 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
         /// Toggles tucking the notch smoothly up out of view (or back down) via shortcut.
         /// When tucked up, it allows full, unobstructed access to whatever was underneath (browser tabs, window title bars, etc.).
         /// </summary>
-        public void ToggleTuck() => SetTucked(!_isTucked);
+        private DateTime _lastToggleTuckTime = DateTime.MinValue;
+
+        public void ToggleTuck()
+        {
+            if ((DateTime.UtcNow - _lastToggleTuckTime).TotalMilliseconds < 350) return;
+            _lastToggleTuckTime = DateTime.UtcNow;
+            SetTucked(!_isTucked);
+        }
 
         public void SetTucked(bool tucked)
         {
@@ -4375,8 +4383,8 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             _collapsedContent.IsHitTestVisible = t < 0.25;
 
             // Inset content comfortably inside the notch silhouette
-            // For Notch/Shouldered: side clearance of 26.0 protects against shoulders without starving width
-            double sideClearance = (isIsland || isLine) ? 20.0 : 26.0;
+            // For Notch/Shouldered: side clearance of 44.0 protects against shoulders and corners without clipping content
+            double sideClearance = (isIsland || isLine) ? 20.0 : 44.0;
             double topClearance = isIsland ? islandGap : (isLine ? 3.0 : 6.5);
             double bottomClearance = (isIsland || isLine) ? 4.0 : 7.0;
 
@@ -4893,8 +4901,13 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             catch { }
         }
 
+        private DateTime _lastToggleWindowTime = DateTime.MinValue;
+
         public void ToggleFromExternal()
         {
+            if ((DateTime.UtcNow - _lastToggleWindowTime).TotalMilliseconds < 350) return;
+            _lastToggleWindowTime = DateTime.UtcNow;
+
             if (_isOpenedByHotkey || _machine.IsOpenOrOpening || _morphProgress > 0.1)
             {
                 _isOpenedByHotkey = false;

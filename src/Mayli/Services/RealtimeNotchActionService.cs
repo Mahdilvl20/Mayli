@@ -142,6 +142,7 @@ namespace WindowsBuddy.Services
         private static volatile bool _isAltDown = false;
         private static volatile bool _isWinDown = false;
         private static volatile bool _layoutSwitchComboDetected = false;
+        private static DateTime _lastComboPressTime = DateTime.MinValue;
         private static IntPtr _lastKnownHkl = IntPtr.Zero;
         private static IntPtr _lastForegroundWindow = IntPtr.Zero;
         private static DateTime _lastLanguageSwitchTime = DateTime.MinValue;
@@ -270,6 +271,7 @@ namespace WindowsBuddy.Services
                     if (vkCode == NativeMethods.VK_SPACE && win)
                     {
                         _layoutSwitchComboDetected = true;
+                        _lastComboPressTime = DateTime.UtcNow;
                         LogNotif("LowLevelKeyboard: Win+Space detected");
                         ScheduleKeyboardLayoutCheck(delayMs: 35, isComboTrigger: true);
                     }
@@ -277,12 +279,14 @@ namespace WindowsBuddy.Services
                     else if ((vkCode == NativeMethods.VK_SHIFT || vkCode == 0xA0 || vkCode == 0xA1) && alt)
                     {
                         _layoutSwitchComboDetected = true;
+                        _lastComboPressTime = DateTime.UtcNow;
                         LogNotif("LowLevelKeyboard: Alt+Shift detected");
                         ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
                     }
                     else if ((vkCode == NativeMethods.VK_MENU || vkCode == NativeMethods.VK_LMENU || vkCode == NativeMethods.VK_RMENU) && shift)
                     {
                         _layoutSwitchComboDetected = true;
+                        _lastComboPressTime = DateTime.UtcNow;
                         LogNotif("LowLevelKeyboard: Shift+Alt detected");
                         ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
                     }
@@ -290,12 +294,14 @@ namespace WindowsBuddy.Services
                     else if ((vkCode == NativeMethods.VK_SHIFT || vkCode == 0xA0 || vkCode == 0xA1) && ctrl)
                     {
                         _layoutSwitchComboDetected = true;
+                        _lastComboPressTime = DateTime.UtcNow;
                         LogNotif("LowLevelKeyboard: Ctrl+Shift detected");
                         ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
                     }
                     else if ((vkCode == NativeMethods.VK_CONTROL || vkCode == NativeMethods.VK_LCONTROL || vkCode == NativeMethods.VK_RCONTROL) && shift)
                     {
                         _layoutSwitchComboDetected = true;
+                        _lastComboPressTime = DateTime.UtcNow;
                         LogNotif("LowLevelKeyboard: Shift+Ctrl detected");
                         ScheduleKeyboardLayoutCheck(delayMs: 40, isComboTrigger: true);
                     }
@@ -475,10 +481,9 @@ namespace WindowsBuddy.Services
             if (hkl == IntPtr.Zero) return;
 
             bool layoutChanged = (hkl != _lastKnownHkl);
-            bool sameWindow = (fg == _lastForegroundWindow && fg != IntPtr.Zero);
-            double elapsedSinceLastSwitch = (DateTime.UtcNow - _lastLanguageSwitchTime).TotalMilliseconds;
+            bool userInitiated = isComboTrigger || _layoutSwitchComboDetected || (DateTime.UtcNow - _lastComboPressTime).TotalMilliseconds < 1200;
 
-            if ((isComboTrigger && layoutChanged) || (sameWindow && layoutChanged) || (isComboTrigger && elapsedSinceLastSwitch > 400 && layoutChanged))
+            if (layoutChanged && userInitiated)
             {
                 _lastKnownHkl = hkl;
                 _lastForegroundWindow = fg;

@@ -420,6 +420,52 @@ namespace WindowsBuddy.Tools.FileShelf
             }
         }
 
+        public bool IsImageFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+            return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".webp" || ext == ".gif" || ext == ".ico" || ext == ".tiff";
+        }
+
+        public bool IsTextFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+            return ext == ".txt" || ext == ".md" || ext == ".cs" || ext == ".json" || ext == ".xml" || ext == ".html" || ext == ".css" || ext == ".js" || ext == ".ts" || ext == ".py" || ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".ini" || ext == ".cfg" || ext == ".log" || ext == ".yaml" || ext == ".yml" || ext == ".sql" || ext == ".bat" || ext == ".ps1" || ext == ".sh";
+        }
+
+        public ImageSource GetFullPreviewImage(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path) || !IsImageFile(path)) return null;
+            try
+            {
+                var bi = new BitmapImage();
+                bi.BeginInit();
+                bi.UriSource = new Uri(path);
+                bi.DecodePixelWidth = 700;
+                bi.CacheOption = BitmapCacheOption.OnLoad;
+                bi.EndInit();
+                bi.Freeze();
+                return bi;
+            }
+            catch { }
+            return null;
+        }
+
+        public string GetTextFilePreview(string path, int maxLines = 80)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            try
+            {
+                var lines = File.ReadLines(path).Take(maxLines);
+                return string.Join(Environment.NewLine, lines);
+            }
+            catch (Exception ex)
+            {
+                return $"Preview error: {ex.Message}";
+            }
+        }
+
         public ImageSource GetThumbnailOrIcon(string path)
         {
             if (string.IsNullOrEmpty(path)) return null;
@@ -435,15 +481,14 @@ namespace WindowsBuddy.Tools.FileShelf
 
             try
             {
-                string ext = Path.GetExtension(path).ToLowerInvariant();
-                if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".webp")
+                if (IsImageFile(path))
                 {
                     try
                     {
                         var bi = new BitmapImage();
                         bi.BeginInit();
                         bi.UriSource = new Uri(path);
-                        bi.DecodePixelWidth = 96;
+                        bi.DecodePixelWidth = 140;
                         bi.CacheOption = BitmapCacheOption.OnLoad;
                         bi.EndInit();
                         bi.Freeze();
