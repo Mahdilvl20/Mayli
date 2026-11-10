@@ -84,26 +84,10 @@ Below are the dedicated shortcuts and interaction gestures built into Mayli:
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>H</kbd><br/>*Fallback: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd>* | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>H</kbd><br/>*جایگزین: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd>* | **Tuck / Hide Notch**<br/>*(Smoothly slides and hides notch completely off-screen; press again to restore)* | **مخفی کردن کامل ناچ (Tuck)**<br/>*(ناچ را به نرمی به بالا کشیده و مخفی می‌کند؛ با فشردن مجدد ناچ ظاهر می‌شود)* |
 | <kbd>Esc</kbd> | <kbd>Esc</kbd> | **Close Expanded Notch**<br/>*(Instantly collapses open dashboard back to compact notch)* | **بستن فوری داشبورد ناچ**<br/>*(داشبورد باز شده را بلافاصله جمع کرده و به ناچ فشرده بازمی‌گرداند)* |
 
-### 2. Fast Tool Navigation | جابجایی مستقیم بین ابزارهای ناچ *(هنگام باز بودن داشبورد)*
-| Shortcut | کلید میانبر | Tool / Dashboard Tab | ابزار مقصد در ناچ |
-| :--- | :--- | :--- | :--- |
-| <kbd>Alt</kbd> + <kbd>1</kbd> | <kbd>Alt</kbd> + <kbd>1</kbd> | **Home** (Central Dashboard & Active Widgets) | **صفحه اصلی** (ابزارک‌ها و کارت‌های برتر) |
-| <kbd>Alt</kbd> + <kbd>2</kbd> | <kbd>Alt</kbd> + <kbd>2</kbd> | **System** (CPU, RAM & Disk Monitor) | **مانیتور سیستم** (پردازنده، حافظه و هارد) |
-| <kbd>Alt</kbd> + <kbd>3</kbd> | <kbd>Alt</kbd> + <kbd>3</kbd> | **Clipboard** (History Cards & Search) | **تاریخچه کلیپ‌بورد** (کپی‌ها و عکس‌ها) |
-| <kbd>Alt</kbd> + <kbd>4</kbd> | <kbd>Alt</kbd> + <kbd>4</kbd> | **Notes** (Quick Scratchpad) | **یادداشت‌ها** (یادداشت سریع و ذخیره آنی) |
-| <kbd>Alt</kbd> + <kbd>5</kbd> | <kbd>Alt</kbd> + <kbd>5</kbd> | **Focus & Timer** (Pomodoro & Countdown) | **تایمر و تمرکز** (پومودورو، آلارم و کرنومتر) |
-| <kbd>Alt</kbd> + <kbd>6</kbd> | <kbd>Alt</kbd> + <kbd>6</kbd> | **File Shelf** (Temporary Drag & Drop Storage) | **قفسه فایل** (نگهداری موقت و انتقال فایل) |
-| <kbd>Alt</kbd> + <kbd>7</kbd> | <kbd>Alt</kbd> + <kbd>7</kbd> | **Weather** (Live Forecast & Metrics) | **آب و هوا** (دما، سرعت باد و پیش‌بینی) |
-| <kbd>Alt</kbd> + <kbd>8</kbd> | <kbd>Alt</kbd> + <kbd>8</kbd> | **Clock** (World Clock & Stopwatch) | **ساعت** (ساعت جهانی و زمان‌سنج) |
-| <kbd>Alt</kbd> + <kbd>9</kbd> / <kbd>Alt</kbd> + <kbd>C</kbd> | <kbd>Alt</kbd> + <kbd>9</kbd> / <kbd>Alt</kbd> + <kbd>C</kbd> | **Calendar** (Jalali شمسی & Gregorian) | **تقویم** (تقویم هجری شمسی و میلادی) |
-| <kbd>Alt</kbd> + <kbd>0</kbd> / <kbd>Alt</kbd> + <kbd>U</kbd> | <kbd>Alt</kbd> + <kbd>0</kbd> / <kbd>Alt</kbd> + <kbd>U</kbd> | **Units Converter** (Currencies & Measures) | **تبدیل واحدها** (واحدهای اندازه‌گیری و ارز) |
-| <kbd>Alt</kbd> + <kbd>L</kbd> | <kbd>Alt</kbd> + <kbd>L</kbd> | **Quick Links** (Favorite Web Bookmarks) | **لینک‌های سریع** (دسترسی به سایت‌های منتخب) |
-| <kbd>Alt</kbd> + <kbd>M</kbd> | <kbd>Alt</kbd> + <kbd>M</kbd> | **Messages** (AI Companion Chat & Notes) | **پیام‌ها** (یادآورها و تعامل با همراه) |
-| <kbd>Alt</kbd> + <kbd>S</kbd> | <kbd>Alt</kbd> + <kbd>S</kbd> | **Screen Time** (Daily App Usage Stats) | **زمان مصرف صفحه** (نمودار مصرف برنامه‌ها) |
-
-### 3. Mouse Gestures & Interactions | روش‌های تعامل با نشانگر موس روی ناچ
+### 2. Mouse Gestures & Interactions | روش‌های تعامل با نشانگر موس روی ناچ
 | Action | تعامل موس | Effect | نتیجه تعامل |
 | :--- | :--- | :--- | :--- |
+| **Click on Dock Tabs** | **کلیک روی تب‌های ابزارها** | Seamless switching between tools (Home, System, Clipboard, Notes, Timers, Weather, etc.) directly with mouse. | جابجایی نرم و مستقیم بین ابزارهای ناچ (خانه، سیستم، کلیپ‌بورد، یادداشت، تایمر و...) با کلیک موس |
 | **Hover on Notch** | **نگه داشتن موس روی ناچ** | Quick peek at digital clock, now playing track, or running timer without expanding. | پیش‌نمایش سریع ساعت، موزیک در حال پخش یا زمان باقیمانده بدون نیاز به کلیک |
 | **Click on Notch** | **کلیک چپ روی ناچ** | Expands the notch into the full glassmorphic dashboard. | باز کردن ناچ به داشبورد کامل شیشه‌ای ابزارها |
 | **Right-Click on Notch** | **کلیک راست روی ناچ** | Opens Notch quick settings and customization panel. | باز کردن سریع پنل تنظیمات ناچ و شخصی‌سازی |

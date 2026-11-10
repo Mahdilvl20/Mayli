@@ -244,6 +244,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private bool _isTucked = false;
         private bool _isTuckCompletedHidden = false;
         private bool _isSmartPeekHovered = false;
+        private bool _isOpenedByHotkey = false;
         private readonly TranslateTransform _capsuleCardTranslate = new(0, 0);
         private readonly DispatcherTimer _mediaSettleExitTimer;
         private readonly DispatcherTimer _dynamicVisibilityTimer;
@@ -350,7 +351,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
             };
 
             // View 1: Normal resting collapsed view ("8:51 PM" on left, [Green Battery] "100" on right)
-            _collapsedNormalView = new Grid();
+            _collapsedNormalView = new Grid
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0)
+            };
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             _collapsedNormalView.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1498,11 +1503,16 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             // Keep the notch open while a dropdown/context menu or modal dialog from a tool is showing
             NotchInteractionGuard.Register();
-            _machine.HoldOpen = () => NotchInteractionGuard.IsHeld;
+            _machine.HoldOpen = () => _isOpenedByHotkey || NotchInteractionGuard.IsHeld;
             NotchInteractionGuard.Released += () => Dispatcher.BeginInvoke(new Action(() => _machine.ReevaluateHold()));
 
             _machine.PhaseChanged += (_, next, _) =>
             {
+                if (next == NotchPhase.Closing || next == NotchPhase.Resting)
+                {
+                    _isOpenedByHotkey = false;
+                }
+
                 if (next == NotchPhase.Opening || next == NotchPhase.Open)
                 {
                     if (_viewportHost.Child == null)
@@ -1749,44 +1759,17 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
             });
 
-            // Alt+1 .. Alt+0, Alt+M, Alt+S Navigation Shortcuts
+            // Escape to close expanded Notch (Tool switching is strictly mouse-click driven per design)
             PreviewKeyDown += (_, e) =>
             {
                 if (e.Key == Key.Escape)
                 {
                     if (_morphProgress > 0.05 || _machine.IsOpenOrOpening)
                     {
+                        _isOpenedByHotkey = false;
                         _machine.RequestClose("escape-key");
                         e.Handled = true;
                         return;
-                    }
-                }
-
-                if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
-                {
-                    string target = (e.SystemKey != Key.None ? e.SystemKey : e.Key) switch
-                    {
-                        Key.D1 => "home",
-                        Key.D2 => "system",
-                        Key.D3 => "clipboard",
-                        Key.D4 => "notes",
-                        Key.D5 => "focus",
-                        Key.D6 => "fileshelf",
-                        Key.D7 => "weather",
-                        Key.D8 => "clock",
-                        Key.D9 => "calendar",
-                        Key.D0 => "units",
-                        Key.C => "calendar",
-                        Key.U => "units",
-                        Key.L => "links",
-                        Key.M => "message",
-                        Key.S => "screentime",
-                        _ => null
-                    };
-                    if (target != null)
-                    {
-                        NavigateToTool(target);
-                        e.Handled = true;
                     }
                 }
             };
@@ -3273,6 +3256,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             _collapsedNormalView.HorizontalAlignment = isCenterLayout
                 ? HorizontalAlignment.Center
                 : HorizontalAlignment.Stretch;
+            _collapsedNormalView.VerticalAlignment = VerticalAlignment.Center;
             _collapsedOrb.Margin = isCenterLayout ? new Thickness(8, 0, 8, 0) : new Thickness(0);
             _restingRightStack.Margin = (isCenterLayout && hasRightContent && !prefs.EnablePetBeta) ? new Thickness(10, 0, 0, 0) : new Thickness(0);
 
@@ -3731,14 +3715,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             try { NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_NONE); } catch { }
 
             HotkeyService.Instance.AttachWindow(hwnd);
-            HotkeyService.Instance.Pressed += () =>
-            {
-                if (_isTucked)
-                {
-                    SetTucked(false);
-                }
-                _machine.Toggle("hotkey");
-            };
+            HotkeyService.Instance.Pressed += () => ToggleFromExternal();
             HotkeyService.Instance.TuckPressed += () => ToggleTuck();
 
             EnsureTopmost();
@@ -4918,9 +4895,18 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
 
         public void ToggleFromExternal()
         {
-            if (_isTucked) SetTucked(false);
-            if (_isAutoHiddenByVisibility) SetAutoHidden(false);
-            _machine.Toggle("tray-or-cli");
+            if (_isOpenedByHotkey || _machine.IsOpenOrOpening || _morphProgress > 0.1)
+            {
+                _isOpenedByHotkey = false;
+                _machine.RequestClose("hotkey-toggle");
+            }
+            else
+            {
+                _isOpenedByHotkey = true;
+                if (_isTucked) SetTucked(false);
+                if (_isAutoHiddenByVisibility) SetAutoHidden(false);
+                _machine.RequestOpen("hotkey-toggle");
+            }
         }
     }
 }
