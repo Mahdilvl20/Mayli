@@ -1,6 +1,7 @@
 {
   "version": "1.1.65",
   "name": "Mayli v1.1.65",
-  "notes": "Massive CPU & RAM performance optimization: Lazy thumbnail image decoding in clipboard history, idle shutoff and 1s ticks for notch timers, background non-blocking 30s debounced ScreenTime persistence, EdgeLight auto-pause when hidden or tucked, and cached display device queries.",
-  "url": "https://github.com/Mahdilvl20/Mayli/releases"
+  "notes": "✨ Direct In-App Updater (download and install directly inside Mayli with live progress bar without opening browser), 🚀 Brand new Modern Lightweight Setup experience with full city picker & preferences, ⚡ Massive CPU & RAM optimizations (lazy thumbnail rendering in clipboard, notch idle throttle, debounced ScreenTime, cached Win32 display metrics).",
+  "url": "https://github.com/Mahdilvl20/Mayli/releases",
+  "download_url": "https://github.com/Mahdilvl20/Mayli/releases/download/v1.1.65/Mayli_Modern_Setup_v1.1.65.exe"
 }
