@@ -208,20 +208,6 @@ namespace WindowsBuddy
             menu.Items.Add(LocalizationService.T("tray.toggle", "Toggle Notch (Ctrl+Alt+N)"), null, (_, _) => _capsuleWindow?.ToggleFromExternal());
             menu.Items.Add(LocalizationService.T("tray.settings", "Settings..."), null, (_, _) => SettingsWindow.ShowSingleton());
             menu.Items.Add(new Forms.ToolStripSeparator());
-
-            var moodMenu = new Forms.ToolStripMenuItem(LocalizationService.T("tray.mood", "Mayli Mood / Companion 🐾"));
-            bool isFa = AppPreferences.Instance.IsPersian;
-            moodMenu.DropDownItems.Add(isFa ? "🌟 عادی" : "🌟 Idle", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Idle));
-            moodMenu.DropDownItems.Add(isFa ? "😊 شاد" : "😊 Happy", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Happy));
-            moodMenu.DropDownItems.Add(isFa ? "😠 اخم" : "😠 Grumpy", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Angry));
-            moodMenu.DropDownItems.Add(isFa ? "💖 دلبر" : "💖 Love", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Love));
-            moodMenu.DropDownItems.Add(isFa ? "😉 چشمک" : "😉 Wink", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Wink));
-            moodMenu.DropDownItems.Add(isFa ? "😲 تعجب" : "😲 Surprised", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Surprised));
-            moodMenu.DropDownItems.Add(isFa ? "😴 خواب‌آلود" : "😴 Sleepy", null, (_, _) => PetEngine.Instance.SetMood(OrbMood.Sleepy));
-            menu.Items.Add(moodMenu);
-
-            menu.Items.Add(LocalizationService.T("tray.cycle_mood", "Cycle Mood"), null, (_, _) => PetEngine.Instance.CycleNextMood());
-            menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add(LocalizationService.T("tray.exit", "Exit Mayli"), null, (_, _) => app.Shutdown());
 
             _trayIcon.ContextMenuStrip = menu;
