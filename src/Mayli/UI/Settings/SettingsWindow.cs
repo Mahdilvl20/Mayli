@@ -3664,24 +3664,129 @@ namespace WindowsBuddy.UI.Settings
                 versionBadge
             ));
 
+            var actionPanel = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
             var checkBtn = new Border
             {
                 CornerRadius = new CornerRadius(6),
                 Background = new SolidColorBrush(Color.FromRgb(20, 100, 210)),
                 Padding = new Thickness(16, 6, 16, 6),
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Right
             };
             var checkBtnText = new TextBlock
             {
                 Text = LocalizationService.T("updates.check_now", "Check Now"),
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White
+                Foreground = Brushes.White,
+                TextAlignment = TextAlignment.Center
             };
             checkBtn.Child = checkBtnText;
+
+            var progressTrack = new Border
+            {
+                Width = 190,
+                Height = 6,
+                CornerRadius = new CornerRadius(3),
+                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 8, 0, 0),
+                Visibility = Visibility.Collapsed,
+                ClipToBounds = true
+            };
+            var progressFill = new Border
+            {
+                Height = 6,
+                Width = 0,
+                CornerRadius = new CornerRadius(3),
+                Background = new SolidColorBrush(Color.FromRgb(48, 209, 88)),
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            progressTrack.Child = progressFill;
+
+            var progressDetailText = new TextBlock
+            {
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromArgb(170, 255, 255, 255)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 4, 0, 0),
+                Visibility = Visibility.Collapsed
+            };
+
+            actionPanel.Children.Add(checkBtn);
+            actionPanel.Children.Add(progressTrack);
+            actionPanel.Children.Add(progressDetailText);
+
+            UpdateInfo availableUpdate = null;
+            bool isDownloading = false;
+
             checkBtn.MouseLeftButtonUp += async (_, e) =>
             {
                 e.Handled = true;
+                if (isDownloading) return;
+
+                // If an update is already identified and user clicks Download and Install
+                if (availableUpdate != null && availableUpdate.HasUpdate)
+                {
+                    isDownloading = true;
+                    checkBtn.IsEnabled = false;
+                    checkBtn.Opacity = 0.8;
+                    checkBtnText.Text = LocalizationService.T("updates.downloading", "Downloading update...");
+                    progressTrack.Visibility = Visibility.Visible;
+                    progressDetailText.Visibility = Visibility.Visible;
+                    progressFill.Width = 0;
+                    progressDetailText.Text = "Connecting...";
+
+                    try
+                    {
+                        string tempFolder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "Mayli_Update");
+                        string targetInstaller = System.IO.Path.Combine(tempFolder, $"Mayli_Setup_v{availableUpdate.LatestVersion}.exe");
+
+                        var progress = new Progress<(long bytesRead, long totalBytes, int percent)>(report =>
+                        {
+                            double mbRead = report.bytesRead / (1024.0 * 1024.0);
+                            if (report.totalBytes > 0)
+                            {
+                                double mbTotal = report.totalBytes / (1024.0 * 1024.0);
+                                int pct = Math.Max(0, Math.Min(100, report.percent));
+                                progressFill.Width = (pct / 100.0) * 190.0;
+                                progressDetailText.Text = $"{mbRead:F1} MB / {mbTotal:F1} MB ({pct}%)";
+                            }
+                            else
+                            {
+                                progressDetailText.Text = $"{mbRead:F1} MB downloaded...";
+                            }
+                        });
+
+                        await UpdateService.DownloadUpdateAsync(availableUpdate.DownloadUrl, targetInstaller, progress);
+
+                        progressFill.Width = 190;
+                        progressDetailText.Text = LocalizationService.T("updates.launching", "Launching installer...");
+                        checkBtnText.Text = LocalizationService.T("updates.ready", "Installing...");
+
+                        await Task.Delay(600);
+                        UpdateService.LaunchInstallerAndExit(targetInstaller);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogWriter.WriteNow("update-download", $"Download failed: {ex.Message}");
+                        isDownloading = false;
+                        checkBtn.IsEnabled = true;
+                        checkBtn.Opacity = 1.0;
+                        checkBtn.Background = new SolidColorBrush(Color.FromRgb(255, 69, 58));
+                        checkBtnText.Text = LocalizationService.T("updates.retry_download", "Retry Download");
+                        progressDetailText.Foreground = new SolidColorBrush(Color.FromRgb(255, 69, 58));
+                        progressDetailText.Text = LocalizationService.T("updates.failed", "Download failed. Please try again.");
+                    }
+                    return;
+                }
+
+                // Initial check for updates
                 checkBtnText.Text = LocalizationService.T("updates.checking", "Checking...");
                 checkBtn.IsEnabled = false;
 
@@ -3690,25 +3795,21 @@ namespace WindowsBuddy.UI.Settings
                     var info = await UpdateService.CheckForUpdatesAsync();
                     if (info.HasUpdate)
                     {
+                        availableUpdate = info;
                         versionText.Text = string.Format(LocalizationService.T("updates.available", "🚀 Update available: v{0}"), info.LatestVersion);
                         versionText.Foreground = new SolidColorBrush(Color.FromRgb(255, 149, 0));
                         versionBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(255, 149, 0));
                         versionBadge.Background = new SolidColorBrush(Color.FromArgb(40, 255, 149, 0));
 
-                        checkBtnText.Text = string.Format(LocalizationService.T("updates.download_btn", "Download v{0} ↗"), info.LatestVersion);
+                        checkBtnText.Text = string.Format(LocalizationService.T("updates.download_and_install", "Download & Install v{0}"), info.LatestVersion);
                         checkBtn.Background = new SolidColorBrush(Color.FromRgb(48, 209, 88));
                         checkBtn.IsEnabled = true;
-                        checkBtn.MouseLeftButtonUp -= null;
-                        checkBtn.MouseLeftButtonUp += (_, _) =>
-                        {
-                            Process.Start(new ProcessStartInfo(info.HtmlUrl) { UseShellExecute = true });
-                        };
 
                         RealtimeNotchActionService.Instance.TriggerNotification(new NotchNotificationPayload
                         {
                             Icon = "🚀",
                             Title = "Update Available",
-                            Subtitle = $" · v{info.LatestVersion} is ready",
+                            Subtitle = $" · v{info.LatestVersion} is ready to install",
                             DurationMs = 7000
                         });
                     }
@@ -3725,17 +3826,17 @@ namespace WindowsBuddy.UI.Settings
                         checkBtn.IsEnabled = true;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    LogWriter.WriteNow("update-check", $"Update check failed: {ex.Message}");
                     checkBtnText.Text = LocalizationService.T("updates.check_now", "Check Now");
                     checkBtn.IsEnabled = true;
-                    Process.Start(new ProcessStartInfo("https://github.com/Mahdilvl20/Mayli/releases") { UseShellExecute = true });
                 }
             };
             stack.Children.Add(new MayliSettingRow(
                 LocalizationService.T("updates.check_title", "Check for updates"),
                 LocalizationService.T("updates.check_desc", "Queries github.com/Mahdilvl20/Mayli for newly published releases and fixes."),
-                checkBtn
+                actionPanel
             ));
 
             var channelPicker = new MayliSegmentedControl(new[]

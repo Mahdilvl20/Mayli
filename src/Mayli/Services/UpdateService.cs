@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Win32;
@@ -19,6 +20,7 @@ namespace WindowsBuddy.Services
         public string ReleaseNotes { get; set; } = "";
         public string HtmlUrl { get; set; } = "https://github.com/Mahdilvl20/Mayli/releases";
         public string DownloadUrl { get; set; } = "";
+        public long DownloadSize { get; set; }
     }
 
     public static class UpdateService
@@ -147,6 +149,27 @@ namespace WindowsBuddy.Services
                                 result.LatestVersion = tagName.TrimStart('v', 'V');
                                 result.ReleaseNotes = body ?? "";
                                 result.HtmlUrl = string.IsNullOrWhiteSpace(htmlUrl) ? $"https://github.com/{RepoOwner}/{RepoName}/releases" : htmlUrl;
+
+                                if (root.TryGetProperty("assets", out var assetsProp) && assetsProp.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var asset in assetsProp.EnumerateArray())
+                                    {
+                                        string an = asset.TryGetProperty("name", out var np) ? np.GetString() : "";
+                                        if (!string.IsNullOrEmpty(an) && an.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            result.DownloadUrl = asset.TryGetProperty("browser_download_url", out var bdu) ? bdu.GetString() : "";
+                                            result.DownloadSize = asset.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0;
+                                            if (an.Contains("Modern_Setup", StringComparison.OrdinalIgnoreCase) || an.Contains("Setup", StringComparison.OrdinalIgnoreCase))
+                                                break;
+                                        }
+                                    }
+                                }
+
+                                if (string.IsNullOrWhiteSpace(result.DownloadUrl))
+                                {
+                                    result.DownloadUrl = $"https://github.com/{RepoOwner}/{RepoName}/releases/download/{tagName}/Mayli_Setup_v{result.LatestVersion}.exe";
+                                }
+
                                 return result;
                             }
                         }
@@ -178,6 +201,12 @@ namespace WindowsBuddy.Services
                                 result.LatestVersion = verStr.TrimStart('v', 'V');
                                 result.ReleaseNotes = notes ?? "";
                                 result.HtmlUrl = string.IsNullOrWhiteSpace(url) ? $"https://github.com/{RepoOwner}/{RepoName}/releases" : url;
+
+                                string directUrl = root.TryGetProperty("download_url", out var du) ? du.GetString() : "";
+                                result.DownloadUrl = !string.IsNullOrWhiteSpace(directUrl) 
+                                    ? directUrl 
+                                    : $"https://github.com/{RepoOwner}/{RepoName}/releases/download/v{result.LatestVersion}/Mayli_Setup_v{result.LatestVersion}.exe";
+
                                 return result;
                             }
                         }
@@ -191,6 +220,61 @@ namespace WindowsBuddy.Services
             }
 
             return result;
+        }
+
+        public static async Task DownloadUpdateAsync(
+            string downloadUrl,
+            string destinationPath,
+            IProgress<(long bytesRead, long totalBytes, int percent)> progress,
+            CancellationToken cancellationToken = default)
+        {
+            using var client = CreateConfiguredClient();
+            using var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            long totalBytes = response.Content.Headers.ContentLength ?? -1L;
+
+            string dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+
+            byte[] buffer = new byte[81920];
+            long totalRead = 0;
+            int read;
+
+            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, read, cancellationToken).ConfigureAwait(false);
+                totalRead += read;
+                int pct = totalBytes > 0 ? (int)((totalRead * 100) / totalBytes) : -1;
+                progress?.Report((totalRead, totalBytes, pct));
+            }
+        }
+
+        public static void LaunchInstallerAndExit(string installerPath)
+        {
+            if (!File.Exists(installerPath)) return;
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = installerPath,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+
+                Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    Application.Current.Shutdown();
+                });
+            }
+            catch (Exception ex)
+            {
+                LogWriter.WriteNow("update-launch", $"Failed to launch installer: {ex.Message}");
+            }
         }
 
         public static void CheckOnStartup()
