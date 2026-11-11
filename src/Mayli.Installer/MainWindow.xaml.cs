@@ -32,24 +32,19 @@ namespace Mayli.Installer
         {
             try
             {
-                // Dedicated temporary data folder for installer WebView2
                 string userDataFolder = Path.Combine(Path.GetTempPath(), "Mayli_Installer_WV2");
                 var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
                 await InstallerWebView.EnsureCoreWebView2Async(env);
 
-                // Configure WebView2 settings
                 InstallerWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 InstallerWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 InstallerWebView.CoreWebView2.Settings.IsZoomControlEnabled = false;
 
-                // Handle communication from JS
                 InstallerWebView.WebMessageReceived += OnWebMessageReceived;
 
-                // Load embedded HTML
                 string htmlContent = LoadEmbeddedHtml();
                 InstallerWebView.NavigateToString(htmlContent);
 
-                // Wait for navigation and send default path
                 InstallerWebView.NavigationCompleted += (s, args) =>
                 {
                     _targetDirectory = InstallerService.GetDefaultInstallPath();
@@ -90,7 +85,6 @@ namespace Mayli.Installer
                 }
             }
 
-            // Fallback for local development
             string devPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\UI\index.html");
             if (File.Exists(devPath)) return File.ReadAllText(devPath);
 
@@ -151,6 +145,9 @@ namespace Mayli.Installer
                         {
                             Path = data.GetProperty("path").GetString(),
                             City = data.GetProperty("city").GetString(),
+                            Country = data.TryGetProperty("country", out var ctry) ? ctry.GetString() : "Iran",
+                            Latitude = data.TryGetProperty("lat", out var latp) ? latp.GetDouble() : 35.6892,
+                            Longitude = data.TryGetProperty("lon", out var lonp) ? lonp.GetDouble() : 51.3890,
                             CreateShortcut = data.GetProperty("createShortcut").GetBoolean(),
                             AutoStartup = data.GetProperty("autoStartup").GetBoolean(),
                             EnableMica = data.GetProperty("enableMica").GetBoolean()

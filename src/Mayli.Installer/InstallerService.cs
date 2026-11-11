@@ -14,6 +14,9 @@ namespace Mayli.Installer
     {
         public string Path { get; set; }
         public string City { get; set; }
+        public string Country { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
         public bool CreateShortcut { get; set; }
         public bool AutoStartup { get; set; }
         public bool EnableMica { get; set; }
@@ -55,7 +58,6 @@ namespace Mayli.Installer
                 bool extracted = ExtractEmbeddedPayload(targetDir, onProgress);
                 if (!extracted)
                 {
-                    // Fallback to local build path if testing without embedded zip
                     CopyFromLocalBuild(targetDir, onProgress);
                 }
 
@@ -89,10 +91,10 @@ namespace Mayli.Installer
                 }
 
                 // 4. Save Initial Weather & Application Preferences
-                onProgress?.Invoke(90, $"Saving initial weather configuration for {options.City}...");
+                onProgress?.Invoke(90, $"Saving weather configuration for {options.City}...");
                 try
                 {
-                    ConfigureInitialWeather(options.City);
+                    ConfigureInitialWeather(options);
                 }
                 catch { }
 
@@ -126,7 +128,6 @@ namespace Mayli.Installer
             {
                 if (string.IsNullOrEmpty(entry.Name))
                 {
-                    // Directory entry
                     Directory.CreateDirectory(System.IO.Path.Combine(targetDir, entry.FullName));
                     continue;
                 }
@@ -145,7 +146,6 @@ namespace Mayli.Installer
 
         private static void CopyFromLocalBuild(string targetDir, Action<int, string> onProgress)
         {
-            // Search known release output folders
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             string[] possibleDirs = new[]
             {
@@ -201,7 +201,7 @@ namespace Mayli.Installer
             catch { }
         }
 
-        public static void ConfigureInitialWeather(string city)
+        public static void ConfigureInitialWeather(InstallOptions options)
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string mayliDataDir = System.IO.Path.Combine(appData, "Mayli");
@@ -209,35 +209,21 @@ namespace Mayli.Installer
 
             string weatherFile = System.IO.Path.Combine(mayliDataDir, "weather_prefs.json");
 
-            // Coordinates dictionary for popular cities
-            var coords = new Dictionary<string, (double Lat, double Lon, string Country)>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "London", (51.5074, -0.1278, "United Kingdom") },
-                { "New York", (40.7128, -74.0060, "United States") },
-                { "Tokyo", (35.6762, 139.6503, "Japan") },
-                { "Paris", (48.8566, 2.3522, "France") },
-                { "Dubai", (25.2048, 55.2708, "United Arab Emirates") },
-                { "Tehran", (35.6892, 51.3890, "Iran") },
-                { "Isfahan", (32.6546, 51.6680, "Iran") },
-                { "Mashhad", (36.2605, 59.6168, "Iran") },
-                { "Shiraz", (29.5918, 52.5837, "Iran") },
-                { "Tabriz", (38.0800, 46.2919, "Iran") }
-            };
+            string cityName = string.IsNullOrWhiteSpace(options.City) ? "Tehran" : options.City;
+            string country = string.IsNullOrWhiteSpace(options.Country) ? "Iran" : options.Country;
+            double lat = options.Latitude;
+            double lon = options.Longitude;
 
-            double lat = 51.5074;
-            double lon = -0.1278;
-            string country = "";
-
-            if (!string.IsNullOrWhiteSpace(city) && coords.TryGetValue(city, out var c))
+            // Fallback default coordinates if lat/lon were not provided
+            if (lat == 0 && lon == 0)
             {
-                lat = c.Lat;
-                lon = c.Lon;
-                country = c.Country;
+                lat = 35.6892;
+                lon = 51.3890;
             }
 
             var prefs = new
             {
-                City = string.IsNullOrWhiteSpace(city) ? "London" : city,
+                City = cityName,
                 Country = country,
                 Latitude = lat,
                 Longitude = lon,
@@ -245,7 +231,7 @@ namespace Mayli.Installer
                 IsConfigured = true,
                 RecentCities = new object[]
                 {
-                    new { Name = string.IsNullOrWhiteSpace(city) ? "London" : city, Country = country, Latitude = lat, Longitude = lon }
+                    new { Name = cityName, Country = country, Latitude = lat, Longitude = lon }
                 }
             };
 

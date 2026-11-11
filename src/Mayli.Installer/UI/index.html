@@ -259,7 +259,7 @@
     /* Content Area */
     .main-panel {
       flex: 1;
-      padding: 32px 36px;
+      padding: 30px 36px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -491,7 +491,7 @@
       cursor: pointer;
     }
 
-    /* Step 3: City picker */
+    /* Step 3: City picker & Scrollable List */
     .search-box {
       width: 100%;
       background: rgba(0, 0, 0, 0.4);
@@ -502,50 +502,113 @@
       color: #ffffff;
       outline: none;
       transition: all 0.2s;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
     .search-box:focus {
       border-color: #8b5cf6;
       box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
     }
 
-    .city-grid {
+    .cities-scroll-container {
+      height: 220px;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 8px;
+      margin-bottom: 14px;
+    }
+
+    /* Custom dark scrollbar */
+    .cities-scroll-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .cities-scroll-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    .cities-scroll-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    .cities-scroll-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 92, 246, 0.5);
+    }
+
+    .cities-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
+      gap: 8px;
     }
 
-    .city-card {
+    .city-item {
       background: rgba(255, 255, 255, 0.035);
       border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 10px;
-      padding: 10px 14px;
+      border-radius: 9px;
+      padding: 9px 12px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       cursor: pointer;
       text-align: left;
-      transition: all 0.2s;
+      transition: all 0.18s;
     }
-    .city-card:hover {
-      background: rgba(255, 255, 255, 0.065);
+    .city-item:hover {
+      background: rgba(255, 255, 255, 0.07);
       border-color: rgba(168, 85, 247, 0.35);
+      transform: translateY(-1px);
     }
-    .city-card.selected {
-      background: rgba(139, 92, 246, 0.14);
+    .city-item.selected {
+      background: rgba(139, 92, 246, 0.16);
       border-color: #8b5cf6;
-      box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
+      box-shadow: 0 0 14px rgba(139, 92, 246, 0.25);
     }
 
-    .live-preview-card {
-      background: linear-gradient(90deg, rgba(88, 28, 135, 0.25), rgba(8, 145, 178, 0.25));
-      border: 1px solid rgba(139, 92, 246, 0.3);
-      border-radius: 12px;
-      padding: 14px 18px;
+    .city-item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .city-item-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .city-item-country {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    .city-item-check {
+      font-size: 12px;
+      color: #c084fc;
+      opacity: 0;
+      font-weight: bold;
+    }
+    .city-item.selected .city-item-check {
+      opacity: 1;
+    }
+
+    /* Selected location bar */
+    .location-status-bar {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      font-size: 12px;
+    }
+
+    .location-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      font-weight: 500;
     }
 
     /* Step 4: Summary & Progress */
@@ -602,7 +665,7 @@
       justify-content: space-between;
       align-items: center;
       border-top: 1px solid rgba(255, 255, 255, 0.06);
-      padding-top: 20px;
+      padding-top: 18px;
     }
 
     .btn-primary {
@@ -747,7 +810,7 @@
               <div class="step-num font-mono">3</div>
               <div>
                 <div class="step-text-title">Weather & City</div>
-                <div class="step-text-sub">Location & forecast</div>
+                <div class="step-text-sub">Choose your city</div>
               </div>
             </button>
 
@@ -772,7 +835,6 @@
         
         <!-- STEP 1: Welcome -->
         <div id="step-view-1" class="step-view active">
-          <!-- Minimalist Floating Notch Mockup -->
           <div class="notch-container">
             <div class="floating-notch">
               <div class="notch-camera-dot">
@@ -874,77 +936,29 @@
           </div>
         </div>
 
-        <!-- STEP 3: Weather City -->
+        <!-- STEP 3: Weather City Picker -->
         <div id="step-view-3" class="step-view">
           <h2 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px;">Select Weather City</h2>
-          <p style="font-size: 12px; color: #94a3b8; margin-bottom: 16px;">Mayli will display real-time weather and temperature for your location.</p>
+          <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Choose your city from the list below or use the search bar to find your location.</p>
 
-          <input type="text" id="input-city-search" class="search-box" value="London" placeholder="Type city name (e.g. London, New York, Tokyo, Tehran...)" oninput="onCityTyped(this.value)">
+          <!-- Search Input -->
+          <input type="text" id="input-city-search" class="search-box" placeholder="🔍 Search city or country (e.g. Tehran, Isfahan, London, Tokyo...)" oninput="filterCities(this.value)">
 
-          <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">Featured Cities (Click to pick):</div>
-          <div class="city-grid">
-            <div class="city-card selected" data-city="London" onclick="pickCity('London', '15°C', '🌧️', 'Light Rain')">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #fff;">London</div>
-                <div style="font-size: 10px; color: #94a3b8;">United Kingdom</div>
-              </div>
-              <div style="font-size: 13px;">🌧️ <span class="font-mono">15°</span></div>
-            </div>
-
-            <div class="city-card" data-city="New York" onclick="pickCity('New York', '18°C', '🌤️', 'Partly Cloudy')">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #fff;">New York</div>
-                <div style="font-size: 10px; color: #94a3b8;">United States</div>
-              </div>
-              <div style="font-size: 13px;">🌤️ <span class="font-mono">18°</span></div>
-            </div>
-
-            <div class="city-card" data-city="Tokyo" onclick="pickCity('Tokyo', '21°C', '☀️', 'Clear Sky')">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #fff;">Tokyo</div>
-                <div style="font-size: 10px; color: #94a3b8;">Japan</div>
-              </div>
-              <div style="font-size: 13px;">☀️ <span class="font-mono">21°</span></div>
-            </div>
-
-            <div class="city-card" data-city="Paris" onclick="pickCity('Paris', '16°C', '⛅', 'Scattered Clouds')">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #fff;">Paris</div>
-                <div style="font-size: 10px; color: #94a3b8;">France</div>
-              </div>
-              <div style="font-size: 13px;">⛅ <span class="font-mono">16°</span></div>
-            </div>
-
-            <div class="city-card" data-city="Dubai" onclick="pickCity('Dubai', '32°C', '☀️', 'Sunny & Warm')">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #fff;">Dubai</div>
-                <div style="font-size: 10px; color: #94a3b8;">UAE</div>
-              </div>
-              <div style="font-size: 13px;">☀️ <span class="font-mono">32°</span></div>
-            </div>
-
-            <div class="city-card" data-city="Tehran" onclick="pickCity('Tehran', '22°C', '☀️', 'Sunny')">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #fff;">Tehran</div>
-                <div style="font-size: 10px; color: #94a3b8;">Iran</div>
-              </div>
-              <div style="font-size: 13px;">☀️ <span class="font-mono">22°</span></div>
+          <!-- Scrollable Cities List Container -->
+          <div class="cities-scroll-container">
+            <div id="cities-grid" class="cities-grid">
+              <!-- Rendered via JavaScript -->
             </div>
           </div>
 
-          <div class="live-preview-card">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span id="prev-weather-icon" style="font-size: 28px;">🌧️</span>
-              <div>
-                <div style="font-size: 11px; color: #c084fc; font-weight: 500;">Live Notch Preview:</div>
-                <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; gap: 8px; align-items: center;">
-                  <span id="prev-city-name">London</span>
-                  <span id="prev-city-temp" class="font-mono" style="color: #67e8f9;">15°C</span>
-                  <span id="prev-city-cond" style="font-size: 12px; color: #94a3b8; font-weight: normal;">(Light Rain)</span>
-                </div>
-              </div>
+          <!-- Selected Location Status Box -->
+          <div class="location-status-bar">
+            <div>
+              <span style="color: #94a3b8; margin-right: 6px;">Selected:</span>
+              <strong id="lbl-selected-city" style="color: #ffffff; font-size: 13px;">Tehran, Iran</strong>
+              <span id="lbl-selected-coords" class="font-mono" style="color: #a78bfa; margin-left: 10px; font-size: 11px;">(35.69° N, 51.39° E)</span>
             </div>
-            <span style="font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.08); color: #cbd5e1;">Auto-syncs 30m</span>
+            <span class="location-badge">Location Set ✓</span>
           </div>
         </div>
 
@@ -973,7 +987,7 @@
             </div>
             <div class="summary-item">
               <span>Weather Location:</span>
-              <span id="sum-city" class="summary-val" style="color: #67e8f9;">London (15°C)</span>
+              <span id="sum-city" class="summary-val" style="color: #67e8f9;">Tehran, Iran</span>
             </div>
             <div class="summary-item">
               <span>Access & Shortcuts:</span>
@@ -1014,12 +1028,153 @@
   </div>
 
   <script>
-    let currentStep = 1;
-    let selectedCity = 'London';
-    let selectedTemp = '15°C';
-    let selectedIcon = '🌧️';
-    let selectedCond = 'Light Rain';
+    // Comprehensive Cities Dataset (All Major Iranian Cities + International Metropolises)
+    const CITIES_DATA = [
+      // Iran (All Provincial Capitals & Key Hubs)
+      { name: "Tehran", country: "Iran", lat: 35.6892, lon: 51.3890 },
+      { name: "Isfahan", country: "Iran", lat: 32.6546, lon: 51.6680 },
+      { name: "Mashhad", country: "Iran", lat: 36.2605, lon: 59.6168 },
+      { name: "Shiraz", country: "Iran", lat: 29.5918, lon: 52.5837 },
+      { name: "Tabriz", country: "Iran", lat: 38.0800, lon: 46.2919 },
+      { name: "Karaj", country: "Iran", lat: 35.8327, lon: 50.9915 },
+      { name: "Ahvaz", country: "Iran", lat: 31.3183, lon: 48.6706 },
+      { name: "Qom", country: "Iran", lat: 34.6401, lon: 50.8764 },
+      { name: "Kermanshah", country: "Iran", lat: 34.3142, lon: 47.0650 },
+      { name: "Rasht", country: "Iran", lat: 37.2808, lon: 49.5832 },
+      { name: "Urmia", country: "Iran", lat: 37.5527, lon: 45.0761 },
+      { name: "Zahedan", country: "Iran", lat: 29.4963, lon: 60.8629 },
+      { name: "Hamedan", country: "Iran", lat: 34.7982, lon: 48.5146 },
+      { name: "Kerman", country: "Iran", lat: 30.2839, lon: 57.0834 },
+      { name: "Yazd", country: "Iran", lat: 31.8974, lon: 54.3569 },
+      { name: "Ardabil", country: "Iran", lat: 38.2498, lon: 48.2933 },
+      { name: "Bandar Abbas", country: "Iran", lat: 27.1832, lon: 56.2666 },
+      { name: "Zanjan", country: "Iran", lat: 36.6736, lon: 48.4787 },
+      { name: "Sanandaj", country: "Iran", lat: 35.3144, lon: 46.9923 },
+      { name: "Qazvin", country: "Iran", lat: 36.2797, lon: 50.0049 },
+      { name: "Khorramabad", country: "Iran", lat: 33.4878, lon: 48.3558 },
+      { name: "Gorgan", country: "Iran", lat: 36.8456, lon: 54.4393 },
+      { name: "Sari", country: "Iran", lat: 36.5633, lon: 53.0601 },
+      { name: "Shahrekord", country: "Iran", lat: 32.3256, lon: 50.8644 },
+      { name: "Semnan", country: "Iran", lat: 35.5769, lon: 53.3970 },
+      { name: "Bushehr", country: "Iran", lat: 28.9234, lon: 50.8203 },
+      { name: "Birjand", country: "Iran", lat: 32.8663, lon: 59.2211 },
+      { name: "Ilam", country: "Iran", lat: 33.6374, lon: 46.4227 },
+      { name: "Bojnourd", country: "Iran", lat: 37.4747, lon: 57.3290 },
+      { name: "Yasuj", country: "Iran", lat: 30.6684, lon: 51.5876 },
+      { name: "Kish Island", country: "Iran", lat: 26.5578, lon: 53.9781 },
+      { name: "Qeshm Island", country: "Iran", lat: 26.9585, lon: 56.2718 },
 
+      // Global Metropolises
+      { name: "London", country: "United Kingdom", lat: 51.5074, lon: -0.1278 },
+      { name: "New York", country: "United States", lat: 40.7128, lon: -74.0060 },
+      { name: "Tokyo", country: "Japan", lat: 35.6762, lon: 139.6503 },
+      { name: "Paris", country: "France", lat: 48.8566, lon: 2.3522 },
+      { name: "Dubai", country: "United Arab Emirates", lat: 25.2048, lon: 55.2708 },
+      { name: "Istanbul", country: "Turkey", lat: 41.0082, lon: 28.9784 },
+      { name: "Berlin", country: "Germany", lat: 52.5200, lon: 13.4050 },
+      { name: "Toronto", country: "Canada", lat: 43.6532, lon: -79.3832 },
+      { name: "Sydney", country: "Australia", lat: -33.8688, lon: 151.2093 },
+      { name: "Los Angeles", country: "United States", lat: 34.0522, lon: -118.2437 },
+      { name: "Singapore", country: "Singapore", lat: 1.3521, lon: 103.8198 },
+      { name: "Rome", country: "Italy", lat: 41.9028, lon: 12.4964 },
+      { name: "Madrid", country: "Spain", lat: 40.4168, lon: -3.7038 },
+      { name: "Amsterdam", country: "Netherlands", lat: 52.3676, lon: 4.9041 },
+      { name: "Seoul", country: "South Korea", lat: 37.5665, lon: 126.9780 },
+      { name: "Moscow", country: "Russia", lat: 55.7558, lon: 37.6173 },
+      { name: "Cairo", country: "Egypt", lat: 30.0444, lon: 31.2357 },
+      { name: "Vienna", country: "Austria", lat: 48.2082, lon: 16.3738 },
+      { name: "Zurich", country: "Switzerland", lat: 47.3769, lon: 8.5417 }
+    ];
+
+    let currentStep = 1;
+    let selectedCityObj = CITIES_DATA[0]; // Default: Tehran
+
+    function renderCitiesList(cities) {
+      const container = document.getElementById('cities-grid');
+      container.innerHTML = '';
+
+      if (cities.length === 0) {
+        const query = document.getElementById('input-city-search').value.trim();
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; padding: 20px; text-align: center; color: #94a3b8; font-size: 13px;">
+            <div>No matching city found in presets.</div>
+            <button onclick="pickCustomCity('${query.replace(/'/g, "\\'")}')" 
+                    style="margin-top: 10px; background: rgba(139, 92, 246, 0.2); border: 1px solid #8b5cf6; color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer;">
+              Use "${query}" as custom city
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      cities.forEach(c => {
+        const isSelected = (c.name.toLowerCase() === selectedCityObj.name.toLowerCase());
+        const card = document.createElement('div');
+        card.className = `city-item ${isSelected ? 'selected' : ''}`;
+        card.onclick = () => selectCityItem(c);
+
+        card.innerHTML = `
+          <div class="city-item-left">
+            <span style="font-size: 14px;">📍</span>
+            <div>
+              <div class="city-item-name">${c.name}</div>
+              <div class="city-item-country">${c.country}</div>
+            </div>
+          </div>
+          <span class="city-item-check">✓</span>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterCities(query) {
+      const q = (query || '').trim().toLowerCase();
+      if (!q) {
+        renderCitiesList(CITIES_DATA);
+        return;
+      }
+
+      const filtered = CITIES_DATA.filter(c => 
+        c.name.toLowerCase().includes(q) || c.country.toLowerCase().includes(q)
+      );
+      renderCitiesList(filtered);
+    }
+
+    function selectCityItem(cityObj) {
+      selectedCityObj = cityObj;
+      updateLocationDisplay();
+      
+      // Update active card styling in DOM
+      document.querySelectorAll('.city-item').forEach(el => {
+        const nameEl = el.querySelector('.city-item-name');
+        if (nameEl && nameEl.textContent.toLowerCase() === cityObj.name.toLowerCase()) {
+          el.classList.add('selected');
+        } else {
+          el.classList.remove('selected');
+        }
+      });
+    }
+
+    function pickCustomCity(name) {
+      if (!name) return;
+      selectedCityObj = {
+        name: name,
+        country: "Custom",
+        lat: 35.6892,
+        lon: 51.3890
+      };
+      updateLocationDisplay();
+      filterCities('');
+    }
+
+    function updateLocationDisplay() {
+      document.getElementById('lbl-selected-city').textContent = `${selectedCityObj.name}, ${selectedCityObj.country}`;
+      const latStr = selectedCityObj.lat >= 0 ? `${selectedCityObj.lat.toFixed(2)}° N` : `${Math.abs(selectedCityObj.lat).toFixed(2)}° S`;
+      const lonStr = selectedCityObj.lon >= 0 ? `${selectedCityObj.lon.toFixed(2)}° E` : `${Math.abs(selectedCityObj.lon).toFixed(2)}° W`;
+      document.getElementById('lbl-selected-coords').textContent = `(${latStr}, ${lonStr})`;
+    }
+
+    // Window controls
     function onTitlebarMouseDown(e) {
       if (e.target.closest('button') || e.target.closest('.no-drag')) return;
       if (window.chrome && window.chrome.webview) {
@@ -1079,31 +1234,7 @@
       }
     }
 
-    function pickCity(name, temp, icon, cond) {
-      selectedCity = name;
-      selectedTemp = temp;
-      selectedIcon = icon;
-      selectedCond = cond;
-
-      document.getElementById('input-city-search').value = name;
-      document.getElementById('prev-city-name').textContent = name;
-      document.getElementById('prev-city-temp').textContent = temp;
-      document.getElementById('prev-weather-icon').textContent = icon;
-      document.getElementById('prev-city-cond').textContent = `(${cond})`;
-
-      document.querySelectorAll('.city-card').forEach(c => {
-        c.classList.remove('selected');
-        if (c.dataset.city === name) c.classList.add('selected');
-      });
-    }
-
-    function onCityTyped(val) {
-      selectedCity = val || 'London';
-      document.getElementById('prev-city-name').textContent = selectedCity;
-    }
-
     function updateUI() {
-      // Step views
       for (let i = 1; i <= 4; i++) {
         const v = document.getElementById(`step-view-${i}`);
         const n = document.getElementById(`step-nav-${i}`);
@@ -1116,11 +1247,9 @@
       if (activeView) activeView.classList.add('active');
       if (activeNav) activeNav.classList.add('active');
 
-      // Back button
       const backBtn = document.getElementById('btn-back');
       backBtn.style.visibility = (currentStep > 1) ? 'visible' : 'hidden';
 
-      // Next button
       const nextBtnLabel = document.getElementById('btn-next-label');
       const nextBtnArrow = document.getElementById('btn-next-arrow');
       if (currentStep === 4) {
@@ -1134,7 +1263,7 @@
       // Populate summary on step 4
       if (currentStep === 4) {
         document.getElementById('sum-path').textContent = document.getElementById('txt-install-path').textContent;
-        document.getElementById('sum-city').textContent = `${selectedCity} (${selectedTemp})`;
+        document.getElementById('sum-city').textContent = `${selectedCityObj.name}, ${selectedCityObj.country}`;
         const sc = document.getElementById('chk-shortcut').checked;
         const st = document.getElementById('chk-startup').checked;
         document.getElementById('sum-access').textContent = `${sc ? 'Desktop Shortcut ✓' : ''} ${st ? ' • Auto-Startup ✓' : ''}`;
@@ -1152,7 +1281,10 @@
 
       const installPayload = {
         path: document.getElementById('txt-install-path').textContent,
-        city: selectedCity,
+        city: selectedCityObj.name,
+        country: selectedCityObj.country,
+        lat: selectedCityObj.lat,
+        lon: selectedCityObj.lon,
         createShortcut: document.getElementById('chk-shortcut').checked,
         autoStartup: document.getElementById('chk-startup').checked,
         enableMica: document.getElementById('chk-mica').checked
@@ -1164,7 +1296,6 @@
           data: installPayload
         });
       } else {
-        // Fallback simulation in browser
         let p = 0;
         const it = setInterval(() => {
           p += 5;
@@ -1224,7 +1355,9 @@
       });
     }
 
-    // Initialize UI on load
+    // Initial render
+    renderCitiesList(CITIES_DATA);
+    updateLocationDisplay();
     updateUI();
   </script>
 </body>
