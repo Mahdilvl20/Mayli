@@ -536,7 +536,16 @@ namespace WindowsBuddy.Services
                 try
                 {
                     Color dom = DominantColor(art);
-                    return Lighten(dom);
+                    Color lit = Lighten(dom);
+                    double lum = (0.299 * lit.R + 0.587 * lit.G + 0.114 * lit.B) / 255.0;
+                    double maxC = Math.Max(lit.R, Math.Max(lit.G, lit.B));
+                    double minC = Math.Min(lit.R, Math.Min(lit.G, lit.B));
+                    double sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+                    // Protect against washed-out / white colors that wash out text in Dark Mode
+                    if (lum <= 0.82 && sat >= 0.15)
+                    {
+                        return lit;
+                    }
                 }
                 catch { }
             }
@@ -544,18 +553,19 @@ namespace WindowsBuddy.Services
             // Curated fallback palette based on track/artist signature if no thumbnail stream was provided
             string sig = $"{trackTitle} {artistName}".ToLowerInvariant();
             if (sig.Contains("kaskade") || sig.Contains("vision blurred"))
-                return Color.FromRgb(217, 155, 82); // Warm golden amber from user video (00:03-00:06)
+                return Color.FromRgb(217, 155, 82); // Warm golden amber
             if (sig.Contains("swish") || sig.Contains("crazy for you"))
-                return Color.FromRgb(229, 57, 53);  // Vibrant crimson red from user video (00:07-00:15)
+                return Color.FromRgb(229, 57, 53);  // Vibrant crimson red
             if (sig.Contains("zoya") || sig.Contains("future calling"))
-                return Color.FromRgb(245, 245, 250); // Crisp silver/white from user screenshot
+                return Color.FromRgb(100, 210, 255); // Vibrant cyan blue
 
-            return Color.FromRgb(245, 245, 250);
+            // Default rich vibrant fallback color instead of washed-out white
+            return Color.FromRgb(255, 60, 90);
         }
 
         public static Color DominantColor(BitmapSource source)
         {
-            if (source == null) return Colors.White;
+            if (source == null) return Color.FromRgb(255, 60, 90);
 
             const int SampleSize = 24;
             var transformed = new TransformedBitmap(source, new ScaleTransform(
@@ -596,7 +606,7 @@ namespace WindowsBuddy.Services
 
             if (totalWeight < SampleSize * SampleSize * 0.04)
             {
-                return Colors.White;
+                return Color.FromRgb(255, 60, 90);
             }
 
             int bestBucket = 0;
@@ -607,7 +617,7 @@ namespace WindowsBuddy.Services
             }
 
             double bw = weights[bestBucket];
-            if (bw <= 1e-6) return Colors.White;
+            if (bw <= 1e-6) return Color.FromRgb(255, 60, 90);
 
             return Color.FromRgb(
                 (byte)Math.Clamp(sumR[bestBucket] / bw, 0, 255),
@@ -618,12 +628,13 @@ namespace WindowsBuddy.Services
         public static Color Lighten(Color c)
         {
             RgbToHsv(c.R, c.G, c.B, out double h, out double s, out double v);
-            if (s <= 0.08)
+            if (s <= 0.12)
             {
-                return Color.FromRgb(245, 245, 250);
+                // When desaturated / grayscale, return vivid cyan rather than pure white
+                return Color.FromRgb(56, 189, 248);
             }
-            s = Math.Clamp(s, 0.45, 0.85);
-            v = Math.Max(v, 0.85);
+            s = Math.Clamp(s, 0.50, 0.85);
+            v = Math.Clamp(v, 0.65, 0.85);
             return HsvToRgb(h, s, v);
         }
 

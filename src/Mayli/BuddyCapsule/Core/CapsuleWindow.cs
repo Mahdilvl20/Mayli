@@ -2421,6 +2421,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
                 if (songColor.A > 0)
                 {
+                    double lum = (0.299 * songColor.R + 0.587 * songColor.G + 0.114 * songColor.B) / 255.0;
+                    double maxC = Math.Max(songColor.R, Math.Max(songColor.G, songColor.B));
+                    double minC = Math.Min(songColor.R, Math.Min(songColor.G, songColor.B));
+                    double sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+                    if (lum > 0.80 || sat < 0.15)
+                    {
+                        return Color.FromRgb(255, 60, 90);
+                    }
                     return songColor;
                 }
             }

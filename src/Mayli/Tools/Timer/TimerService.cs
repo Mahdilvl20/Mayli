@@ -354,6 +354,14 @@ namespace WindowsBuddy.Tools.Timer
                     Color beat = RealtimeNotchActionService.Instance.CurrentBeatColor;
                     if (beat.A > 0)
                     {
+                        double lum = (0.299 * beat.R + 0.587 * beat.G + 0.114 * beat.B) / 255.0;
+                        double maxC = Math.Max(beat.R, Math.Max(beat.G, beat.B));
+                        double minC = Math.Min(beat.R, Math.Min(beat.G, beat.B));
+                        double sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+                        if (lum > 0.80 || sat < 0.15)
+                        {
+                            return Color.FromRgb(255, 60, 90);
+                        }
                         return beat;
                     }
                 }

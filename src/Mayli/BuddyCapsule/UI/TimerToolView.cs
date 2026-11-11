@@ -2543,6 +2543,23 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _dotStopwatch.Fill = accentBrush;
             _dotWater.Fill = accentBrush;
 
+            // Ensure high-contrast text and icons inside action buttons (never white-on-white)
+            double btnLum = (0.299 * accentColor.R + 0.587 * accentColor.G + 0.114 * accentColor.B) / 255.0;
+            var btnFgBrush = btnLum > 0.60 ? Brushes.Black : Brushes.White;
+
+            if (_pomoPlayIcon != null) _pomoPlayIcon.Fill = btnFgBrush;
+            if (_countPlayIcon != null) _countPlayIcon.Fill = btnFgBrush;
+            if (_swPlayIcon != null) _swPlayIcon.Fill = btnFgBrush;
+            if (_alarmAddBtn.Child is TextBlock alarmTb) alarmTb.Foreground = btnFgBrush;
+            if (_waterAddGlassBtn.Child is StackPanel waterSp)
+            {
+                foreach (var child in waterSp.Children)
+                {
+                    if (child is Path pIcon) pIcon.Fill = btnFgBrush;
+                    else if (child is TextBlock wTb) wTb.Foreground = btnFgBrush;
+                }
+            }
+
             _dotPomo.Visibility = s.PomoIsRunning ? Visibility.Visible : Visibility.Collapsed;
             _dotCountdown.Visibility = s.CountIsRunning ? Visibility.Visible : Visibility.Collapsed;
             _dotAlarm.Visibility = s.Alarms.Any(a => a.IsEnabled) ? Visibility.Visible : Visibility.Collapsed;

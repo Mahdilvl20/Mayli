@@ -364,7 +364,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Text = LocalizationService.T("screentime.tab_7d", "7 Days"),
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = CapsuleTheme.Brush(p.AccentFg),
                 VerticalAlignment = VerticalAlignment.Center
             };
             _tab7DaysBtn.Child = _tab7DaysText;
@@ -415,7 +415,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 _tab7DaysText.FontWeight = FontWeights.Medium;
 
                 _tab30DaysBtn.Background = CapsuleTheme.Brush(p.Accent);
-                _tab30DaysText.Foreground = Brushes.White;
+                _tab30DaysText.Foreground = CapsuleTheme.Brush(p.AccentFg);
                 _tab30DaysText.FontWeight = FontWeights.SemiBold;
 
                 _chartTitleText.Text = "📅  " + LocalizationService.T("screentime.last30days", "Last 30 days");
@@ -428,7 +428,7 @@ namespace WindowsBuddy.Tools.ScreenTime
             else
             {
                 _tab7DaysBtn.Background = CapsuleTheme.Brush(p.Accent);
-                _tab7DaysText.Foreground = Brushes.White;
+                _tab7DaysText.Foreground = CapsuleTheme.Brush(p.AccentFg);
                 _tab7DaysText.FontWeight = FontWeights.SemiBold;
 
                 _tab30DaysBtn.Background = Brushes.Transparent;

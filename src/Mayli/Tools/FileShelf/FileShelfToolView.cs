@@ -1461,7 +1461,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 Text = file.Extension.TrimStart('.').ToUpperInvariant(),
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = CapsuleTheme.Brush(p.AccentFg)
             };
             titleStack.Children.Add(extBadge);
 
@@ -1614,7 +1614,7 @@ namespace WindowsBuddy.Tools.FileShelf
                 Text = text,
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = isAccent ? Brushes.White : CapsuleTheme.Brush(p.Text)
+                Foreground = isAccent ? CapsuleTheme.Brush(p.AccentFg) : CapsuleTheme.Brush(p.Text)
             };
             border.Child = tb;
             border.MouseEnter += (_, _) => border.Opacity = 0.85;

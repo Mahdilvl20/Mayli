@@ -38,7 +38,7 @@ namespace WindowsBuddy.Services
         public double PositionSeconds { get; set; }
         public double DurationSeconds { get; set; }
         public BitmapSource Artwork { get; set; }
-        public Color BeatColor { get; set; } = Color.FromRgb(245, 245, 250);
+        public Color BeatColor { get; set; } = Color.FromRgb(255, 60, 90);
         public string SourceApp { get; set; } = "";
     }
 
@@ -70,7 +70,7 @@ namespace WindowsBuddy.Services
         public string CurrentTrack { get; private set; } = "";
         public string CurrentArtist { get; private set; } = "";
         public BitmapSource CurrentArtwork { get; private set; }
-        public Color CurrentBeatColor { get; private set; } = Color.FromRgb(245, 245, 250);
+        public Color CurrentBeatColor { get; private set; } = Color.FromRgb(255, 60, 90);
 
         private volatile bool _gsmtcActive = false;
         private DateTime _lastGsmtcHeartbeatUtc = DateTime.MinValue;

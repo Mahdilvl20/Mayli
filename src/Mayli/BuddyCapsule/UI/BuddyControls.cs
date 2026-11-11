@@ -1954,14 +1954,24 @@ namespace WindowsBuddy.BuddyCapsule.UI
             }
             else
             {
+                double lum = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255.0;
+                double maxC = Math.Max(c.R, Math.Max(c.G, c.B));
+                double minC = Math.Min(c.R, Math.Min(c.G, c.B));
+                double sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+
+                // When beat color is near-white or washed out in Dark Mode, use vibrant accent so it doesn't bleach into white
+                Color baseColor = (lum > 0.78 || sat < 0.20)
+                    ? (!p.Accent.Equals(Colors.White) && p.Accent.A > 0 ? p.Accent : Color.FromRgb(255, 60, 90))
+                    : c;
+
                 top = Color.FromRgb(
-                    (byte)Math.Clamp(c.R * 0.45 + 255 * 0.55, 0, 255),
-                    (byte)Math.Clamp(c.G * 0.45 + 255 * 0.55, 0, 255),
-                    (byte)Math.Clamp(c.B * 0.45 + 255 * 0.55, 0, 255));
+                    (byte)Math.Clamp(baseColor.R * 0.75 + 255 * 0.25, 0, 255),
+                    (byte)Math.Clamp(baseColor.G * 0.75 + 255 * 0.25, 0, 255),
+                    (byte)Math.Clamp(baseColor.B * 0.75 + 255 * 0.25, 0, 255));
                 bot = Color.FromRgb(
-                    (byte)Math.Clamp(c.R * 0.70 + 140 * 0.30, 0, 255),
-                    (byte)Math.Clamp(c.G * 0.70 + 190 * 0.30, 0, 255),
-                    (byte)Math.Clamp(c.B * 0.70 + 255 * 0.30, 0, 255));
+                    (byte)Math.Clamp(baseColor.R * 0.85 + 30 * 0.15, 0, 255),
+                    (byte)Math.Clamp(baseColor.G * 0.85 + 30 * 0.15, 0, 255),
+                    (byte)Math.Clamp(baseColor.B * 0.85 + 30 * 0.15, 0, 255));
             }
 
             var grad = new LinearGradientBrush(top, bot, 90.0);
@@ -2093,11 +2103,21 @@ namespace WindowsBuddy.BuddyCapsule.UI
             }
             else
             {
-                cLeft = Blend(Color.FromRgb(56, 189, 248), _beatColor, 0.28);
-                cMidLeft = Blend(Color.FromRgb(165, 205, 255), Lighten(_beatColor, 0.42), 0.32);
-                cCenter = Blend(Color.FromRgb(196, 181, 253), Lighten(_beatColor, 0.45), 0.35);
-                cMidRight = Blend(Color.FromRgb(216, 198, 255), Lighten(_beatColor, 0.48), 0.32);
-                cRight = Blend(Color.FromRgb(180, 120, 252), _beatColor, 0.32);
+                Color effectiveBeat = _beatColor;
+                double lum = (0.299 * _beatColor.R + 0.587 * _beatColor.G + 0.114 * _beatColor.B) / 255.0;
+                double maxC = Math.Max(_beatColor.R, Math.Max(_beatColor.G, _beatColor.B));
+                double minC = Math.Min(_beatColor.R, Math.Min(_beatColor.G, _beatColor.B));
+                double sat = maxC > 0 ? (maxC - minC) / maxC : 0;
+                if (lum > 0.78 || sat < 0.20)
+                {
+                    effectiveBeat = (!p.Accent.Equals(Colors.White) && p.Accent.A > 0) ? p.Accent : Color.FromRgb(56, 189, 248);
+                }
+
+                cLeft = Blend(Color.FromRgb(56, 189, 248), effectiveBeat, 0.28);
+                cMidLeft = Blend(Color.FromRgb(165, 205, 255), Lighten(effectiveBeat, 0.42), 0.32);
+                cCenter = Blend(Color.FromRgb(196, 181, 253), Lighten(effectiveBeat, 0.45), 0.35);
+                cMidRight = Blend(Color.FromRgb(216, 198, 255), Lighten(effectiveBeat, 0.48), 0.32);
+                cRight = Blend(Color.FromRgb(180, 120, 252), effectiveBeat, 0.32);
             }
 
             var grad = new LinearGradientBrush
