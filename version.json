@@ -1,6 +1,6 @@
 {
-  "version": "1.1.64",
-  "name": "Mayli v1.1.64",
-  "notes": "Add animated keyboard language switch banner with AnimateIcons Globe, real-time Windows layout switch detection (Alt+Shift, Win+Space), live activities toggle, improved light mode contrast, fixed wide media time, and optimized music track detection.",
+  "version": "1.1.65",
+  "name": "Mayli v1.1.65",
+  "notes": "Massive CPU & RAM performance optimization: Lazy thumbnail image decoding in clipboard history, idle shutoff and 1s ticks for notch timers, background non-blocking 30s debounced ScreenTime persistence, EdgeLight auto-pause when hidden or tucked, and cached display device queries.",
   "url": "https://github.com/Mahdilvl20/Mayli/releases"
 }

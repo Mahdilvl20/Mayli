@@ -1024,7 +1024,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _pulseContainer.Children.Add(_coreLayer);
             Children.Add(_pulseContainer);
 
-            _animTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(42) };
+            _animTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(45) };
             _animTimer.Tick += OnAnimTick;
             _animTimer.Start();
 
@@ -1057,6 +1057,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
         {
             _animTimer.Stop();
             _pulseContainer.Opacity = 0.0;
+        }
+
+        public void ResumeIfAlways()
+        {
+            if (string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase) && IsVisible && !_isMorphing)
+            {
+                _burstOpacity = 1.0;
+                _pulseContainer.Opacity = 1.0;
+                if (!_animTimer.IsEnabled) _animTimer.Start();
+            }
         }
 
         public void SetMorphing(bool isMorphing)

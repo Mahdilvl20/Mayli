@@ -1,12 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "0e4947eab21040aebd089e1d55adc927e5df841e",
-    "indexed_at": "2026-11-11T09:49:06Z",
+    "commit": "0cf460fadd71d5c7599b360a575cbce3d1aad268",
+    "indexed_at": "2026-11-11T14:21:12Z",
     "project": "F-Vayli_Project",
-    "nodes": 3728,
-    "edges": 17508,
+    "nodes": 3743,
+    "edges": 17641,
     "original_size": 8716288,
-    "compressed_size": 904462,
-    "compression_level": 9,
-    "reconcile_basis": "git-clean-head"
+    "compressed_size": 908337,
+    "compression_level": 9
 }

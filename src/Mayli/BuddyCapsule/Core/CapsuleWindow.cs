@@ -3413,6 +3413,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
 
             if (hidden)
             {
+                _edgeLight?.Stop();
                 _capsuleCard.IsHitTestVisible = false;
                 slideAnim.Completed += (_, _) =>
                 {
@@ -3430,6 +3431,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             {
                 _capsuleCard.Visibility = Visibility.Visible;
                 _capsuleCard.IsHitTestVisible = true;
+                _edgeLight?.ResumeIfAlways();
                 EnsureTopmost();
                 UpdateMorphVisuals(_morphProgress);
             }
@@ -3518,10 +3520,20 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             catch { }
         }
 
+        private System.Windows.Forms.Screen _cachedTargetScreen;
+        private DateTime _lastScreenCheckUtc = DateTime.MinValue;
+
         private System.Windows.Forms.Screen GetTargetScreen()
         {
             try
             {
+                var now = DateTime.UtcNow;
+                if (_cachedTargetScreen != null && (now - _lastScreenCheckUtc).TotalSeconds < 5.0)
+                {
+                    return _cachedTargetScreen;
+                }
+                _lastScreenCheckUtc = now;
+
                 var screens = System.Windows.Forms.Screen.AllScreens;
                 var targetScreen = System.Windows.Forms.Screen.PrimaryScreen;
                 string choice = AppPreferences.Instance.NotchDisplay;
@@ -3529,11 +3541,13 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                     targetScreen = screens[1];
                 else if (string.Equals(choice, "Display 1", StringComparison.OrdinalIgnoreCase) && screens.Length > 0)
                     targetScreen = screens[0];
+
+                _cachedTargetScreen = targetScreen;
                 return targetScreen;
             }
             catch
             {
-                return null;
+                return _cachedTargetScreen ?? System.Windows.Forms.Screen.PrimaryScreen;
             }
         }
 
@@ -3805,6 +3819,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
 
             if (_isTucked)
             {
+                _edgeLight?.Stop();
                 _isTuckCompletedHidden = false;
                 _leftTimerIsland.IsHitTestVisible = false;
                 _rightTimerIsland.IsHitTestVisible = false;
@@ -3835,6 +3850,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                 _isTuckCompletedHidden = false;
                 _capsuleCard.Visibility = Visibility.Visible;
                 _capsuleCard.IsHitTestVisible = true;
+                _edgeLight?.ResumeIfAlways();
                 UpdateMorphVisuals(_morphProgress);
                 EnsureTopmost();
 

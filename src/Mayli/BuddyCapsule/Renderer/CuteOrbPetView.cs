@@ -78,6 +78,8 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
         private readonly Random _rng = new();
         private double _breathPhase;
         private double _lookTargetX, _lookTargetY;
+        private Point _cachedScreenCenter;
+        private DateTime _lastScreenCenterCalcUtc = DateTime.MinValue;
         private double _lookCurrentX, _lookCurrentY;
         private double _squishX = 1.0, _squishY = 1.0;
         private double _squishVelX, _squishVelY;
@@ -336,9 +338,9 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
             // -------------------------------------------------------------
             // 6. Interactive Physics & Animation Timer (~30 FPS / 33ms)
             // -------------------------------------------------------------
-            _lifeTimer = new DispatcherTimer(DispatcherPriority.Render)
+            _lifeTimer = new DispatcherTimer(DispatcherPriority.Background)
             {
-                Interval = TimeSpan.FromMilliseconds(33)
+                Interval = TimeSpan.FromMilliseconds(45)
             };
             _lifeTimer.Tick += OnLifeTimerTick;
 
@@ -854,9 +856,14 @@ namespace WindowsBuddy.BuddyCapsule.Renderer
                 {
                     if (NativeMethods.GetCursorPos(out var pt))
                     {
-                        var screenCenter = PointToScreen(new Point(ActualWidth * 0.5, ActualHeight * 0.5));
-                        double dx = pt.X - screenCenter.X;
-                        double dy = pt.Y - screenCenter.Y;
+                        var now = DateTime.UtcNow;
+                        if ((now - _lastScreenCenterCalcUtc).TotalMilliseconds > 450 || _cachedScreenCenter.X == 0)
+                        {
+                            _lastScreenCenterCalcUtc = now;
+                            _cachedScreenCenter = PointToScreen(new Point(ActualWidth * 0.5, ActualHeight * 0.5));
+                        }
+                        double dx = pt.X - _cachedScreenCenter.X;
+                        double dy = pt.Y - _cachedScreenCenter.Y;
 
                         // Normalize and map to spherical parallax limit (max 7px in 128-space)
                         double dist = Math.Sqrt(dx * dx + dy * dy);

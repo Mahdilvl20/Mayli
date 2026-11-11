@@ -366,6 +366,9 @@ namespace WindowsBuddy.Tools.Clipboard
                 // Save to SQLite / separate file per policy
                 ClipboardDatabase.Instance.SaveItem(item);
 
+                // Release large in-memory raw buffer and full bitmap to prevent memory bloat
+                item.ReleaseLargeObjects();
+
                 _items.Insert(0, item);
                 if (_items.Count > 100)
                 {
@@ -387,6 +390,11 @@ namespace WindowsBuddy.Tools.Clipboard
             if (item.RawBlobData != null && item.RawBlobData.Length == newBytes.Length)
             {
                 return item.RawBlobData.AsSpan().SequenceEqual(newBytes);
+            }
+            if (!string.IsNullOrEmpty(item.ImageHash))
+            {
+                string newHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(newBytes));
+                return string.Equals(item.ImageHash, newHash, StringComparison.OrdinalIgnoreCase);
             }
             if (string.Equals(item.StorageMethod, "file", StringComparison.OrdinalIgnoreCase) &&
                 !string.IsNullOrEmpty(item.StoredFilePath) && File.Exists(item.StoredFilePath))

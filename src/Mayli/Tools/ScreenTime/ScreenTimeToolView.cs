@@ -857,8 +857,11 @@ namespace WindowsBuddy.Tools.ScreenTime
             _limitModalOverlay.Visibility = Visibility.Visible;
         }
 
+        private DateTime _lastFullChartRefreshUtc = DateTime.MinValue;
+
         private void RefreshUI()
         {
+            _lastFullChartRefreshUtc = DateTime.UtcNow;
             _todayTotalText.Text = _service.TodayTotalFormatted;
             _limitLeftText.Text = _service.LimitRemainingFormatted;
             _limitLabelText.Text = $"of {_service.LimitFormatted} ";
@@ -871,6 +874,30 @@ namespace WindowsBuddy.Tools.ScreenTime
             if (_is30DaysMode) PopulateMonthHeatmap();
             else PopulateWeekChart();
             PopulateAppList();
+        }
+
+        private void RefreshUIIncremental()
+        {
+            if (_todayTotalText == null) return;
+
+            _todayTotalText.Text = _service.TodayTotalFormatted;
+            _limitLeftText.Text = _service.LimitRemainingFormatted;
+            _limitLabelText.Text = $"of {_service.LimitFormatted} ";
+            _appsCountText.Text = $"{_service.AppsUsedToday}";
+
+            int avgSec = _is30DaysMode ? _service.GetMonthlyAverageSeconds() : _service.GetWeeklyAverageSeconds();
+            _weeklyAvgText.Text = string.Format(LocalizationService.T("screentime.avg_fmt", "avg {0}"), ScreenTimeService.FormatDuration(avgSec));
+
+            UpdateProgressRing(_service.LimitProgressFraction);
+
+            // Throttle heavy chart / app-list visual tree reconstructions to every 25 seconds
+            if ((DateTime.UtcNow - _lastFullChartRefreshUtc).TotalSeconds >= 25.0)
+            {
+                _lastFullChartRefreshUtc = DateTime.UtcNow;
+                if (_is30DaysMode) PopulateMonthHeatmap();
+                else PopulateWeekChart();
+                PopulateAppList();
+            }
         }
 
         private void UpdateProgressRing(double fraction)
@@ -1124,7 +1151,7 @@ namespace WindowsBuddy.Tools.ScreenTime
 
         private void OnUsageUpdated()
         {
-            Dispatcher.InvokeAsync(RefreshUI);
+            Dispatcher.InvokeAsync(RefreshUIIncremental);
         }
     }
 }

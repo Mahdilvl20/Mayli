@@ -502,20 +502,25 @@ LIMIT ?;";
 
                         item.ImageHash = ReadColumnText(stmt, 20);
 
-                        // Reconstruct in-memory representations for Images & Thumbnails
+                        // Reconstruct in-memory representations for Images & Thumbnails (Memory-optimized: do NOT eager decode full image)
                         if (item.Kind == ClipKind.Image)
                         {
-                            item.EnsureImage();
-                            if (string.IsNullOrEmpty(item.ImageHash))
+                            if (item.RawBlobData != null && item.RawBlobData.Length > 0)
                             {
-                                item.GetImageHash();
+                                item.Thumbnail = CreateThumbnailFromBytes(item.RawBlobData, 28, 28);
+                                if (string.IsNullOrEmpty(item.ImageHash))
+                                {
+                                    item.ImageHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(item.RawBlobData));
+                                }
                             }
-                            if (item.Image != null)
+                            else if (!string.IsNullOrEmpty(item.StoredFilePath))
                             {
-                                item.Thumbnail = CreateThumbnail(item.Image, 28, 28);
-                                if (item.ImageWidth == 0) item.ImageWidth = item.Image.PixelWidth;
-                                if (item.ImageHeight == 0) item.ImageHeight = item.Image.PixelHeight;
+                                item.Thumbnail = CreateThumbnailFromFile(item.StoredFilePath, 28, 28);
                             }
+
+                            // Release raw bytes and uncompressed bitmap from RAM immediately
+                            item.RawBlobData = null;
+                            item.Image = null;
                         }
 
                         list.Add(item);
@@ -663,6 +668,77 @@ LIMIT ?;";
             {
                 return Array.Empty<byte>();
             }
+        }
+
+        public static ImageSource CreateThumbnailFromBytes(byte[] bytes, int width, int height)
+        {
+            if (bytes == null || bytes.Length == 0) return null;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.DecodePixelWidth = width * 2;
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = ms;
+                bmp.EndInit();
+                bmp.Freeze();
+                return CreateThumbnail(bmp, width, height);
+            }
+            catch { return null; }
+        }
+
+        public static ImageSource CreateThumbnailFromFile(string path, int width, int height)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            try
+            {
+                using var fs = File.OpenRead(path);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.DecodePixelWidth = width * 2;
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = fs;
+                bmp.EndInit();
+                bmp.Freeze();
+                return CreateThumbnail(bmp, width, height);
+            }
+            catch { return null; }
+        }
+
+        public byte[] ReadItemBlob(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            lock (_dbLock)
+            {
+                if (_db == IntPtr.Zero) return null;
+                string query = "SELECT blob_data FROM clipboard_items WHERE id = ? LIMIT 1;";
+                if (sqlite3_prepare16_v2(_db, query, -1, out var stmt, IntPtr.Zero) != SQLITE_OK)
+                    return null;
+                try
+                {
+                    sqlite3_bind_text16(stmt, 1, id, -1, SQLITE_TRANSIENT);
+                    if (sqlite3_step(stmt) == SQLITE_ROW)
+                    {
+                        int blobBytes = sqlite3_column_bytes(stmt, 0);
+                        if (blobBytes > 0)
+                        {
+                            IntPtr blobPtr = sqlite3_column_blob(stmt, 0);
+                            if (blobPtr != IntPtr.Zero)
+                            {
+                                byte[] bytes = new byte[blobBytes];
+                                Marshal.Copy(blobPtr, bytes, 0, blobBytes);
+                                return bytes;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    sqlite3_finalize(stmt);
+                }
+            }
+            return null;
         }
 
         private static ImageSource CreateThumbnail(BitmapSource source, int width, int height)

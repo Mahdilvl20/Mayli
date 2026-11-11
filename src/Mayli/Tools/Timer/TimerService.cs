@@ -196,10 +196,10 @@ namespace WindowsBuddy.Tools.Timer
             LoadPrefs();
 
             _lastTickTimestamp = Stopwatch.GetTimestamp();
-            // Adaptive timer tick: 1000ms when idle to conserve CPU, 25ms (40fps) during active countdown/stopwatch
-            _clock = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(1000) };
+            // Adaptive timer tick: stopped when idle to conserve CPU, 1000ms during countdown/pomo, 50ms during stopwatch
+            _clock = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(1000) };
             _clock.Tick += OnClockTick;
-            _clock.Start();
+            EnsureClockRate();
         }
 
         public static string StripEmojis(string input)
@@ -371,13 +371,29 @@ namespace WindowsBuddy.Tools.Timer
             return CapsuleTheme.Current.Accent;
         }
 
-        private void EnsureClockRate()
+        public void EnsureClockRate()
         {
-            bool anyActive = StopwatchIsRunning || PomoIsRunning || CountIsRunning;
-            var target = anyActive ? TimeSpan.FromMilliseconds(25) : TimeSpan.FromMilliseconds(1000);
+            bool needSubSecond = StopwatchIsRunning;
+            bool needSecondTick = PomoIsRunning || CountIsRunning || WaterReminderEnabled || (Alarms != null && Alarms.Any(a => a.IsEnabled));
+
+            if (!needSubSecond && !needSecondTick)
+            {
+                if (_clock.IsEnabled)
+                {
+                    _clock.Stop();
+                }
+                return;
+            }
+
+            var target = needSubSecond ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromMilliseconds(1000);
             if (_clock.Interval != target)
             {
                 _clock.Interval = target;
+            }
+            if (!_clock.IsEnabled)
+            {
+                _lastTickTimestamp = Stopwatch.GetTimestamp();
+                _clock.Start();
             }
         }
 
@@ -522,6 +538,7 @@ namespace WindowsBuddy.Tools.Timer
             if (!PomoAutoStartNext)
             {
                 PomoIsRunning = false;
+            EnsureClockRate();
             }
 
             SavePrefs();
@@ -554,6 +571,7 @@ namespace WindowsBuddy.Tools.Timer
             else
             {
                 CountIsRunning = false;
+            EnsureClockRate();
                 CountRemainingSeconds = CountTotalSeconds;
                 _countPreciseRemaining = CountTotalSeconds;
             }
@@ -1032,6 +1050,7 @@ namespace WindowsBuddy.Tools.Timer
             LastActiveMode = TimerMode.Pomodoro;
             _lastTickTimestamp = Stopwatch.GetTimestamp();
             PomoIsRunning = !PomoIsRunning;
+            EnsureClockRate();
             StateChanged?.Invoke();
         }
 
@@ -1122,6 +1141,7 @@ namespace WindowsBuddy.Tools.Timer
             }
             CountTargetClockTime = null;
             CountIsRunning = !CountIsRunning;
+            EnsureClockRate();
             StateChanged?.Invoke();
         }
 
@@ -1429,6 +1449,7 @@ namespace WindowsBuddy.Tools.Timer
             LastActiveMode = TimerMode.Stopwatch;
             if (_stopwatch.IsRunning) _stopwatch.Stop();
             else _stopwatch.Start();
+            EnsureClockRate();
             StateChanged?.Invoke();
         }
 
@@ -1453,6 +1474,7 @@ namespace WindowsBuddy.Tools.Timer
             _stopwatch.Reset();
             _lastLapTotal = TimeSpan.Zero;
             Laps.Clear();
+            EnsureClockRate();
             StateChanged?.Invoke();
         }
 
@@ -1504,6 +1526,7 @@ namespace WindowsBuddy.Tools.Timer
         {
             LastActiveMode = TimerMode.Water;
             WaterReminderEnabled = !WaterReminderEnabled;
+            EnsureClockRate();
             if (WaterReminderEnabled)
             {
                 WaterReminderRemainingSeconds = WaterReminderIntervalMinutes * 60;

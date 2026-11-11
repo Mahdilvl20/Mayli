@@ -1,3 +1,4 @@
+using System.Threading;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -474,23 +475,62 @@ namespace WindowsBuddy.Tools.ScreenTime
         }
 
         private DateTime _lastSaveUtc = DateTime.MinValue;
+        private bool _isSaving = false;
+        private readonly object _saveLock = new object();
+
         private void SaveSoon()
         {
-            if ((DateTime.UtcNow - _lastSaveUtc).TotalSeconds > 10.0)
+            if ((DateTime.UtcNow - _lastSaveUtc).TotalSeconds > 30.0)
             {
                 _lastSaveUtc = DateTime.UtcNow;
-                Save();
+                SaveAsync();
             }
         }
 
-        private void Save()
+        public void SaveAsync()
+        {
+            lock (_saveLock)
+            {
+                if (_isSaving) return;
+                _isSaving = true;
+            }
+
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    string json;
+                    lock (_lock)
+                    {
+                        json = JsonSerializer.Serialize(_history, new JsonSerializerOptions { WriteIndented = true });
+                    }
+                    string tempPath = _storagePath + ".tmp";
+                    File.WriteAllText(tempPath, json);
+                    if (File.Exists(_storagePath)) File.Delete(_storagePath);
+                    File.Move(tempPath, _storagePath);
+                }
+                catch { }
+                finally
+                {
+                    lock (_saveLock)
+                    {
+                        _isSaving = false;
+                    }
+                }
+            });
+        }
+
+        public void Save()
         {
             lock (_lock)
             {
                 try
                 {
                     string json = JsonSerializer.Serialize(_history, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(_storagePath, json);
+                    string tempPath = _storagePath + ".tmp";
+                    File.WriteAllText(tempPath, json);
+                    if (File.Exists(_storagePath)) File.Delete(_storagePath);
+                    File.Move(tempPath, _storagePath);
                 }
                 catch { }
             }

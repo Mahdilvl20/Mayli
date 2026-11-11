@@ -558,12 +558,12 @@ namespace WindowsBuddy.Tools.Clipboard
                     VerticalAlignment = VerticalAlignment.Center
                 };
 
-                if (item.Kind == ClipKind.Image && (item.Thumbnail != null || item.Image != null || !string.IsNullOrEmpty(item.StoredFilePath)))
+                if (item.Kind == ClipKind.Image)
                 {
-                    item.EnsureImage();
+                    var thumb = item.Thumbnail ?? item.EnsureThumbnail();
                     iconContainer.Child = new Image
                     {
-                        Source = item.Thumbnail ?? item.Image,
+                        Source = thumb,
                         Stretch = Stretch.UniformToFill
                     };
                 }

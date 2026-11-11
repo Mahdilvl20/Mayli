@@ -98,15 +98,50 @@ namespace WindowsBuddy.Tools.Clipboard
             return Text ?? string.Empty;
         }
 
+        public ImageSource EnsureThumbnail(int width = 28, int height = 28)
+        {
+            if (Thumbnail != null) return Thumbnail;
+
+            if (RawBlobData != null && RawBlobData.Length > 0)
+            {
+                Thumbnail = ClipboardDatabase.CreateThumbnailFromBytes(RawBlobData, width, height);
+                return Thumbnail;
+            }
+
+            if (!string.IsNullOrEmpty(StoredFilePath) && File.Exists(StoredFilePath))
+            {
+                Thumbnail = ClipboardDatabase.CreateThumbnailFromFile(StoredFilePath, width, height);
+                return Thumbnail;
+            }
+
+            byte[] blob = ClipboardDatabase.Instance.ReadItemBlob(Id);
+            if (blob != null && blob.Length > 0)
+            {
+                Thumbnail = ClipboardDatabase.CreateThumbnailFromBytes(blob, width, height);
+                return Thumbnail;
+            }
+
+            return null;
+        }
+
         public BitmapSource EnsureImage()
         {
             if (Image != null) return Image;
 
-            if (RawBlobData != null && RawBlobData.Length > 0)
+            byte[] bytes = RawBlobData;
+            if ((bytes == null || bytes.Length == 0) &&
+                (string.Equals(StorageMethod, "sqlite_blob", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(StorageMethod, "sqlite_text", StringComparison.OrdinalIgnoreCase) ||
+                 string.IsNullOrEmpty(StoredFilePath)))
+            {
+                bytes = ClipboardDatabase.Instance.ReadItemBlob(Id);
+            }
+
+            if (bytes != null && bytes.Length > 0)
             {
                 try
                 {
-                    using var ms = new MemoryStream(RawBlobData);
+                    using var ms = new MemoryStream(bytes);
                     var bmp = new BitmapImage();
                     bmp.BeginInit();
                     bmp.CacheOption = BitmapCacheOption.OnLoad;
@@ -137,6 +172,12 @@ namespace WindowsBuddy.Tools.Clipboard
             }
 
             return null;
+        }
+
+        public void ReleaseLargeObjects()
+        {
+            Image = null;
+            RawBlobData = null;
         }
 
         public string GetKindLabel()
