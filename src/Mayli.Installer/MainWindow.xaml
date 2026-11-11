@@ -1,0 +1,16 @@
+<Window x:Class="Mayli.Installer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Mayli Setup"
+        Height="640" Width="920"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True">
+    <Border Background="Transparent" CornerRadius="16">
+        <wv2:WebView2 x:Name="InstallerWebView" DefaultBackgroundColor="Transparent"/>
+    </Border>
+</Window>
