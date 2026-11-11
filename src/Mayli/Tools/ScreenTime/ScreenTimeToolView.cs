@@ -36,6 +36,7 @@ namespace WindowsBuddy.Tools.ScreenTime
         private Grid _monthHeatmapTilesGrid;
         private TextBlock _monthDetailText;
         private Border _selectedMonthTileBorder;
+        private string _selectedMonthDateStr;
 
         // By App Card Controls
         private StackPanel _appListStack;
@@ -404,6 +405,7 @@ namespace WindowsBuddy.Tools.ScreenTime
         private void SetTimeRangeMode(bool is30Days)
         {
             _is30DaysMode = is30Days;
+            _selectedMonthDateStr = null;
             var p = CapsuleTheme.Current;
 
             if (_is30DaysMode)
@@ -559,6 +561,11 @@ namespace WindowsBuddy.Tools.ScreenTime
             }
 
             _selectedMonthTileBorder = null;
+            string targetDateStr = _selectedMonthDateStr ?? DateTime.Today.ToString("yyyy-MM-dd");
+            Border targetTile = null;
+            DayBarData targetData = null;
+            Border todayTile = null;
+            DayBarData todayData = null;
 
             for (int i = 0; i < days.Count; i++)
             {
@@ -634,23 +641,44 @@ namespace WindowsBuddy.Tools.ScreenTime
                 tile.MouseLeftButtonUp += (_, e) =>
                 {
                     e.Handled = true;
-                    SelectMonthTile(currentTile, currentDay);
+                    SelectMonthTile(currentTile, currentDay, userSelected: true);
                 };
 
                 Grid.SetColumn(tile, colIdx);
                 Grid.SetRow(tile, rowIdx);
                 _monthHeatmapTilesGrid.Children.Add(tile);
 
+                string curDateStr = d.Date.ToString("yyyy-MM-dd");
+                if (curDateStr == targetDateStr)
+                {
+                    targetTile = tile;
+                    targetData = d;
+                }
                 if (d.IsToday)
                 {
-                    SelectMonthTile(tile, d);
+                    todayTile = tile;
+                    todayData = d;
                 }
+            }
+
+            if (targetTile != null && targetData != null)
+            {
+                SelectMonthTile(targetTile, targetData, userSelected: false);
+            }
+            else if (todayTile != null && todayData != null)
+            {
+                SelectMonthTile(todayTile, todayData, userSelected: false);
             }
         }
 
-        private void SelectMonthTile(Border tile, DayBarData d)
+        private void SelectMonthTile(Border tile, DayBarData d, bool userSelected = false)
         {
             var p = CapsuleTheme.Current;
+            if (userSelected)
+            {
+                _selectedMonthDateStr = d.Date.ToString("yyyy-MM-dd");
+            }
+
             if (_selectedMonthTileBorder != null && _selectedMonthTileBorder != tile)
             {
                 _selectedMonthTileBorder.BorderThickness = new Thickness(1);
