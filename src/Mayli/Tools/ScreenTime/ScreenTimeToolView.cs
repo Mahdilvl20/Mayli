@@ -23,9 +23,19 @@ namespace WindowsBuddy.Tools.ScreenTime
         private TextBlock _appsCountText;
         private Path _limitArcPath;
 
-        // Last 7 Days Card Controls
+        // Chart Card Controls (7 Days vs 30 Days)
+        private bool _is30DaysMode = false;
+        private Border _tab7DaysBtn;
+        private Border _tab30DaysBtn;
+        private TextBlock _tab7DaysText;
+        private TextBlock _tab30DaysText;
+        private TextBlock _chartTitleText;
         private TextBlock _weeklyAvgText;
         private UniformGrid _weekGrid;
+        private Grid _monthGrid;
+        private Grid _monthHeatmapTilesGrid;
+        private TextBlock _monthDetailText;
+        private Border _selectedMonthTileBorder;
 
         // By App Card Controls
         private StackPanel _appListStack;
@@ -41,10 +51,10 @@ namespace WindowsBuddy.Tools.ScreenTime
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.8, GridUnitType.Star) }); // Left column
             rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Right column
 
-            // Left Column: Responsive Grid with 2 Star Rows
+            // Left Column: Auto height for Today card, remaining Star height for Chart card
             var leftGrid = new Grid { Margin = new Thickness(0, 0, 6, 0) };
+            leftGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             leftGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
-            leftGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.35, GridUnitType.Star) });
 
             var todayCard = BuildTodayCard();
             Grid.SetRow(todayCard, 0);
@@ -80,13 +90,13 @@ namespace WindowsBuddy.Tools.ScreenTime
             var p = CapsuleTheme.Current;
             var card = new Border
             {
-                MinHeight = 85,
+                MinHeight = 80,
                 VerticalAlignment = VerticalAlignment.Stretch,
                 Background = CapsuleTheme.Brush(p.Surface),
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
-                Padding = new Thickness(14, 10, 14, 10),
+                Padding = new Thickness(12, 8, 12, 8),
                 Margin = new Thickness(0, 0, 0, 6)
             };
 
@@ -99,7 +109,7 @@ namespace WindowsBuddy.Tools.ScreenTime
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                Margin = new Thickness(0, 0, 0, 8)
+                Margin = new Thickness(0, 0, 0, 4)
             };
             DockPanel.SetDock(header, Dock.Top);
             dock.Children.Add(header);
@@ -262,15 +272,15 @@ namespace WindowsBuddy.Tools.ScreenTime
                 BorderBrush = CapsuleTheme.Brush(p.Border),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14),
-                Padding = new Thickness(14, 10, 14, 10)
+                Padding = new Thickness(12, 8, 12, 8)
             };
 
             var dock = new DockPanel();
 
-            // Header: 📅 Last 7 days (Left) and avg 1h 57m (Right)
-            var headerDock = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            // Header: 📅 Last 7 days / 30 days (Left) and avg + switcher (Right)
+            var headerDock = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
 
-            var title = new TextBlock
+            _chartTitleText = new TextBlock
             {
                 Text = "📅  " + LocalizationService.T("screentime.last7days", "Last 7 days"),
                 FontSize = 11,
@@ -278,29 +288,383 @@ namespace WindowsBuddy.Tools.ScreenTime
                 Foreground = CapsuleTheme.Brush(p.Text2),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            DockPanel.SetDock(title, Dock.Left);
-            headerDock.Children.Add(title);
+            DockPanel.SetDock(_chartTitleText, Dock.Left);
+            headerDock.Children.Add(_chartTitleText);
+
+            var rightHeaderStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
 
             _weeklyAvgText = new TextBlock
             {
                 Text = string.Format(LocalizationService.T("screentime.avg_fmt", "avg {0}"), ScreenTimeService.FormatDuration(_service.GetWeeklyAverageSeconds())),
-                FontSize = 11,
+                FontSize = 10.5,
                 Foreground = CapsuleTheme.Brush(p.Text2),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
             };
-            DockPanel.SetDock(_weeklyAvgText, Dock.Right);
-            headerDock.Children.Add(_weeklyAvgText);
+            rightHeaderStack.Children.Add(_weeklyAvgText);
+
+            var switcherPill = BuildTimeRangeSwitcher();
+            rightHeaderStack.Children.Add(switcherPill);
+
+            DockPanel.SetDock(rightHeaderStack, Dock.Right);
+            headerDock.Children.Add(rightHeaderStack);
 
             DockPanel.SetDock(headerDock, Dock.Top);
             dock.Children.Add(headerDock);
 
-            // 7 Days Chart Container
-            _weekGrid = new UniformGrid { Columns = 7 };
-            dock.Children.Add(_weekGrid);
+            // Chart area container hosting both 7-day bar chart and 30-day heatmap
+            var chartContentHost = new Grid { VerticalAlignment = VerticalAlignment.Stretch };
+
+            // 1. 7 Days Chart Container
+            _weekGrid = new UniformGrid { Columns = 7, VerticalAlignment = VerticalAlignment.Stretch };
+            chartContentHost.Children.Add(_weekGrid);
+
+            // 2. 30 Days Heatmap Container
+            _monthGrid = Build30DaysHeatmapView();
+            _monthGrid.Visibility = Visibility.Collapsed;
+            chartContentHost.Children.Add(_monthGrid);
+
+            dock.Children.Add(chartContentHost);
 
             card.Child = dock;
             return card;
+        }
+
+        private Border BuildTimeRangeSwitcher()
+        {
+            var p = CapsuleTheme.Current;
+            var pill = new Border
+            {
+                Background = CapsuleTheme.Brush(p.Surface2),
+                BorderBrush = CapsuleTheme.Brush(p.Border),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(2),
+                Height = 22,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var stack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            _tab7DaysBtn = new Border
+            {
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(8, 1, 8, 1),
+                Background = CapsuleTheme.Brush(p.Accent),
+                Cursor = Cursors.Hand
+            };
+            _tab7DaysText = new TextBlock
+            {
+                Text = LocalizationService.T("screentime.tab_7d", "7 Days"),
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _tab7DaysBtn.Child = _tab7DaysText;
+            _tab7DaysBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                SetTimeRangeMode(is30Days: false);
+            };
+            stack.Children.Add(_tab7DaysBtn);
+
+            _tab30DaysBtn = new Border
+            {
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(8, 1, 8, 1),
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand
+            };
+            _tab30DaysText = new TextBlock
+            {
+                Text = LocalizationService.T("screentime.tab_30d", "30 Days"),
+                FontSize = 10,
+                FontWeight = FontWeights.Medium,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _tab30DaysBtn.Child = _tab30DaysText;
+            _tab30DaysBtn.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                SetTimeRangeMode(is30Days: true);
+            };
+            stack.Children.Add(_tab30DaysBtn);
+
+            pill.Child = stack;
+            return pill;
+        }
+
+        private void SetTimeRangeMode(bool is30Days)
+        {
+            _is30DaysMode = is30Days;
+            var p = CapsuleTheme.Current;
+
+            if (_is30DaysMode)
+            {
+                _tab7DaysBtn.Background = Brushes.Transparent;
+                _tab7DaysText.Foreground = CapsuleTheme.Brush(p.Text2);
+                _tab7DaysText.FontWeight = FontWeights.Medium;
+
+                _tab30DaysBtn.Background = CapsuleTheme.Brush(p.Accent);
+                _tab30DaysText.Foreground = Brushes.White;
+                _tab30DaysText.FontWeight = FontWeights.SemiBold;
+
+                _chartTitleText.Text = "📅  " + LocalizationService.T("screentime.last30days", "Last 30 days");
+                _weeklyAvgText.Text = string.Format(LocalizationService.T("screentime.avg_fmt", "avg {0}"), ScreenTimeService.FormatDuration(_service.GetMonthlyAverageSeconds()));
+
+                _weekGrid.Visibility = Visibility.Collapsed;
+                _monthGrid.Visibility = Visibility.Visible;
+                PopulateMonthHeatmap();
+            }
+            else
+            {
+                _tab7DaysBtn.Background = CapsuleTheme.Brush(p.Accent);
+                _tab7DaysText.Foreground = Brushes.White;
+                _tab7DaysText.FontWeight = FontWeights.SemiBold;
+
+                _tab30DaysBtn.Background = Brushes.Transparent;
+                _tab30DaysText.Foreground = CapsuleTheme.Brush(p.Text2);
+                _tab30DaysText.FontWeight = FontWeights.Medium;
+
+                _chartTitleText.Text = "📅  " + LocalizationService.T("screentime.last7days", "Last 7 days");
+                _weeklyAvgText.Text = string.Format(LocalizationService.T("screentime.avg_fmt", "avg {0}"), ScreenTimeService.FormatDuration(_service.GetWeeklyAverageSeconds()));
+
+                _monthGrid.Visibility = Visibility.Collapsed;
+                _weekGrid.Visibility = Visibility.Visible;
+                PopulateWeekChart();
+            }
+        }
+
+        private Grid Build30DaysHeatmapView()
+        {
+            var p = CapsuleTheme.Current;
+            var root = new Grid
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            _monthHeatmapTilesGrid = new Grid
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetRow(_monthHeatmapTilesGrid, 0);
+            root.Children.Add(_monthHeatmapTilesGrid);
+
+            var footerDock = new DockPanel
+            {
+                Margin = new Thickness(2, 4, 2, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // GitHub Legend: Less ▢ ▢ ▢ ▢ ▢ More
+            var legendStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            legendStack.Children.Add(new TextBlock
+            {
+                Text = "Less",
+                FontSize = 9.0,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 3, 0)
+            });
+
+            Color accent = p.Accent;
+            Color[] legendColors = new[]
+            {
+                p.IsLight ? Color.FromArgb(35, 0, 0, 0) : Color.FromArgb(45, 255, 255, 255),
+                Color.FromArgb(85, accent.R, accent.G, accent.B),
+                Color.FromArgb(145, accent.R, accent.G, accent.B),
+                Color.FromArgb(200, accent.R, accent.G, accent.B),
+                Color.FromArgb(255, accent.R, accent.G, accent.B)
+            };
+
+            foreach (var col in legendColors)
+            {
+                legendStack.Children.Add(new Border
+                {
+                    Width = 9,
+                    Height = 9,
+                    CornerRadius = new CornerRadius(2),
+                    Background = new SolidColorBrush(col),
+                    Margin = new Thickness(1.5, 0, 1.5, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+
+            legendStack.Children.Add(new TextBlock
+            {
+                Text = "More",
+                FontSize = 9.0,
+                Foreground = CapsuleTheme.Brush(p.Text2),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(3, 0, 0, 0)
+            });
+
+            DockPanel.SetDock(legendStack, Dock.Right);
+            footerDock.Children.Add(legendStack);
+
+            _monthDetailText = new TextBlock
+            {
+                Text = LocalizationService.T("screentime.click_inspect", "Click any square to inspect"),
+                FontSize = 10,
+                FontWeight = FontWeights.Medium,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            footerDock.Children.Add(_monthDetailText);
+
+            Grid.SetRow(footerDock, 1);
+            root.Children.Add(footerDock);
+
+            return root;
+        }
+
+        private void PopulateMonthHeatmap()
+        {
+            if (_monthHeatmapTilesGrid == null) return;
+            _monthHeatmapTilesGrid.Children.Clear();
+            _monthHeatmapTilesGrid.RowDefinitions.Clear();
+            _monthHeatmapTilesGrid.ColumnDefinitions.Clear();
+
+            var days = _service.GetRolling30Days();
+            var p = CapsuleTheme.Current;
+            Color accent = p.Accent;
+
+            const int cols = 10;
+            const int rows = 3;
+
+            for (int c = 0; c < cols; c++)
+            {
+                _monthHeatmapTilesGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            }
+            for (int r = 0; r < rows; r++)
+            {
+                _monthHeatmapTilesGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            }
+
+            _selectedMonthTileBorder = null;
+
+            for (int i = 0; i < days.Count; i++)
+            {
+                var d = days[i];
+                int colIdx = i % cols;
+                int rowIdx = i / cols;
+
+                Color tileColor;
+                if (d.TotalSeconds <= 0)
+                {
+                    tileColor = p.IsLight ? Color.FromArgb(35, 0, 0, 0) : Color.FromArgb(45, 255, 255, 255);
+                }
+                else if (d.TotalSeconds < 3600)
+                {
+                    tileColor = Color.FromArgb(90, accent.R, accent.G, accent.B);
+                }
+                else if (d.TotalSeconds < 3600 * 3)
+                {
+                    tileColor = Color.FromArgb(150, accent.R, accent.G, accent.B);
+                }
+                else if (d.TotalSeconds < 3600 * 6)
+                {
+                    tileColor = Color.FromArgb(205, accent.R, accent.G, accent.B);
+                }
+                else
+                {
+                    tileColor = Color.FromArgb(255, accent.R, accent.G, accent.B);
+                }
+
+                var tile = new Border
+                {
+                    Width = 22,
+                    Height = 22,
+                    CornerRadius = new CornerRadius(4),
+                    Background = new SolidColorBrush(tileColor),
+                    BorderBrush = d.IsToday ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Border),
+                    BorderThickness = new Thickness(d.IsToday ? 1.5 : 1),
+                    Margin = new Thickness(2.5),
+                    Cursor = Cursors.Hand,
+                    ToolTip = $"{d.Date:ddd, MMM d}: {(d.TotalSeconds > 0 ? d.DurationFormatted : LocalizationService.T("screentime.no_activity", "No activity"))}"
+                };
+
+                var dayNum = new TextBlock
+                {
+                    Text = d.Date.Day.ToString(),
+                    FontSize = 8.5,
+                    FontWeight = d.IsToday ? FontWeights.Bold : FontWeights.Normal,
+                    Foreground = d.TotalSeconds >= 3600 * 3 ? Brushes.White : CapsuleTheme.Brush(p.Text2),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Opacity = d.IsToday ? 1.0 : 0.75
+                };
+                tile.Child = dayNum;
+
+                var currentDay = d;
+                var currentTile = tile;
+
+                tile.MouseEnter += (_, _) =>
+                {
+                    if (_selectedMonthTileBorder != currentTile)
+                    {
+                        currentTile.BorderBrush = CapsuleTheme.Brush(p.Accent);
+                    }
+                };
+                tile.MouseLeave += (_, _) =>
+                {
+                    if (_selectedMonthTileBorder != currentTile)
+                    {
+                        currentTile.BorderBrush = currentDay.IsToday ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Border);
+                    }
+                };
+
+                tile.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    SelectMonthTile(currentTile, currentDay);
+                };
+
+                Grid.SetColumn(tile, colIdx);
+                Grid.SetRow(tile, rowIdx);
+                _monthHeatmapTilesGrid.Children.Add(tile);
+
+                if (d.IsToday)
+                {
+                    SelectMonthTile(tile, d);
+                }
+            }
+        }
+
+        private void SelectMonthTile(Border tile, DayBarData d)
+        {
+            var p = CapsuleTheme.Current;
+            if (_selectedMonthTileBorder != null && _selectedMonthTileBorder != tile)
+            {
+                _selectedMonthTileBorder.BorderThickness = new Thickness(1);
+                _selectedMonthTileBorder.BorderBrush = CapsuleTheme.Brush(p.Border);
+            }
+
+            _selectedMonthTileBorder = tile;
+            tile.BorderThickness = new Thickness(2);
+            tile.BorderBrush = CapsuleTheme.Brush(p.Text);
+
+            string dateStr = d.Date.ToString("ddd, MMM d");
+            string durStr = d.TotalSeconds > 0 ? d.DurationFormatted : LocalizationService.T("screentime.no_activity", "No activity");
+            _monthDetailText.Text = $"📌 {dateStr}  ·  {durStr}";
+            _monthDetailText.Foreground = CapsuleTheme.Brush(p.Text);
         }
 
         private Border BuildByAppCard()
@@ -471,10 +835,13 @@ namespace WindowsBuddy.Tools.ScreenTime
             _limitLeftText.Text = _service.LimitRemainingFormatted;
             _limitLabelText.Text = $"of {_service.LimitFormatted} ";
             _appsCountText.Text = $"{_service.AppsUsedToday}";
-            _weeklyAvgText.Text = $"avg {ScreenTimeService.FormatDuration(_service.GetWeeklyAverageSeconds())}";
+
+            int avgSec = _is30DaysMode ? _service.GetMonthlyAverageSeconds() : _service.GetWeeklyAverageSeconds();
+            _weeklyAvgText.Text = string.Format(LocalizationService.T("screentime.avg_fmt", "avg {0}"), ScreenTimeService.FormatDuration(avgSec));
 
             UpdateProgressRing(_service.LimitProgressFraction);
-            PopulateWeekChart();
+            if (_is30DaysMode) PopulateMonthHeatmap();
+            else PopulateWeekChart();
             PopulateAppList();
         }
 
@@ -539,20 +906,20 @@ namespace WindowsBuddy.Tools.ScreenTime
                 var p = CapsuleTheme.Current;
                 if (d.TotalSeconds > 0)
                 {
-                    // Duration label above bar
+                    // Duration label safely above bar without clipping into header
                     var durLabel = new TextBlock
                     {
                         Text = d.DurationFormatted,
-                        FontSize = 10.5,
+                        FontSize = 9.5,
                         FontWeight = FontWeights.SemiBold,
                         Foreground = CapsuleTheme.Brush(p.Text),
                         HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 0, 0, 4)
+                        Margin = new Thickness(0, 0, 0, 2)
                     };
                     contentStack.Children.Add(durLabel);
 
-                    // Rounded Pill Bar
-                    double barH = Math.Clamp(d.HeightFraction * 54.0 + 8.0, 10.0, 62.0);
+                    // Rounded Pill Bar safely scaled within available height
+                    double barH = Math.Clamp(d.HeightFraction * 36.0 + 8.0, 8.0, 44.0);
                     var bar = new Border
                     {
                         Width = 24,
@@ -585,11 +952,11 @@ namespace WindowsBuddy.Tools.ScreenTime
                 var dayLabel = new TextBlock
                 {
                     Text = d.DayName,
-                    FontSize = 10.5,
+                    FontSize = 9.5,
                     FontWeight = d.IsToday ? FontWeights.Bold : FontWeights.Normal,
                     Foreground = d.IsToday ? CapsuleTheme.Brush(p.Text) : CapsuleTheme.Brush(p.Text2),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 6, 0, 0)
+                    Margin = new Thickness(0, 3, 0, 0)
                 };
                 Grid.SetRow(dayLabel, 1);
                 col.Children.Add(dayLabel);

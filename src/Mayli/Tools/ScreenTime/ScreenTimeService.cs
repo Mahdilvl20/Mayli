@@ -339,6 +339,51 @@ namespace WindowsBuddy.Tools.ScreenTime
             return (int)activeDays.Average(d => d.TotalSeconds);
         }
 
+        public IReadOnlyList<DayBarData> GetRolling30Days()
+        {
+            EnsureTodayRecord();
+            var days = new List<DayBarData>();
+            DateTime today = DateTime.Today;
+            DateTime startDate = today.AddDays(-29);
+
+            int maxSeconds = 3600;
+
+            lock (_lock)
+            {
+                for (int i = 0; i < 30; i++)
+                {
+                    DateTime dt = startDate.AddDays(i);
+                    string dStr = dt.ToString("yyyy-MM-dd");
+                    var rec = _history.Days.FirstOrDefault(d => d.DateString == dStr);
+                    int sec = rec?.TotalSeconds ?? 0;
+                    if (sec > maxSeconds) maxSeconds = sec;
+
+                    days.Add(new DayBarData
+                    {
+                        Date = dt,
+                        DayName = dt.ToString("ddd"),
+                        TotalSeconds = sec,
+                        IsToday = (dt == today)
+                    });
+                }
+            }
+
+            foreach (var d in days)
+            {
+                d.HeightFraction = maxSeconds > 0 ? (double)d.TotalSeconds / maxSeconds : 0.0;
+            }
+
+            return days;
+        }
+
+        public int GetMonthlyAverageSeconds()
+        {
+            var rolling = GetRolling30Days();
+            var activeDays = rolling.Where(d => d.TotalSeconds > 0).ToList();
+            if (activeDays.Count == 0) return 0;
+            return (int)activeDays.Average(d => d.TotalSeconds);
+        }
+
         public void Refresh()
         {
             UsageUpdated?.Invoke();

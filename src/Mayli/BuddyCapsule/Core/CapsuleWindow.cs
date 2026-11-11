@@ -3725,6 +3725,17 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             NativeMethods.AddClipboardFormatListener(hwnd);
             var source = HwndSource.FromHwnd(hwnd);
             source?.AddHook(WndProc);
+
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            Closed += (_, _) =>
+            {
+                try { Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged; } catch { }
+            };
+        }
+
+        private void OnDisplaySettingsChanged(object sender, EventArgs e)
+        {
+            Dispatcher.InvokeAsync(ScheduleRecentering);
         }
 
         /// <summary>
@@ -3866,9 +3877,9 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             {
                 RealtimeNotchActionService.Instance.HandleDeviceChange((int)wParam);
             }
-            else if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DPICHANGED)
+            else if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DPICHANGED || msg == NativeMethods.WM_SETTINGCHANGE)
             {
-                PositionAtTopCenter();
+                ScheduleRecentering();
             }
             return IntPtr.Zero;
         }
@@ -3916,6 +3927,14 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             }
         }
 
+        private void ScheduleRecentering()
+        {
+            PositionAtTopCenter();
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(PositionAtTopCenter));
+            System.Threading.Tasks.Task.Delay(120).ContinueWith(_ => Dispatcher.InvokeAsync(PositionAtTopCenter));
+            System.Threading.Tasks.Task.Delay(350).ContinueWith(_ => Dispatcher.InvokeAsync(PositionAtTopCenter));
+        }
+
         private void PositionAtTopCenter()
         {
             try
@@ -3935,33 +3954,41 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
 
                 if (targetScreen != null)
                 {
-                    if (targetScreen.Primary)
-                    {
-                        double pWidth = SystemParameters.PrimaryScreenWidth;
-                        Left = (pWidth - StableEnvelopeWidth) / 2.0;
-                        Top = 0;
-                        return;
-                    }
-
                     var bounds = targetScreen.Bounds;
                     double scaleX = 1.0;
                     double scaleY = 1.0;
 
+                    // 1. Try PresentationSource TransformToDevice
                     try
                     {
-                        var pt = new NativeMethods.POINT
+                        var source = PresentationSource.FromVisual(this);
+                        if (source?.CompositionTarget != null)
                         {
-                            X = bounds.Left + bounds.Width / 2,
-                            Y = bounds.Top + bounds.Height / 2
-                        };
-                        IntPtr hMon = NativeMethods.MonitorFromPoint(pt, 2);
-                        if (hMon != IntPtr.Zero && NativeMethods.GetDpiForMonitor(hMon, 0, out uint dpiX, out uint dpiY) == 0 && dpiX > 0)
-                        {
-                            scaleX = dpiX / 96.0;
-                            scaleY = dpiY / 96.0;
+                            scaleX = source.CompositionTarget.TransformToDevice.M11;
+                            scaleY = source.CompositionTarget.TransformToDevice.M22;
                         }
                     }
                     catch { }
+
+                    // 2. Fallback to monitor DPI API
+                    if (scaleX <= 0.1)
+                    {
+                        try
+                        {
+                            var pt = new NativeMethods.POINT
+                            {
+                                X = bounds.Left + bounds.Width / 2,
+                                Y = bounds.Top + bounds.Height / 2
+                            };
+                            IntPtr hMon = NativeMethods.MonitorFromPoint(pt, 2);
+                            if (hMon != IntPtr.Zero && NativeMethods.GetDpiForMonitor(hMon, 0, out uint dpiX, out uint dpiY) == 0 && dpiX > 0)
+                            {
+                                scaleX = dpiX / 96.0;
+                                scaleY = dpiY / 96.0;
+                            }
+                        }
+                        catch { }
+                    }
 
                     if (scaleX <= 0.1) scaleX = 1.0;
                     if (scaleY <= 0.1) scaleY = 1.0;

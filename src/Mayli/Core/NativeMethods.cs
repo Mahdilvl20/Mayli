@@ -24,6 +24,7 @@ namespace WindowsBuddy.Core
         public const int WM_DEVICECHANGE = 0x0219;
         public const int WM_DPICHANGED = 0x02E0;
         public const int WM_DISPLAYCHANGE = 0x007E;
+        public const int WM_SETTINGCHANGE = 0x001A;
 
         public const int WH_KEYBOARD_LL = 13;
         public const int WM_KEYDOWN = 0x0100;
