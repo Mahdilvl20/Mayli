@@ -1,15 +1,25 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
-using System.Windows.Input;
+using System.Windows.Interop;
 using Microsoft.Web.WebView2.Core;
 
 namespace Mayli.Installer
 {
     public partial class MainWindow : Window
     {
+        [DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
+        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int HTCAPTION = 0x2;
+
         private string _targetDirectory;
 
         public MainWindow()
@@ -60,17 +70,31 @@ namespace Mayli.Installer
         private string LoadEmbeddedHtml()
         {
             var assembly = Assembly.GetExecutingAssembly();
-            using Stream stream = assembly.GetManifestResourceStream("Mayli.Installer.UI.index.html");
-            if (stream == null)
+            string resName = null;
+            foreach (var n in assembly.GetManifestResourceNames())
             {
-                // Fallback for local development
-                string devPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\UI\index.html");
-                if (File.Exists(devPath)) return File.ReadAllText(devPath);
-                throw new FileNotFoundException("Could not find embedded index.html UI resource.");
+                if (n.EndsWith("index.html", StringComparison.OrdinalIgnoreCase))
+                {
+                    resName = n;
+                    break;
+                }
             }
 
-            using StreamReader reader = new StreamReader(stream);
-            return reader.ReadToEnd();
+            if (resName != null)
+            {
+                using Stream stream = assembly.GetManifestResourceStream(resName);
+                if (stream != null)
+                {
+                    using StreamReader reader = new StreamReader(stream);
+                    return reader.ReadToEnd();
+                }
+            }
+
+            // Fallback for local development
+            string devPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\UI\index.html");
+            if (File.Exists(devPath)) return File.ReadAllText(devPath);
+
+            throw new FileNotFoundException("Could not find embedded index.html UI resource.");
         }
 
         private async void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -88,10 +112,9 @@ namespace Mayli.Installer
                     case "window:drag":
                         Dispatcher.Invoke(() =>
                         {
-                            if (Mouse.LeftButton == MouseButtonState.Pressed)
-                            {
-                                DragMove();
-                            }
+                            var helper = new WindowInteropHelper(this);
+                            ReleaseCapture();
+                            SendMessage(helper.Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
                         });
                         break;
 

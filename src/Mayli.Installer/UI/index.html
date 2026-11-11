@@ -4,111 +4,664 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mayli Setup Wizard</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-    * {
-      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    /* 100% Self-Contained Offline CSS - Zero External Dependencies */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
       user-select: none;
       -webkit-user-select: none;
     }
 
+    body {
+      background-color: #0c0d14;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
     .font-mono {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Consolas', 'Cascadia Code', monospace;
     }
 
-    /* Glass & Glow effects */
-    .glass-panel {
-      background: rgba(18, 20, 29, 0.92);
-      backdrop-filter: blur(32px);
-      -webkit-backdrop-filter: blur(32px);
+    /* Layout structure */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      background: #0f111a;
       border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7), 0 0 40px -10px rgba(124, 58, 237, 0.2);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
     }
 
-    .card-glass {
+    /* Ambient glow orbs */
+    .ambient-orb-1 {
+      position: absolute;
+      top: -120px;
+      left: -120px;
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .ambient-orb-2 {
+      position: absolute;
+      bottom: -120px;
+      right: -120px;
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Titlebar */
+    .titlebar {
+      height: 44px;
+      background: rgba(0, 0, 0, 0.35);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      cursor: move;
+      position: relative;
+      z-index: 20;
+    }
+
+    .window-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-control {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-control:hover { transform: scale(1.1); }
+    .btn-close { background: #ef4444; }
+    .btn-min { background: #f59e0b; }
+    .btn-max { background: rgba(16, 185, 129, 0.3); cursor: default; }
+
+    .titlebar-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-left: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .titlebar-badge {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      color: #c084fc;
+    }
+
+    /* Main body */
+    .body-content {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: rgba(0, 0, 0, 0.22);
+      border-right: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .brand-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(139, 92, 246, 0.25));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+
+    .brand-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    /* Stepper nav */
+    .stepper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .step-btn {
+      width: 100%;
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .step-btn:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: #f1f5f9;
+    }
+
+    .step-btn.active {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(168, 85, 247, 0.35);
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step-btn.active .step-num {
+      background: #8b5cf6;
+      color: #ffffff;
+    }
+
+    .step-text-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .step-text-sub {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .step-btn.active .step-text-sub {
+      color: #cbd5e1;
+    }
+
+    .sidebar-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      margin-right: 6px;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    /* Content Area */
+    .main-panel {
+      flex: 1;
+      padding: 32px 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-y: auto;
+    }
+
+    .step-view {
+      display: none;
+      animation: fadeIn 0.3s ease forwards;
+    }
+
+    .step-view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Floating Notch Component */
+    .notch-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .floating-notch {
+      width: 190px;
+      height: 32px;
+      background: rgba(5, 6, 10, 0.95);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 25px rgba(99, 233, 255, 0.25), 0 0 10px rgba(139, 92, 246, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      animation: notchFloat 3.5s ease-in-out infinite;
+    }
+
+    @keyframes notchFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    .notch-camera-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notch-lens {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #38bdf8;
+    }
+
+    .notch-pill {
+      width: 36px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 4px;
+    }
+
+    .notch-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    .hero-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      text-align: center;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .hero-desc {
+      font-size: 13px;
+      color: #94a3b8;
+      text-align: center;
+      max-width: 520px;
+      margin: 0 auto 24px auto;
+      line-height: 1.5;
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .feature-card {
       background: rgba(255, 255, 255, 0.035);
       border: 1px solid rgba(255, 255, 255, 0.06);
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: all 0.2s;
     }
-    .card-glass:hover {
-      background: rgba(255, 255, 255, 0.065);
-      border-color: rgba(168, 85, 247, 0.4);
+
+    .feature-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(168, 85, 247, 0.35);
       transform: translateY(-2px);
     }
-    .card-glass.selected {
-      background: rgba(147, 51, 234, 0.14);
-      border-color: rgba(168, 85, 247, 0.65);
-      box-shadow: 0 0 20px -3px rgba(168, 85, 247, 0.3);
+
+    .feature-icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
     }
 
-    /* Notch Mockup */
-    .notch-glow {
-      box-shadow: 0 0 30px 2px rgba(99, 233, 255, 0.25), 0 0 15px 1px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    .bg-icon-purple { background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.25); }
+    .bg-icon-cyan { background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6, 182, 212, 0.25); }
+    .bg-icon-emerald { background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .bg-icon-amber { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25); }
+
+    .feature-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 2px;
     }
 
-    /* Ambient background gradient orbs */
-    .orb-purple {
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(0, 0, 0, 0) 70%);
-    }
-    .orb-cyan {
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
+    .feature-text {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.4;
     }
 
-    /* Smooth step transitions */
-    .step-content {
-      display: none;
-      opacity: 0;
-      transform: scale(0.98) translateY(8px);
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .step-content.active {
+    /* Step 2 Inputs */
+    .input-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #cbd5e1;
+      margin-bottom: 6px;
       display: block;
-      opacity: 1;
-      transform: scale(1) translateY(0);
     }
 
-    /* Progress bar transition */
-    .progress-bar-fill {
-      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    .path-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
     }
 
-    @keyframes subtleFloat {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-3px); }
-    }
-    .animate-float {
-      animation: subtleFloat 3.5s ease-in-out infinite;
+    .path-box {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    /* Drag region */
-    .app-titlebar {
-      app-region: drag;
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f1f5f9;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    .app-titlebar button, .app-titlebar .no-drag {
-      app-region: no-drag;
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Toggles */
+    .toggles-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toggle-row {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .toggle-row:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(168, 85, 247, 0.3);
+    }
+
+    .toggle-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toggle-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: #8b5cf6;
+      cursor: pointer;
+    }
+
+    /* Step 3: City picker */
+    .search-box {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #ffffff;
+      outline: none;
+      transition: all 0.2s;
+      margin-bottom: 16px;
+    }
+    .search-box:focus {
+      border-color: #8b5cf6;
+      box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+    }
+
+    .city-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .city-card {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+    .city-card:hover {
+      background: rgba(255, 255, 255, 0.065);
+      border-color: rgba(168, 85, 247, 0.35);
+    }
+    .city-card.selected {
+      background: rgba(139, 92, 246, 0.14);
+      border-color: #8b5cf6;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
+    }
+
+    .live-preview-card {
+      background: linear-gradient(90deg, rgba(88, 28, 135, 0.25), rgba(8, 145, 178, 0.25));
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Step 4: Summary & Progress */
+    .summary-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+      margin: 16px 0;
+    }
+
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+    }
+    .summary-val {
+      color: #f1f5f9;
+      font-weight: 500;
+    }
+
+    .progress-section {
+      margin-top: 16px;
+      display: none;
+    }
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #1e293b;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+      transition: width 0.3s ease;
+    }
+
+    /* Actions footer */
+    .actions-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 20px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #7c3aed, #4f46e5);
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 10px 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(124, 58, 237, 0.35);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(90deg, #8b5cf6, #6366f1);
+      box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 8px 14px;
+      border-radius: 8px;
+      transition: color 0.2s;
+    }
+    .btn-ghost:hover {
+      color: #e2e8f0;
     }
   </style>
 </head>
-<body class="bg-transparent text-slate-100 h-screen w-screen flex items-center justify-center p-3 select-none overflow-hidden relative selection:bg-purple-500/30">
+<body>
 
-  <!-- Ambient Light Orbs -->
-  <div class="absolute -top-32 -left-32 w-96 h-96 orb-purple pointer-events-none rounded-full blur-3xl"></div>
-  <div class="absolute -bottom-32 -right-32 w-96 h-96 orb-cyan pointer-events-none rounded-full blur-3xl"></div>
+  <div class="app-container">
+    <div class="ambient-orb-1"></div>
+    <div class="ambient-orb-2"></div>
 
-  <!-- Main Setup Window Container -->
-  <div class="w-full h-full rounded-2xl glass-panel flex flex-col overflow-hidden relative z-10 border border-white/10 shadow-2xl">
-    
-    <!-- Window Titlebar (Draggable) -->
-    <div id="titlebar" onmousedown="handleTitlebarMouseDown(event)" class="h-11 px-5 flex items-center justify-between border-b border-white/5 bg-black/30 cursor-move">
-      <div class="flex items-center gap-2.5">
-        <button onclick="closeApp()" title="Close" class="w-3 h-3 rounded-full bg-rose-500/80 hover:bg-rose-500 cursor-pointer transition-colors shadow-sm shadow-rose-500/40 no-drag focus:outline-none"></button>
-        <button onclick="minimizeApp()" title="Minimize" class="w-3 h-3 rounded-full bg-amber-500/80 hover:bg-amber-500 cursor-pointer transition-colors shadow-sm shadow-amber-500/40 no-drag focus:outline-none"></button>
-        <div class="w-3 h-3 rounded-full bg-emerald-500/30 cursor-default"></div>
-        <span class="text-xs font-semibold text-slate-400 ml-3 flex items-center gap-2 font-mono pointer-events-none">
+    <!-- Titlebar (Draggable) -->
+    <div class="titlebar" onmousedown="onTitlebarMouseDown(event)">
+      <div class="window-controls">
+        <button class="btn-control btn-close" onclick="closeApp()" title="Close"></button>
+        <button class="btn-control btn-min" onclick="minimizeApp()" title="Minimize"></button>
+        <div class="btn-control btn-max"></div>
+        <span class="titlebar-title font-mono">
           <!-- Official Mayli SVG Mini Mark -->
-          <svg class="w-4 h-4" viewBox="0 0 128 128" fill="none">
+          <svg style="width: 16px; height: 16px;" viewBox="0 0 128 128" fill="none">
             <defs>
               <radialGradient id="miniOrbGrad" cx="35%" cy="25%" r="75%">
                 <stop offset="0%" stop-color="#B9F7FF"/>
@@ -126,407 +679,330 @@
           Mayli Setup & Onboarding v1.1.65
         </span>
       </div>
-      <div class="flex items-center gap-3 pointer-events-none">
-        <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono">
-          Windows 11 x64
-        </span>
+      <div>
+        <span class="titlebar-badge font-mono">Windows 11 x64</span>
       </div>
     </div>
 
-    <!-- Body Layout: Stepper Sidebar + Content Panel -->
-    <div class="flex-1 flex overflow-hidden">
+    <!-- Body -->
+    <div class="body-content">
       
-      <!-- Left: Stepper Navigation Sidebar -->
-      <div class="w-64 border-r border-white/5 bg-black/20 p-6 flex flex-col justify-between">
+      <!-- Stepper Sidebar -->
+      <div class="sidebar">
         <div>
-          <!-- Mayli Brand Logo with Official SVG Mascot -->
-          <div class="flex items-center gap-3 mb-8">
-            <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500/30 via-purple-600/30 to-indigo-600/30 p-[1px] shadow-lg shadow-cyan-500/20">
-              <div class="w-full h-full bg-slate-900/90 rounded-[15px] flex items-center justify-center p-1">
-                <!-- Official Mayli SVG Icon -->
-                <svg viewBox="0 0 128 128" class="w-8 h-8">
-                  <defs>
-                    <radialGradient id="sidebarOrbGrad" cx="35%" cy="25%" r="75%">
-                      <stop offset="0%" stop-color="#B9F7FF"/>
-                      <stop offset="35%" stop-color="#54D8E8"/>
-                      <stop offset="70%" stop-color="#6475E8"/>
-                      <stop offset="100%" stop-color="#30245F"/>
-                    </radialGradient>
-                    <radialGradient id="sidebarOrbGlow">
-                      <stop offset="0%" stop-color="#63E9FF" stop-opacity=".45"/>
-                      <stop offset="100%" stop-color="#63E9FF" stop-opacity="0"/>
-                    </radialGradient>
-                    <linearGradient id="sidebarEyeGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#17263D"/>
-                      <stop offset="100%" stop-color="#080D1B"/>
-                    </linearGradient>
-                    <filter id="sidebarGlowFilter" x="-60%" y="-60%" width="220%" height="220%">
-                      <feGaussianBlur stdDeviation="8"/>
-                    </filter>
-                  </defs>
-                  <circle cx="64" cy="64" r="55" fill="url(#sidebarOrbGlow)" filter="url(#sidebarGlowFilter)"/>
-                  <circle cx="64" cy="64" r="48" fill="url(#sidebarOrbGrad)"/>
-                  <ellipse cx="45" cy="34" rx="23" ry="12" fill="#FFFFFF" opacity=".22" transform="rotate(-30 45 34)"/>
-                  <g>
-                    <ellipse cx="46" cy="61" rx="8" ry="12" fill="url(#sidebarEyeGrad)"/>
-                    <circle cx="43" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
-                    <ellipse cx="82" cy="61" rx="8" ry="12" fill="url(#sidebarEyeGrad)"/>
-                    <circle cx="79" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
-                  </g>
-                </svg>
-              </div>
+          <!-- Brand Logo -->
+          <div class="brand-header">
+            <div class="brand-icon-box">
+              <svg viewBox="0 0 128 128" style="width: 32px; height: 32px;">
+                <defs>
+                  <radialGradient id="sideOrbGrad" cx="35%" cy="25%" r="75%">
+                    <stop offset="0%" stop-color="#B9F7FF"/>
+                    <stop offset="35%" stop-color="#54D8E8"/>
+                    <stop offset="70%" stop-color="#6475E8"/>
+                    <stop offset="100%" stop-color="#30245F"/>
+                  </radialGradient>
+                  <radialGradient id="sideOrbGlow">
+                    <stop offset="0%" stop-color="#63E9FF" stop-opacity=".4"/>
+                    <stop offset="100%" stop-color="#63E9FF" stop-opacity="0"/>
+                  </radialGradient>
+                  <linearGradient id="sideEyeGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#17263D"/>
+                    <stop offset="100%" stop-color="#080D1B"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="64" cy="64" r="52" fill="url(#sideOrbGlow)"/>
+                <circle cx="64" cy="64" r="48" fill="url(#sideOrbGrad)"/>
+                <ellipse cx="45" cy="34" rx="23" ry="12" fill="#FFFFFF" opacity=".22" transform="rotate(-30 45 34)"/>
+                <ellipse cx="46" cy="61" rx="8" ry="12" fill="url(#sideEyeGrad)"/>
+                <circle cx="43" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
+                <ellipse cx="82" cy="61" rx="8" ry="12" fill="url(#sideEyeGrad)"/>
+                <circle cx="79" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
+              </svg>
             </div>
             <div>
-              <h1 class="text-base font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Mayli Notch</h1>
-              <p class="text-[11px] text-slate-400">The Dynamic Notch for PC</p>
+              <div class="brand-name">Mayli Notch</div>
+              <div class="brand-subtitle">The Dynamic Notch for PC</div>
             </div>
           </div>
 
           <!-- Stepper Navigation Items -->
-          <nav class="space-y-2">
-            <!-- Step 1 -->
-            <button onclick="goToStep(1)" id="step-nav-1" class="w-full text-left p-3 rounded-xl flex items-center gap-3.5 transition-all bg-white/[0.08] text-white border border-purple-500/30 shadow-sm">
-              <span class="w-6 h-6 rounded-lg bg-purple-600 text-white text-xs font-bold flex items-center justify-center font-mono">1</span>
-              <div class="text-left">
-                <div class="text-xs font-semibold">Welcome</div>
-                <div class="text-[10px] text-slate-400">Core capabilities & features</div>
+          <div class="stepper">
+            <button class="step-btn active" id="step-nav-1" onclick="goToStep(1)">
+              <div class="step-num font-mono">1</div>
+              <div>
+                <div class="step-text-title">Welcome</div>
+                <div class="step-text-sub">Core capabilities</div>
               </div>
             </button>
 
-            <!-- Step 2 -->
-            <button onclick="goToStep(2)" id="step-nav-2" class="w-full text-left p-3 rounded-xl flex items-center gap-3.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]">
-              <span class="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center font-mono">2</span>
-              <div class="text-left">
-                <div class="text-xs font-semibold">Destination & Access</div>
-                <div class="text-[10px] text-slate-500">Install directory & shortcuts</div>
+            <button class="step-btn" id="step-nav-2" onclick="goToStep(2)">
+              <div class="step-num font-mono">2</div>
+              <div>
+                <div class="step-text-title">Destination & Access</div>
+                <div class="step-text-sub">Folder & shortcuts</div>
               </div>
             </button>
 
-            <!-- Step 3 -->
-            <button onclick="goToStep(3)" id="step-nav-3" class="w-full text-left p-3 rounded-xl flex items-center gap-3.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]">
-              <span class="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center font-mono">3</span>
-              <div class="text-left">
-                <div class="text-xs font-semibold">Weather & City</div>
-                <div class="text-[10px] text-slate-500">Live forecast & location</div>
+            <button class="step-btn" id="step-nav-3" onclick="goToStep(3)">
+              <div class="step-num font-mono">3</div>
+              <div>
+                <div class="step-text-title">Weather & City</div>
+                <div class="step-text-sub">Location & forecast</div>
               </div>
             </button>
 
-            <!-- Step 4 -->
-            <button onclick="goToStep(4)" id="step-nav-4" class="w-full text-left p-3 rounded-xl flex items-center gap-3.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]">
-              <span class="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center font-mono">4</span>
-              <div class="text-left">
-                <div class="text-xs font-semibold">Ready to Install</div>
-                <div class="text-[10px] text-slate-500">Summary & deployment</div>
+            <button class="step-btn" id="step-nav-4" onclick="goToStep(4)">
+              <div class="step-num font-mono">4</div>
+              <div>
+                <div class="step-text-title">Ready to Install</div>
+                <div class="step-text-sub">Summary & launch</div>
               </div>
             </button>
-          </nav>
+          </div>
         </div>
 
-        <!-- Footer status in sidebar -->
-        <div class="pt-4 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-500">
-          <span class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Ready to deploy
-          </span>
+        <div class="sidebar-footer">
+          <span><span class="status-dot"></span>Ready to deploy</span>
           <span class="font-mono">100% Safe</span>
         </div>
       </div>
 
-      <!-- Right: Main Content Panel -->
-      <div class="flex-1 p-8 flex flex-col justify-between overflow-y-auto relative">
+      <!-- Main Content Views -->
+      <div class="main-panel">
         
         <!-- STEP 1: Welcome -->
-        <div id="step-1" class="step-content active space-y-6">
-          <div class="text-center max-w-md mx-auto pt-2">
-            
-            <!-- Clean Minimalist Floating Mayli Notch -->
-            <div class="mb-5 inline-flex items-center justify-center p-3 rounded-2xl bg-black/40 border border-white/10 shadow-inner">
-              <div class="w-48 h-8 bg-black/90 rounded-full flex items-center justify-between px-3 text-xs border border-white/20 notch-glow animate-float">
-                <div class="flex items-center gap-1.5">
-                  <div class="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center">
-                    <div class="w-1 h-1 rounded-full bg-cyan-400/80"></div>
-                  </div>
-                  <div class="w-1.5 h-1.5 rounded-full bg-slate-800"></div>
-                </div>
-
-                <div class="w-10 h-1 bg-white/20 rounded-full"></div>
-
-                <div class="flex items-center gap-1">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                </div>
+        <div id="step-view-1" class="step-view active">
+          <!-- Minimalist Floating Notch Mockup -->
+          <div class="notch-container">
+            <div class="floating-notch">
+              <div class="notch-camera-dot">
+                <div class="notch-lens"></div>
               </div>
+              <div class="notch-pill"></div>
+              <div class="notch-indicator"></div>
             </div>
-
-            <h2 class="text-2xl font-extrabold text-white tracking-tight mb-2">Elevate your Windows Experience</h2>
-            <p class="text-xs leading-relaxed text-slate-400">
-              An intelligent, interactive dynamic notch for Windows 11 with live media controls, hyper-local weather, instant clipboard history, and low-latency focus timers.
-            </p>
           </div>
+
+          <h2 class="hero-title">Elevate your Windows Experience</h2>
+          <p class="hero-desc">
+            An intelligent, interactive dynamic notch for Windows 11 with live media controls, hyper-local weather, instant clipboard history, and low-latency focus timers.
+          </p>
 
           <!-- Feature Cards Grid -->
-          <div class="grid grid-cols-2 gap-3 pt-2">
-            <div class="card-glass p-3.5 rounded-xl flex items-start gap-3">
-              <div class="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-lg">
-                🎵
-              </div>
+          <div class="cards-grid">
+            <div class="feature-card">
+              <div class="feature-icon-box bg-icon-purple">🎵</div>
               <div>
-                <h4 class="text-xs font-semibold text-white">Live Media Controller</h4>
-                <p class="text-[11px] text-slate-400 leading-4 mt-0.5">Control Spotify & browser audio with reactive edge light glow</p>
+                <div class="feature-title">Live Media Controller</div>
+                <div class="feature-text">Control Spotify & browser audio with reactive edge light glow</div>
               </div>
             </div>
 
-            <div class="card-glass p-3.5 rounded-xl flex items-start gap-3">
-              <div class="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-lg">
-                🌦️
-              </div>
+            <div class="feature-card">
+              <div class="feature-icon-box bg-icon-cyan">🌦️</div>
               <div>
-                <h4 class="text-xs font-semibold text-white">Hyper-Local Weather</h4>
-                <p class="text-[11px] text-slate-400 leading-4 mt-0.5">Live temperature and condition updates for your exact city</p>
+                <div class="feature-title">Hyper-Local Weather</div>
+                <div class="feature-text">Live temperature and condition updates for your exact city</div>
               </div>
             </div>
 
-            <div class="card-glass p-3.5 rounded-xl flex items-start gap-3">
-              <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
-                📋
-              </div>
+            <div class="feature-card">
+              <div class="feature-icon-box bg-icon-emerald">📋</div>
               <div>
-                <h4 class="text-xs font-semibold text-white">Zero-Bloat Clipboard</h4>
-                <p class="text-[11px] text-slate-400 leading-4 mt-0.5">High-speed clipboard storage with on-demand thumbnail caching</p>
+                <div class="feature-title">Zero-Bloat Clipboard</div>
+                <div class="feature-text">High-speed clipboard storage with on-demand thumbnail caching</div>
               </div>
             </div>
 
-            <div class="card-glass p-3.5 rounded-xl flex items-start gap-3">
-              <div class="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-lg">
-                ⏱️
-              </div>
+            <div class="feature-card">
+              <div class="feature-icon-box bg-icon-amber">⏱️</div>
               <div>
-                <h4 class="text-xs font-semibold text-white">Productivity & Pomodoro</h4>
-                <p class="text-[11px] text-slate-400 leading-4 mt-0.5">Stay in the zone with smart focus timers and screen-time tracking</p>
+                <div class="feature-title">Productivity & Pomodoro</div>
+                <div class="feature-text">Stay in the zone with smart focus timers and screen-time tracking</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- STEP 2: Path & Shortcuts -->
-        <div id="step-2" class="step-content space-y-6">
-          <div>
-            <h2 class="text-xl font-bold text-white mb-1">Destination & Access Options</h2>
-            <p class="text-xs text-slate-400">Choose your preferred installation directory and quick access shortcuts.</p>
-          </div>
+        <!-- STEP 2: Destination & Shortcuts -->
+        <div id="step-view-2" class="step-view">
+          <h2 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px;">Destination & Access Options</h2>
+          <p style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;">Choose your installation folder and desktop access preferences.</p>
 
-          <!-- Installation Path Picker -->
-          <div class="space-y-2">
-            <label class="text-xs font-medium text-slate-300">Installation Folder:</label>
-            <div class="flex items-center gap-2">
-              <div class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-slate-300 font-mono flex items-center justify-between">
-                <span id="install-path-text">C:\Program Files\Mayli</span>
-                <span class="text-[10px] text-slate-500 font-sans">Requires ~65 MB</span>
-              </div>
-              <button onclick="requestFolderBrowse()" class="px-4 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl text-xs font-medium transition-all text-slate-200">
-                Browse...
-              </button>
+          <label class="input-label">Installation Folder:</label>
+          <div class="path-row">
+            <div class="path-box font-mono">
+              <span id="txt-install-path">C:\Program Files\Mayli</span>
+              <span style="font-size: 11px; color: #64748b; font-family: sans-serif;">Requires ~65 MB</span>
             </div>
+            <button class="btn-secondary" onclick="browseFolder()">Browse...</button>
           </div>
 
-          <!-- Shortcut Toggles -->
-          <div class="space-y-3 pt-2">
-            <!-- Toggle 1: Desktop Shortcut -->
-            <label class="card-glass p-3.5 rounded-xl flex items-center justify-between cursor-pointer">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-base">
-                  🖥️
-                </div>
+          <div class="toggles-list">
+            <div class="toggle-row" onclick="toggleInput('chk-shortcut')">
+              <div class="toggle-content">
+                <span style="font-size: 20px;">🖥️</span>
                 <div>
-                  <div class="text-xs font-semibold text-white">Create Desktop Shortcut</div>
-                  <div class="text-[11px] text-slate-400">Add a quick-launch icon on your Windows desktop</div>
+                  <div style="font-size: 13px; font-weight: 600; color: #fff;">Create Desktop Shortcut</div>
+                  <div style="font-size: 11px; color: #94a3b8;">Place a quick-launch icon on your Windows desktop</div>
                 </div>
               </div>
-              <input type="checkbox" id="shortcut-toggle" checked class="w-4 h-4 accent-purple-600 rounded cursor-pointer">
-            </label>
+              <input type="checkbox" id="chk-shortcut" checked class="toggle-checkbox" onclick="event.stopPropagation()">
+            </div>
 
-            <!-- Toggle 2: Auto Start -->
-            <label class="card-glass p-3.5 rounded-xl flex items-center justify-between cursor-pointer">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-base">
-                  ⚡
-                </div>
+            <div class="toggle-row" onclick="toggleInput('chk-startup')">
+              <div class="toggle-content">
+                <span style="font-size: 20px;">⚡</span>
                 <div>
-                  <div class="text-xs font-semibold text-white">Launch on Windows Startup</div>
-                  <div class="text-[11px] text-slate-400">Keep the notch instantly ready when your PC turns on</div>
+                  <div style="font-size: 13px; font-weight: 600; color: #fff;">Launch on Windows Startup</div>
+                  <div style="font-size: 11px; color: #94a3b8;">Keep the notch ready the moment your PC boots up</div>
                 </div>
               </div>
-              <input type="checkbox" id="startup-toggle" checked class="w-4 h-4 accent-purple-600 rounded cursor-pointer">
-            </label>
+              <input type="checkbox" id="chk-startup" checked class="toggle-checkbox" onclick="event.stopPropagation()">
+            </div>
 
-            <!-- Toggle 3: Mica Glass Effect -->
-            <label class="card-glass p-3.5 rounded-xl flex items-center justify-between cursor-pointer">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-400 flex items-center justify-center text-base">
-                  ✨
-                </div>
+            <div class="toggle-row" onclick="toggleInput('chk-mica')">
+              <div class="toggle-content">
+                <span style="font-size: 20px;">✨</span>
                 <div>
-                  <div class="text-xs font-semibold text-white">Enable Windows 11 Mica Glass Blur</div>
-                  <div class="text-[11px] text-slate-400">Hardware-accelerated translucent frosted glass backdrop</div>
+                  <div style="font-size: 13px; font-weight: 600; color: #fff;">Enable Windows 11 Mica Glass Blur</div>
+                  <div style="font-size: 11px; color: #94a3b8;">Hardware-accelerated translucent frosted glass backdrop</div>
                 </div>
               </div>
-              <input type="checkbox" id="acrylic-toggle" checked class="w-4 h-4 accent-purple-600 rounded cursor-pointer">
-            </label>
+              <input type="checkbox" id="chk-mica" checked class="toggle-checkbox" onclick="event.stopPropagation()">
+            </div>
           </div>
         </div>
 
-        <!-- STEP 3: Weather & City Selection -->
-        <div id="step-3" class="step-content space-y-5">
-          <div>
-            <h2 class="text-xl font-bold text-white mb-1">Select Weather City</h2>
-            <p class="text-xs text-slate-400">Mayli will display real-time weather and temperature for your location.</p>
-          </div>
+        <!-- STEP 3: Weather City -->
+        <div id="step-view-3" class="step-view">
+          <h2 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px;">Select Weather City</h2>
+          <p style="font-size: 12px; color: #94a3b8; margin-bottom: 16px;">Mayli will display real-time weather and temperature for your location.</p>
 
-          <!-- City Search Input -->
-          <div class="relative">
-            <span class="absolute left-3.5 top-3 text-slate-400 text-sm">🔍</span>
-            <input type="text" id="city-input" value="London" oninput="updateLiveCity(this.value)" placeholder="Enter your city name (e.g. London, New York, Tokyo, Tehran...)"
-                   class="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/60 focus:ring-2 focus:ring-purple-500/20 transition-all font-sans">
-          </div>
+          <input type="text" id="input-city-search" class="search-box" value="London" placeholder="Type city name (e.g. London, New York, Tokyo, Tehran...)" oninput="onCityTyped(this.value)">
 
-          <!-- Quick Select Popular International Cities -->
-          <div>
-            <div class="text-[11px] font-medium text-slate-400 mb-2">Featured Cities (Click to pick):</div>
-            <div class="grid grid-cols-3 gap-2">
-              <button onclick="selectCity('London', '15°C', '🌧️', 'Light Rain')" class="card-glass p-2.5 rounded-xl text-left flex items-center justify-between selected city-btn" data-city="London">
-                <div>
-                  <div class="text-xs font-semibold text-white">London</div>
-                  <div class="text-[10px] text-slate-400">United Kingdom</div>
-                </div>
-                <div class="text-base">🌧️ <span class="text-xs font-mono">15°</span></div>
-              </button>
-
-              <button onclick="selectCity('New York', '18°C', '🌤️', 'Partly Cloudy')" class="card-glass p-2.5 rounded-xl text-left flex items-center justify-between city-btn" data-city="New York">
-                <div>
-                  <div class="text-xs font-semibold text-white">New York</div>
-                  <div class="text-[10px] text-slate-400">United States</div>
-                </div>
-                <div class="text-base">🌤️ <span class="text-xs font-mono">18°</span></div>
-              </button>
-
-              <button onclick="selectCity('Tokyo', '21°C', '☀️', 'Clear Sky')" class="card-glass p-2.5 rounded-xl text-left flex items-center justify-between city-btn" data-city="Tokyo">
-                <div>
-                  <div class="text-xs font-semibold text-white">Tokyo</div>
-                  <div class="text-[10px] text-slate-400">Japan</div>
-                </div>
-                <div class="text-base">☀️ <span class="text-xs font-mono">21°</span></div>
-              </button>
-
-              <button onclick="selectCity('Paris', '16°C', '⛅', 'Scattered Clouds')" class="card-glass p-2.5 rounded-xl text-left flex items-center justify-between city-btn" data-city="Paris">
-                <div>
-                  <div class="text-xs font-semibold text-white">Paris</div>
-                  <div class="text-[10px] text-slate-400">France</div>
-                </div>
-                <div class="text-base">⛅ <span class="text-xs font-mono">16°</span></div>
-              </button>
-
-              <button onclick="selectCity('Dubai', '32°C', '☀️', 'Sunny & Warm')" class="card-glass p-2.5 rounded-xl text-left flex items-center justify-between city-btn" data-city="Dubai">
-                <div>
-                  <div class="text-xs font-semibold text-white">Dubai</div>
-                  <div class="text-[10px] text-slate-400">UAE</div>
-                </div>
-                <div class="text-base">☀️ <span class="text-xs font-mono">32°</span></div>
-              </button>
-
-              <button onclick="selectCity('Tehran', '22°C', '☀️', 'Sunny')" class="card-glass p-2.5 rounded-xl text-left flex items-center justify-between city-btn" data-city="Tehran">
-                <div>
-                  <div class="text-xs font-semibold text-white">Tehran</div>
-                  <div class="text-[10px] text-slate-400">Iran</div>
-                </div>
-                <div class="text-base">☀️ <span class="text-xs font-mono">22°</span></div>
-              </button>
-            </div>
-          </div>
-
-          <!-- Live Preview Widget Card -->
-          <div class="p-4 rounded-xl bg-gradient-to-r from-purple-900/20 via-indigo-900/20 to-cyan-900/20 border border-purple-500/20 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span id="preview-weather-icon" class="text-3xl">🌧️</span>
+          <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">Featured Cities (Click to pick):</div>
+          <div class="city-grid">
+            <div class="city-card selected" data-city="London" onclick="pickCity('London', '15°C', '🌧️', 'Light Rain')">
               <div>
-                <div class="text-xs text-purple-300 font-medium">Live Notch Preview:</div>
-                <div class="text-sm font-bold text-white flex items-center gap-2">
-                  <span id="preview-city-name">London</span>
-                  <span id="preview-city-temp" class="text-cyan-300 font-mono">15°C</span>
-                  <span id="preview-city-cond" class="text-xs text-slate-400 font-normal">(Light Rain)</span>
+                <div style="font-size: 12px; font-weight: 600; color: #fff;">London</div>
+                <div style="font-size: 10px; color: #94a3b8;">United Kingdom</div>
+              </div>
+              <div style="font-size: 13px;">🌧️ <span class="font-mono">15°</span></div>
+            </div>
+
+            <div class="city-card" data-city="New York" onclick="pickCity('New York', '18°C', '🌤️', 'Partly Cloudy')">
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: #fff;">New York</div>
+                <div style="font-size: 10px; color: #94a3b8;">United States</div>
+              </div>
+              <div style="font-size: 13px;">🌤️ <span class="font-mono">18°</span></div>
+            </div>
+
+            <div class="city-card" data-city="Tokyo" onclick="pickCity('Tokyo', '21°C', '☀️', 'Clear Sky')">
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: #fff;">Tokyo</div>
+                <div style="font-size: 10px; color: #94a3b8;">Japan</div>
+              </div>
+              <div style="font-size: 13px;">☀️ <span class="font-mono">21°</span></div>
+            </div>
+
+            <div class="city-card" data-city="Paris" onclick="pickCity('Paris', '16°C', '⛅', 'Scattered Clouds')">
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: #fff;">Paris</div>
+                <div style="font-size: 10px; color: #94a3b8;">France</div>
+              </div>
+              <div style="font-size: 13px;">⛅ <span class="font-mono">16°</span></div>
+            </div>
+
+            <div class="city-card" data-city="Dubai" onclick="pickCity('Dubai', '32°C', '☀️', 'Sunny & Warm')">
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: #fff;">Dubai</div>
+                <div style="font-size: 10px; color: #94a3b8;">UAE</div>
+              </div>
+              <div style="font-size: 13px;">☀️ <span class="font-mono">32°</span></div>
+            </div>
+
+            <div class="city-card" data-city="Tehran" onclick="pickCity('Tehran', '22°C', '☀️', 'Sunny')">
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: #fff;">Tehran</div>
+                <div style="font-size: 10px; color: #94a3b8;">Iran</div>
+              </div>
+              <div style="font-size: 13px;">☀️ <span class="font-mono">22°</span></div>
+            </div>
+          </div>
+
+          <div class="live-preview-card">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span id="prev-weather-icon" style="font-size: 28px;">🌧️</span>
+              <div>
+                <div style="font-size: 11px; color: #c084fc; font-weight: 500;">Live Notch Preview:</div>
+                <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; gap: 8px; align-items: center;">
+                  <span id="prev-city-name">London</span>
+                  <span id="prev-city-temp" class="font-mono" style="color: #67e8f9;">15°C</span>
+                  <span id="prev-city-cond" style="font-size: 12px; color: #94a3b8; font-weight: normal;">(Light Rain)</span>
                 </div>
               </div>
             </div>
-            <span class="text-[11px] px-2.5 py-1 rounded-full bg-white/10 text-slate-300 border border-white/10">
-              Auto-syncs every 30m
-            </span>
+            <span style="font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.08); color: #cbd5e1;">Auto-syncs 30m</span>
           </div>
         </div>
 
-        <!-- STEP 4: Ready & Progress -->
-        <div id="step-4" class="step-content space-y-6">
-          <div class="text-center max-w-md mx-auto pt-2">
-            <!-- Official Mayli Mascot Centerpiece -->
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-400/30 via-purple-600/30 to-indigo-600/30 p-[1px] mx-auto mb-3 shadow-xl shadow-cyan-500/20">
-              <div class="w-full h-full bg-slate-900/90 rounded-[15px] flex items-center justify-center p-2">
-                <svg viewBox="0 0 128 128" class="w-11 h-11">
-                  <circle cx="64" cy="64" r="55" fill="url(#sidebarOrbGlow)" filter="url(#sidebarGlowFilter)"/>
-                  <circle cx="64" cy="64" r="48" fill="url(#sidebarOrbGrad)"/>
-                  <ellipse cx="45" cy="34" rx="23" ry="12" fill="#FFFFFF" opacity=".22" transform="rotate(-30 45 34)"/>
-                  <g>
-                    <ellipse cx="46" cy="61" rx="8" ry="12" fill="url(#sidebarEyeGrad)"/>
-                    <circle cx="43" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
-                    <ellipse cx="82" cy="61" rx="8" ry="12" fill="url(#sidebarEyeGrad)"/>
-                    <circle cx="79" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
-                  </g>
-                </svg>
-              </div>
+        <!-- STEP 4: Ready & Install -->
+        <div id="step-view-4" class="step-view">
+          <div style="text-align: center; margin-bottom: 14px;">
+            <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, rgba(6,182,212,0.3), rgba(139,92,246,0.3)); border: 1px solid rgba(255,255,255,0.15); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 8px; padding: 6px;">
+              <svg viewBox="0 0 128 128" style="width: 40px; height: 40px;">
+                <circle cx="64" cy="64" r="52" fill="url(#sideOrbGlow)"/>
+                <circle cx="64" cy="64" r="48" fill="url(#sideOrbGrad)"/>
+                <ellipse cx="45" cy="34" rx="23" ry="12" fill="#FFFFFF" opacity=".22" transform="rotate(-30 45 34)"/>
+                <ellipse cx="46" cy="61" rx="8" ry="12" fill="url(#sideEyeGrad)"/>
+                <circle cx="43" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
+                <ellipse cx="82" cy="61" rx="8" ry="12" fill="url(#sideEyeGrad)"/>
+                <circle cx="79" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
+              </svg>
             </div>
-            <h2 class="text-2xl font-bold text-white mb-2">Ready to Install Mayli</h2>
-            <p class="text-xs text-slate-400 leading-relaxed">
-              Review your configuration below. Click "Install Now" to unpack files, create desktop shortcuts, and initialize your weather preferences.
-            </p>
+            <h2 style="font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 4px;">Ready to Install Mayli</h2>
+            <p style="font-size: 12px; color: #94a3b8;">Review your setup settings below and click "Install Mayli" to proceed.</p>
           </div>
 
-          <!-- Summary Box -->
-          <div class="bg-black/30 border border-white/10 rounded-xl p-4 space-y-2.5 text-xs">
-            <div class="flex justify-between text-slate-300">
-              <span class="text-slate-500">Destination Directory:</span>
-              <span id="summary-path" class="font-mono text-purple-300">C:\Program Files\Mayli</span>
+          <div class="summary-card">
+            <div class="summary-item">
+              <span>Destination Directory:</span>
+              <span id="sum-path" class="summary-val font-mono" style="color: #c084fc;">C:\Program Files\Mayli</span>
             </div>
-            <div class="flex justify-between text-slate-300">
-              <span class="text-slate-500">Weather Location:</span>
-              <span id="summary-city" class="text-cyan-300 font-semibold">London (15°C)</span>
+            <div class="summary-item">
+              <span>Weather Location:</span>
+              <span id="sum-city" class="summary-val" style="color: #67e8f9;">London (15°C)</span>
             </div>
-            <div class="flex justify-between text-slate-300">
-              <span class="text-slate-500">Desktop & Startup Access:</span>
-              <span id="summary-shortcuts" class="text-emerald-400">Desktop Shortcut ✓ • Auto-Startup ✓</span>
+            <div class="summary-item">
+              <span>Access & Shortcuts:</span>
+              <span id="sum-access" class="summary-val" style="color: #34d399;">Desktop Shortcut ✓ • Auto-Startup ✓</span>
             </div>
           </div>
 
-          <!-- Progress Bar -->
-          <div id="install-progress-section" class="hidden space-y-2">
-            <div class="flex justify-between text-[11px] text-slate-400">
-              <span id="install-status-text">Preparing installation...</span>
-              <span id="install-percent-text" class="font-mono text-purple-400">0%</span>
+          <div id="progress-box" class="progress-section">
+            <div class="progress-info">
+              <span id="txt-progress-status">Extracting application files...</span>
+              <span id="txt-progress-pct" class="font-mono" style="color: #c084fc;">0%</span>
             </div>
-            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-              <div id="install-progress-fill" class="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-400 w-0 progress-bar-fill"></div>
+            <div class="progress-track">
+              <div id="bar-progress-fill" class="progress-fill"></div>
             </div>
           </div>
         </div>
 
-        <!-- Bottom Action Buttons Bar -->
-        <div class="pt-6 border-t border-white/5 flex items-center justify-between">
-          <button id="prev-btn" onclick="prevStep()" class="px-5 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-xs font-medium text-slate-400 hover:text-white transition-all opacity-0 pointer-events-none">
+        <!-- Footer Actions Bar -->
+        <div class="actions-bar">
+          <button id="btn-back" class="btn-ghost" onclick="prevStep()" style="visibility: hidden;">
             ← Back
           </button>
 
-          <div class="flex items-center gap-2">
-            <button onclick="closeApp()" class="px-4 py-2.5 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-300 transition-all">
-              Cancel
-            </button>
-            <button id="next-btn" onclick="nextStep()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 transition-all flex items-center gap-2">
-              <span>Continue</span>
-              <span>→</span>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn-ghost" onclick="closeApp()">Cancel</button>
+            <button id="btn-next" class="btn-primary" onclick="nextStep()">
+              <span id="btn-next-label">Continue</span>
+              <span id="btn-next-arrow">→</span>
             </button>
           </div>
         </div>
@@ -544,8 +1020,7 @@
     let selectedIcon = '🌧️';
     let selectedCond = 'Light Rain';
 
-    // Window Drag support for WebView2
-    function handleTitlebarMouseDown(e) {
+    function onTitlebarMouseDown(e) {
       if (e.target.closest('button') || e.target.closest('.no-drag')) return;
       if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage({ type: 'window:drag' });
@@ -566,90 +1041,32 @@
       }
     }
 
-    function requestFolderBrowse() {
+    function browseFolder() {
       if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage({ 
           type: 'folder:browse', 
-          current: document.getElementById('install-path-text').textContent 
+          current: document.getElementById('txt-install-path').textContent 
         });
       } else {
-        const p = prompt('Enter installation directory:', document.getElementById('install-path-text').textContent);
-        if (p) document.getElementById('install-path-text').textContent = p;
+        const p = prompt('Enter installation directory:', document.getElementById('txt-install-path').textContent);
+        if (p) document.getElementById('txt-install-path').textContent = p;
       }
     }
 
-    // Listen for C# messages
-    if (window.chrome && window.chrome.webview) {
-      window.chrome.webview.addEventListener('message', (event) => {
-        const msg = event.data;
-        if (!msg) return;
-
-        if (msg.type === 'folder:selected') {
-          if (msg.path) document.getElementById('install-path-text').textContent = msg.path;
-        } else if (msg.type === 'install:progress') {
-          updateProgressUI(msg.percent, msg.status);
-        } else if (msg.type === 'install:done') {
-          onInstallCompleted();
-        } else if (msg.type === 'install:error') {
-          alert('Installation Error: ' + msg.error);
-          document.getElementById('install-status-text').textContent = 'Error: ' + msg.error;
-        } else if (msg.type === 'init:path') {
-          if (msg.path) document.getElementById('install-path-text').textContent = msg.path;
-        }
-      });
+    function toggleInput(id) {
+      const el = document.getElementById(id);
+      if (el) el.checked = !el.checked;
     }
 
-    function updateStepUI() {
-      for (let i = 1; i <= 4; i++) {
-        const el = document.getElementById(`step-${i}`);
-        const nav = document.getElementById(`step-nav-${i}`);
-        if (el) el.classList.remove('active');
-        if (nav) {
-          nav.className = 'w-full text-left p-3 rounded-xl flex items-center gap-3.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]';
-          nav.querySelector('span').className = 'w-6 h-6 rounded-lg bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center font-mono';
-        }
-      }
-
-      const activeEl = document.getElementById(`step-${currentStep}`);
-      const activeNav = document.getElementById(`step-nav-${currentStep}`);
-      if (activeEl) activeEl.classList.add('active');
-      if (activeNav) {
-        activeNav.className = 'w-full text-left p-3 rounded-xl flex items-center gap-3.5 transition-all bg-white/[0.08] text-white border border-purple-500/30 shadow-sm';
-        activeNav.querySelector('span').className = 'w-6 h-6 rounded-lg bg-purple-600 text-white text-xs font-bold flex items-center justify-center font-mono';
-      }
-
-      const prevBtn = document.getElementById('prev-btn');
-      if (currentStep > 1) {
-        prevBtn.classList.remove('opacity-0', 'pointer-events-none');
-      } else {
-        prevBtn.classList.add('opacity-0', 'pointer-events-none');
-      }
-
-      const nextBtn = document.getElementById('next-btn');
-      if (currentStep === 4) {
-        nextBtn.innerHTML = `<span>Install Mayli 🚀</span>`;
-      } else {
-        nextBtn.innerHTML = `<span>Continue</span> <span>→</span>`;
-      }
-
-      if (currentStep === 4) {
-        document.getElementById('summary-path').textContent = document.getElementById('install-path-text').textContent;
-        document.getElementById('summary-city').textContent = `${selectedCity} (${selectedTemp})`;
-        const sc = document.getElementById('shortcut-toggle').checked;
-        const st = document.getElementById('startup-toggle').checked;
-        document.getElementById('summary-shortcuts').textContent = `${sc ? 'Desktop Shortcut ✓' : ''} ${st ? ' • Auto-Startup ✓' : ''}`;
-      }
-    }
-
-    function goToStep(step) {
-      currentStep = step;
-      updateStepUI();
+    function goToStep(s) {
+      currentStep = s;
+      updateUI();
     }
 
     function nextStep() {
       if (currentStep < 4) {
         currentStep++;
-        updateStepUI();
+        updateUI();
       } else {
         startInstall();
       }
@@ -658,100 +1075,157 @@
     function prevStep() {
       if (currentStep > 1) {
         currentStep--;
-        updateStepUI();
+        updateUI();
       }
     }
 
-    function selectCity(city, temp, icon, cond) {
-      selectedCity = city;
+    function pickCity(name, temp, icon, cond) {
+      selectedCity = name;
       selectedTemp = temp;
       selectedIcon = icon;
       selectedCond = cond;
 
-      document.getElementById('city-input').value = city;
-      document.getElementById('preview-city-name').textContent = city;
-      document.getElementById('preview-city-temp').textContent = temp;
-      document.getElementById('preview-weather-icon').textContent = icon;
-      document.getElementById('preview-city-cond').textContent = `(${cond})`;
+      document.getElementById('input-city-search').value = name;
+      document.getElementById('prev-city-name').textContent = name;
+      document.getElementById('prev-city-temp').textContent = temp;
+      document.getElementById('prev-weather-icon').textContent = icon;
+      document.getElementById('prev-city-cond').textContent = `(${cond})`;
 
-      document.querySelectorAll('.city-btn').forEach(b => {
-        b.classList.remove('selected');
-        if (b.dataset.city === city) b.classList.add('selected');
+      document.querySelectorAll('.city-card').forEach(c => {
+        c.classList.remove('selected');
+        if (c.dataset.city === name) c.classList.add('selected');
       });
     }
 
-    function updateLiveCity(val) {
+    function onCityTyped(val) {
       selectedCity = val || 'London';
-      document.getElementById('preview-city-name').textContent = selectedCity;
+      document.getElementById('prev-city-name').textContent = selectedCity;
     }
 
-    function startInstall() {
-      const nextBtn = document.getElementById('next-btn');
-      const prevBtn = document.getElementById('prev-btn');
-      const progressSection = document.getElementById('install-progress-section');
+    function updateUI() {
+      // Step views
+      for (let i = 1; i <= 4; i++) {
+        const v = document.getElementById(`step-view-${i}`);
+        const n = document.getElementById(`step-nav-${i}`);
+        if (v) v.classList.remove('active');
+        if (n) n.classList.remove('active');
+      }
 
-      nextBtn.disabled = true;
-      nextBtn.classList.add('opacity-50', 'pointer-events-none');
-      prevBtn.classList.add('opacity-0', 'pointer-events-none');
-      progressSection.classList.remove('hidden');
+      const activeView = document.getElementById(`step-view-${currentStep}`);
+      const activeNav = document.getElementById(`step-nav-${currentStep}`);
+      if (activeView) activeView.classList.add('active');
+      if (activeNav) activeNav.classList.add('active');
 
-      const installData = {
-        path: document.getElementById('install-path-text').textContent,
-        city: selectedCity,
-        createShortcut: document.getElementById('shortcut-toggle').checked,
-        autoStartup: document.getElementById('startup-toggle').checked,
-        enableMica: document.getElementById('acrylic-toggle').checked
-      };
+      // Back button
+      const backBtn = document.getElementById('btn-back');
+      backBtn.style.visibility = (currentStep > 1) ? 'visible' : 'hidden';
 
-      if (window.chrome && window.chrome.webview) {
-        // Send real command to C#
-        window.chrome.webview.postMessage({
-          type: 'install:start',
-          data: installData
-        });
+      // Next button
+      const nextBtnLabel = document.getElementById('btn-next-label');
+      const nextBtnArrow = document.getElementById('btn-next-arrow');
+      if (currentStep === 4) {
+        nextBtnLabel.textContent = 'Install Mayli 🚀';
+        nextBtnArrow.textContent = '';
       } else {
-        // Fallback simulation in plain browser
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 5;
-          if (progress > 100) progress = 100;
-          updateProgressUI(progress, `Simulating install (${progress}%)...`);
-          if (progress >= 100) {
-            clearInterval(interval);
-            onInstallCompleted();
-          }
-        }, 80);
+        nextBtnLabel.textContent = 'Continue';
+        nextBtnArrow.textContent = '→';
+      }
+
+      // Populate summary on step 4
+      if (currentStep === 4) {
+        document.getElementById('sum-path').textContent = document.getElementById('txt-install-path').textContent;
+        document.getElementById('sum-city').textContent = `${selectedCity} (${selectedTemp})`;
+        const sc = document.getElementById('chk-shortcut').checked;
+        const st = document.getElementById('chk-startup').checked;
+        document.getElementById('sum-access').textContent = `${sc ? 'Desktop Shortcut ✓' : ''} ${st ? ' • Auto-Startup ✓' : ''}`;
       }
     }
 
-    function updateProgressUI(percent, status) {
-      const progressFill = document.getElementById('install-progress-fill');
-      const percentText = document.getElementById('install-percent-text');
-      const statusText = document.getElementById('install-status-text');
+    function startInstall() {
+      const nextBtn = document.getElementById('btn-next');
+      const backBtn = document.getElementById('btn-back');
+      const progressBox = document.getElementById('progress-box');
 
-      progressFill.style.width = percent + '%';
-      percentText.textContent = percent + '%';
-      if (status) statusText.textContent = status;
+      nextBtn.disabled = true;
+      backBtn.style.visibility = 'hidden';
+      progressBox.style.display = 'block';
+
+      const installPayload = {
+        path: document.getElementById('txt-install-path').textContent,
+        city: selectedCity,
+        createShortcut: document.getElementById('chk-shortcut').checked,
+        autoStartup: document.getElementById('chk-startup').checked,
+        enableMica: document.getElementById('chk-mica').checked
+      };
+
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage({
+          type: 'install:start',
+          data: installPayload
+        });
+      } else {
+        // Fallback simulation in browser
+        let p = 0;
+        const it = setInterval(() => {
+          p += 5;
+          if (p > 100) p = 100;
+          setProgressBar(p, `Installing Mayli components (${p}%)...`);
+          if (p >= 100) {
+            clearInterval(it);
+            onInstallationDone();
+          }
+        }, 60);
+      }
     }
 
-    function onInstallCompleted() {
-      const nextBtn = document.getElementById('next-btn');
-      const statusText = document.getElementById('install-status-text');
-      statusText.textContent = 'Installation successfully completed! 🎉';
+    function setProgressBar(pct, text) {
+      document.getElementById('bar-progress-fill').style.width = pct + '%';
+      document.getElementById('txt-progress-pct').textContent = pct + '%';
+      if (text) document.getElementById('txt-progress-status').textContent = text;
+    }
+
+    function onInstallationDone() {
+      const nextBtn = document.getElementById('btn-next');
+      const statusText = document.getElementById('txt-progress-status');
+      statusText.textContent = 'Installation complete! 🎉';
       nextBtn.disabled = false;
-      nextBtn.classList.remove('opacity-50', 'pointer-events-none');
-      nextBtn.innerHTML = `<span>Launch Mayli Now ✨</span>`;
+      document.getElementById('btn-next-label').textContent = 'Launch Mayli Now ✨';
+      document.getElementById('btn-next-arrow').textContent = '';
       nextBtn.onclick = () => {
         if (window.chrome && window.chrome.webview) {
           window.chrome.webview.postMessage({ 
             type: 'app:launch', 
-            path: document.getElementById('install-path-text').textContent 
+            path: document.getElementById('txt-install-path').textContent 
           });
         } else {
           alert('Mayli Launched!');
         }
       };
     }
+
+    // Bridge messages from C#
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.addEventListener('message', (ev) => {
+        const msg = ev.data;
+        if (!msg) return;
+
+        if (msg.type === 'init:path') {
+          if (msg.path) document.getElementById('txt-install-path').textContent = msg.path;
+        } else if (msg.type === 'folder:selected') {
+          if (msg.path) document.getElementById('txt-install-path').textContent = msg.path;
+        } else if (msg.type === 'install:progress') {
+          setProgressBar(msg.percent, msg.status);
+        } else if (msg.type === 'install:done') {
+          onInstallationDone();
+        } else if (msg.type === 'install:error') {
+          alert('Error: ' + msg.error);
+          document.getElementById('txt-progress-status').textContent = 'Error: ' + msg.error;
+        }
+      });
+    }
+
+    // Initialize UI on load
+    updateUI();
   </script>
 </body>
 </html>

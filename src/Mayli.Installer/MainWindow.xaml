@@ -3,14 +3,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Mayli Setup"
-        Height="640" Width="920"
+        Height="620" Width="880"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
         ResizeMode="NoResize"
+        Background="#0c0d14"
         ShowInTaskbar="True">
-    <Border Background="Transparent" CornerRadius="16">
-        <wv2:WebView2 x:Name="InstallerWebView" DefaultBackgroundColor="Transparent"/>
-    </Border>
+    <WindowChrome.WindowChrome>
+        <WindowChrome GlassFrameThickness="0" CornerRadius="12" CaptionHeight="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+    <Grid Background="#0c0d14">
+        <wv2:WebView2 x:Name="InstallerWebView" DefaultBackgroundColor="#0c0d14"/>
+    </Grid>
 </Window>
