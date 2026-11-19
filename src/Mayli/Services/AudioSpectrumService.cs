@@ -33,6 +33,9 @@ namespace WindowsBuddy.Services
         private readonly float[] _smooth = new float[Bands];
         private readonly float[] _levels = new float[Bands];
         private float _peakDb = -32f;
+        private float _reactiveBass;
+        private float _reactiveMid;
+        private float _reactiveOverall;
         private bool _live;
         private volatile bool _running;
         private volatile bool _isActive;
@@ -110,6 +113,28 @@ namespace WindowsBuddy.Services
                 int len = Math.Min(into28.Length, Bands);
                 Array.Copy(_levels, 0, into28, 0, len);
                 isLive = _live;
+            }
+        }
+
+        /// <summary>
+        /// Reads low-latency bass, mid, and overall normalized energy (0..1) from the live spectrum bands.
+        /// </summary>
+        public void ReadReactiveEnergy(out float bass, out float mid, out float overall, out bool isLive)
+        {
+            lock (_lock)
+            {
+                isLive = _live;
+                if (!_live)
+                {
+                    bass = 0f;
+                    mid = 0f;
+                    overall = 0f;
+                    return;
+                }
+
+                bass = _reactiveBass;
+                mid = _reactiveMid;
+                overall = _reactiveOverall;
             }
         }
 
@@ -314,6 +339,12 @@ namespace WindowsBuddy.Services
                                     _smooth[b] *= 0.82f;
                                     _levels[b] = _smooth[b] < 0.01f ? 0f : _smooth[b];
                                 }
+                                _reactiveBass *= 0.78f;
+                                _reactiveMid *= 0.78f;
+                                _reactiveOverall *= 0.78f;
+                                if (_reactiveBass < 0.01f) _reactiveBass = 0f;
+                                if (_reactiveMid < 0.01f) _reactiveMid = 0f;
+                                if (_reactiveOverall < 0.01f) _reactiveOverall = 0f;
                                 _live = stillLive;
                             }
                         }
@@ -363,6 +394,12 @@ namespace WindowsBuddy.Services
                         _smooth[b] *= 0.72f;
                         _levels[b] = _smooth[b] < 0.005f ? 0f : _smooth[b];
                     }
+                    _reactiveBass *= 0.70f;
+                    _reactiveMid *= 0.70f;
+                    _reactiveOverall *= 0.70f;
+                    if (_reactiveBass < 0.005f) _reactiveBass = 0f;
+                    if (_reactiveMid < 0.005f) _reactiveMid = 0f;
+                    if (_reactiveOverall < 0.005f) _reactiveOverall = 0f;
                     _live = false;
                 }
                 return;
@@ -401,6 +438,26 @@ namespace WindowsBuddy.Services
                 _peakDb = Math.Max(-40f, _peakDb * 0.992f + maxBandDb * 0.008f);
 
             float floorDb = _peakDb - 42f;
+            float reactiveFloorDb = _peakDb - 26f;
+            float rawBassSum = 0f;
+            float rawBassPeak = 0f;
+            for (int b = 1; b <= 7 && b < Bands; b++)
+            {
+                float rn = Math.Clamp((_target[b] - reactiveFloorDb) / 26f, 0f, 1f);
+                rawBassSum += rn;
+                if (rn > rawBassPeak) rawBassPeak = rn;
+            }
+            float bassLinear = (rawBassSum / 7f) * 0.35f + rawBassPeak * 0.65f;
+            float targetBass = Math.Clamp(MathF.Pow(bassLinear, 0.72f) * 1.45f, 0f, 1f);
+
+            float rawMidSum = 0f;
+            for (int b = 8; b <= 17 && b < Bands; b++)
+            {
+                rawMidSum += Math.Clamp((_target[b] - reactiveFloorDb) / 26f, 0f, 1f);
+            }
+            float midLinear = rawMidSum / 10f;
+            float targetMid = Math.Clamp(MathF.Pow(midLinear, 0.75f) * 1.40f, 0f, 1f);
+
             lock (_lock)
             {
                 for (int b = 0; b < Bands; b++)
@@ -412,6 +469,12 @@ namespace WindowsBuddy.Services
                     _smooth[b] += (norm - _smooth[b]) * rate;
                     _levels[b] = _smooth[b];
                 }
+
+                float bassRate = targetBass > _reactiveBass ? 0.72f : 0.28f;
+                float midRate = targetMid > _reactiveMid ? 0.62f : 0.24f;
+                _reactiveBass += (targetBass - _reactiveBass) * bassRate;
+                _reactiveMid += (targetMid - _reactiveMid) * midRate;
+                _reactiveOverall = Math.Clamp(_reactiveBass * 0.70f + _reactiveMid * 0.30f, 0f, 1f);
                 _live = (DateTime.UtcNow - lastActiveSoundUtc).TotalMilliseconds < 350;
             }
         }

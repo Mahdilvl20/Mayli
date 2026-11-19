@@ -1,0 +1,333 @@
+{
+    "Timestamp":  "2026-11-15T18:08:29.5889841Z",
+    "OSVersion":  "Microsoft Windows NT 10.0.26300.0",
+    "Architecture":  "AMD64",
+    "TotalTests":  32,
+    "Passed":  32,
+    "Failed":  0,
+    "Skipped":  0,
+    "PassRatePercent":  100,
+    "DurationMs":  1752.51,
+    "TierSummary":  {
+                        "Tier 4":  {
+                                       "Total":  4,
+                                       "Skipped":  0,
+                                       "Failed":  0,
+                                       "Passed":  4
+                                   },
+                        "Tier 3":  {
+                                       "Total":  4,
+                                       "Skipped":  0,
+                                       "Failed":  0,
+                                       "Passed":  4
+                                   },
+                        "Tier 1":  {
+                                       "Total":  18,
+                                       "Skipped":  0,
+                                       "Failed":  0,
+                                       "Passed":  18
+                                   },
+                        "Tier 5":  {
+                                       "Total":  1,
+                                       "Skipped":  0,
+                                       "Failed":  0,
+                                       "Passed":  1
+                                   },
+                        "Tier 2":  {
+                                       "Total":  5,
+                                       "Skipped":  0,
+                                       "Failed":  0,
+                                       "Passed":  5
+                                   }
+                    },
+    "Results":  [
+                    {
+                        "TestId":  "TC-T1-001",
+                        "Description":  "Subtree change notification on webcam subkey creation",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  117,
+                        "Timestamp":  "2026-11-15T18:08:28.1309751Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-002",
+                        "Description":  "Subtree change notification on microphone subkey creation",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  40,
+                        "Timestamp":  "2026-11-15T18:08:28.1778671Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-003",
+                        "Description":  "Active state detection via LastUsedTimeStart and LastUsedTimeStop=0",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  94,
+                        "Timestamp":  "2026-11-15T18:08:28.2734690Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-004",
+                        "Description":  "Inactive state detection via LastUsedTimeStop timestamp",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  56,
+                        "Timestamp":  "2026-11-15T18:08:28.3315456Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-006",
+                        "Description":  "Registry path unescaping with \u0027#\u0027 delimiter",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  7,
+                        "Timestamp":  "2026-11-15T18:08:28.3398929Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-007",
+                        "Description":  "FileVersionInfo FileDescription extraction for Win32 executable",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  4,
+                        "Timestamp":  "2026-11-15T18:08:28.3456552Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-011",
+                        "Description":  "Standard UWP package family name resolution format",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  2,
+                        "Timestamp":  "2026-11-15T18:08:28.3487577Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-016",
+                        "Description":  "Web browser window title heuristics (Meet, Teams, Discord refinement)",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  5,
+                        "Timestamp":  "2026-11-15T18:08:28.3555849Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-057",
+                        "Description":  "Indicator color specification conformance (Orange #FF9500, Green #30D158, Muted #FF453A)",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  14,
+                        "Timestamp":  "2026-11-15T18:08:28.3704065Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-062",
+                        "Description":  "Dual-dot pill container dimensions and corner radius (32x16, r=8)",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  4,
+                        "Timestamp":  "2026-11-15T18:08:28.3766750Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-081",
+                        "Description":  "Pass-through hit-test right shoulder bounds and card containment",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  69,
+                        "Timestamp":  "2026-11-15T18:08:28.4465530Z"
+                    },
+                    {
+                        "TestId":  "TC-T2-001",
+                        "Description":  "Empty and malformed application path resolution resilience",
+                        "Tier":  "Tier 2",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  3,
+                        "Timestamp":  "2026-11-15T18:08:28.4507496Z"
+                    },
+                    {
+                        "TestId":  "TC-T2-004",
+                        "Description":  "Rapid on/off access oscillation (\u003c 50ms pulse) state integrity",
+                        "Tier":  "Tier 2",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  125,
+                        "Timestamp":  "2026-11-15T18:08:28.5769364Z"
+                    },
+                    {
+                        "TestId":  "TC-T2-010",
+                        "Description":  "Extended path length (\u003e 150 chars) handling without exception",
+                        "Tier":  "Tier 2",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  0,
+                        "Timestamp":  "2026-11-15T18:08:28.5778739Z"
+                    },
+                    {
+                        "TestId":  "TC-T3-001",
+                        "Description":  "Simultaneous Camera + Microphone active capture combination",
+                        "Tier":  "Tier 3",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  105,
+                        "Timestamp":  "2026-11-15T18:08:28.6844424Z"
+                    },
+                    {
+                        "TestId":  "TC-T3-008",
+                        "Description":  "Multiple concurrent applications on microphone with staggered release",
+                        "Tier":  "Tier 3",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  101,
+                        "Timestamp":  "2026-11-15T18:08:28.7880655Z"
+                    },
+                    {
+                        "TestId":  "TC-T4-001",
+                        "Description":  "Simulated Discord voice call lifecycle (Acquire -\u003e Active -\u003e Release -\u003e Auto-clear)",
+                        "Tier":  "Tier 4",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  60,
+                        "Timestamp":  "2026-11-15T18:08:28.8490517Z"
+                    },
+                    {
+                        "TestId":  "TC-T4-002",
+                        "Description":  "Simulated Zoom conference lifecycle (Dual start -\u003e Dual release)",
+                        "Tier":  "Tier 4",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  144,
+                        "Timestamp":  "2026-11-15T18:08:28.9948866Z"
+                    },
+                    {
+                        "TestId":  "TC-T4-004",
+                        "Description":  "Simulated Telegram voice note rapid capture lifecycle",
+                        "Tier":  "Tier 4",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  194,
+                        "Timestamp":  "2026-11-15T18:08:29.1908589Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-031",
+                        "Description":  "WASAPI Capture endpoint query with priority fallback (eCommunications -\u003e eConsole)",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  6,
+                        "Timestamp":  "2026-11-15T18:08:29.4746881Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-036",
+                        "Description":  "System microphone mute toggle and WASAPI reflection",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  11,
+                        "Timestamp":  "2026-11-15T18:08:29.4873066Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-040",
+                        "Description":  "Idempotent SetMicrophoneMute call handling",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  10,
+                        "Timestamp":  "2026-11-15T18:08:29.4984993Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-042",
+                        "Description":  "Hardware \u0026 OS bi-directional mute sync with self-event suppression",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  7,
+                        "Timestamp":  "2026-11-15T18:08:29.5070835Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-051",
+                        "Description":  "ICoreAudioService mock abstraction and zero-hardware execution",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  7,
+                        "Timestamp":  "2026-11-15T18:08:29.5157067Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-066",
+                        "Description":  "Microphone muted visual reflection (Diagonal slash geometry \u0026 warning color shift)",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  6,
+                        "Timestamp":  "2026-11-15T18:08:29.5233413Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-076",
+                        "Description":  "Single-click mute event routing with e.Handled=true and edge burst",
+                        "Tier":  "Tier 1",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  0,
+                        "Timestamp":  "2026-11-15T18:08:29.5243902Z"
+                    },
+                    {
+                        "TestId":  "TC-T2-005",
+                        "Description":  "Zero capture hardware graceful handling (ELEMENT_NOT_FOUND fallback)",
+                        "Tier":  "Tier 2",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  1,
+                        "Timestamp":  "2026-11-15T18:08:29.5264731Z"
+                    },
+                    {
+                        "TestId":  "TC-T2-007",
+                        "Description":  "Rapid double/triple click consistency and debounce",
+                        "Tier":  "Tier 2",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  3,
+                        "Timestamp":  "2026-11-15T18:08:29.5300531Z"
+                    },
+                    {
+                        "TestId":  "TC-T3-002",
+                        "Description":  "Mute toggle while dual-dot indicator is active (Cam unaffected, Mic slashed)",
+                        "Tier":  "Tier 3",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  0,
+                        "Timestamp":  "2026-11-15T18:08:29.5310561Z"
+                    },
+                    {
+                        "TestId":  "TC-T3-003",
+                        "Description":  "Application release during muted state preserves system mute preference",
+                        "Tier":  "Tier 3",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  0,
+                        "Timestamp":  "2026-11-15T18:08:29.5320607Z"
+                    },
+                    {
+                        "TestId":  "TC-T4-001",
+                        "Description":  "Simulated Discord voice call mute/unmute sequence",
+                        "Tier":  "Tier 4",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  0,
+                        "Timestamp":  "2026-11-15T18:08:29.5330599Z"
+                    },
+                    {
+                        "TestId":  "TC-T1-096",
+                        "Description":  "Adversarial rapid mute toggle storm (50 iterations) consistency",
+                        "Tier":  "Tier 5",
+                        "Status":  "PASS",
+                        "Message":  "",
+                        "DurationMs":  2,
+                        "Timestamp":  "2026-11-15T18:08:29.5365682Z"
+                    }
+                ]
+}

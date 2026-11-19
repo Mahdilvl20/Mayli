@@ -77,6 +77,7 @@ namespace WindowsBuddy.Services
         public string EdgeLightPattern { get; set; } = "Twin comets"; // "Comet", "Twin comets", "Breathe"
         public string EdgeLightColor { get; set; } = "#FFFFFF";
         public bool EdgeLightSyncWithMusic { get; set; } = false;
+        public bool EdgeLightAudioReactive { get; set; } = true;
         public int EdgeLightIntensity { get; set; } = 80; // 0 - 100
         public string EdgeLightSpeed { get; set; } = "Normal"; // "Slow", "Normal", "Fast"
         public string EdgeLightTrigger { get; set; } = "Always"; // "Always", "On events & hover"
@@ -539,6 +540,12 @@ namespace WindowsBuddy.Services
             set { Raw.EdgeLightSyncWithMusic = value; Save(); }
         }
 
+        public bool EdgeLightAudioReactive
+        {
+            get => Raw.EdgeLightAudioReactive;
+            set { Raw.EdgeLightAudioReactive = value; Save(); }
+        }
+
         public int EdgeLightIntensity
         {
             get => Raw.EdgeLightIntensity;
@@ -644,6 +651,7 @@ namespace WindowsBuddy.Services
             Raw.EdgeLightPattern = "Twin comets";
             Raw.EdgeLightColor = "#FFFFFF";
             Raw.EdgeLightSyncWithMusic = false;
+            Raw.EdgeLightAudioReactive = true;
             Raw.EdgeLightIntensity = 80;
             Raw.EdgeLightSpeed = "Normal";
             Raw.EdgeLightTrigger = "Always";

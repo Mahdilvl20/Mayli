@@ -5,10 +5,21 @@ using System.Threading.Tasks;
 
 namespace WindowsBuddy.Services
 {
-    public sealed class CoreAudioService
+    public sealed class CoreAudioService : ICoreAudioService
     {
         private static readonly Lazy<CoreAudioService> _lazy = new(() => new CoreAudioService());
-        public static CoreAudioService Instance => _lazy.Value;
+        private static ICoreAudioService _instanceOverride;
+
+        public static ICoreAudioService Instance
+        {
+            get => _instanceOverride ?? _lazy.Value;
+            set => _instanceOverride = value;
+        }
+
+        public static CoreAudioService RealInstance => _lazy.Value;
+
+        public static void SetInstanceForTesting(ICoreAudioService mock) => _instanceOverride = mock;
+        public static void ResetInstance() => _instanceOverride = null;
 
         private static readonly Guid _selfEventContext = new("A48B73E1-9F42-4C8B-B114-92A76E123456");
 
@@ -21,12 +32,29 @@ namespace WindowsBuddy.Services
         private bool _isMuted;
         private int _volumePercent = 100;
 
+        // Microphone state
+        private IAudioEndpointVolume _micEndpointVolume;
+        private IAudioEndpointVolumeCallback _micVolumeCallback;
+        private string _micDeviceName = "Microphone";
+        private bool _isMicMuted;
+        private bool _isMicAvailable;
+        private int _micVolumePercent = 100;
+
         public event Action VolumeChanged;
         public event Action<int, bool, bool> VolumeNotification;
+        public event Action<bool> MicrophoneMuteChanged;
+        public event Action<int, bool, bool> MicrophoneVolumeNotification;
 
+        // Playback properties
         public string CurrentDeviceName => _deviceName;
         public int VolumePercent => _volumePercent;
         public bool IsMuted => _isMuted;
+
+        // Microphone properties
+        public bool IsMicrophoneAvailable => _isMicAvailable;
+        public string MicrophoneDeviceName => _micDeviceName;
+        public bool IsMicrophoneMuted => _isMicMuted;
+        public int MicrophoneVolumePercent => _micVolumePercent;
 
         private CoreAudioService()
         {
@@ -50,7 +78,23 @@ namespace WindowsBuddy.Services
                         catch { }
                     }
 
-                    BindDefaultEndpointLocked();
+                    try
+                    {
+                        BindDefaultEndpointLocked();
+                    }
+                    catch (Exception ex)
+                    {
+                        WindowsBuddy.Core.LogWriter.WriteNow("audio", $"BindDefaultEndpointLocked EXCEPTION: {ex}");
+                    }
+
+                    try
+                    {
+                        BindDefaultMicrophoneEndpointLocked();
+                    }
+                    catch (Exception ex)
+                    {
+                        WindowsBuddy.Core.LogWriter.WriteNow("audio", $"BindDefaultMicrophoneEndpointLocked EXCEPTION: {ex}");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -58,6 +102,10 @@ namespace WindowsBuddy.Services
                     _deviceName = "Realtek(R) Audio";
                     _volumePercent = 100;
                     _isMuted = false;
+                    _micDeviceName = "Microphone";
+                    _isMicAvailable = false;
+                    _isMicMuted = false;
+                    _micVolumePercent = 100;
                 }
             }
         }
@@ -166,6 +214,132 @@ namespace WindowsBuddy.Services
             }
         }
 
+        private void BindDefaultMicrophoneEndpointLocked()
+        {
+            UnregisterMicrophoneCallbackLocked();
+
+            if (_enumerator == null)
+            {
+                _isMicAvailable = false;
+                _micDeviceName = "No Microphone";
+                return;
+            }
+
+            IMMDevice micDevice = null;
+            // Priority 1: eCommunications (role 2) for capture (flow 1)
+            int hr = _enumerator.GetDefaultAudioEndpoint(1, 2, out micDevice);
+            if (hr != 0 || micDevice == null)
+            {
+                // Priority 2: eConsole (role 0) for capture (flow 1)
+                hr = _enumerator.GetDefaultAudioEndpoint(1, 0, out micDevice);
+            }
+            if (hr != 0 || micDevice == null)
+            {
+                // Priority 3: eMultimedia (role 1) for capture (flow 1)
+                hr = _enumerator.GetDefaultAudioEndpoint(1, 1, out micDevice);
+            }
+
+            WindowsBuddy.Core.LogWriter.WriteNow("audio", $"GetDefaultAudioEndpoint (Capture) hr=0x{hr:X8}, device null={micDevice == null}");
+
+            if (hr != 0 || micDevice == null)
+            {
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", $"No default capture device found: hr=0x{hr:X8}");
+                _isMicAvailable = false;
+                _micDeviceName = "No Microphone";
+                return;
+            }
+
+            _isMicAvailable = true;
+
+            // Retrieve Friendly Name from Property Store
+            try
+            {
+                if (micDevice.OpenPropertyStore(0, out var store) == 0 && store != null)
+                {
+                    var pkey = new PROPERTYKEY
+                    {
+                        fmtid = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"),
+                        pid = 14
+                    };
+                    if (store.GetValue(ref pkey, out var pv) == 0 && pv.pwszVal != IntPtr.Zero)
+                    {
+                        _micDeviceName = Marshal.PtrToStringUni(pv.pwszVal);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Mic PropStore error: {ex}");
+            }
+
+            // Activate IAudioEndpointVolume
+            var volumeGuid = typeof(IAudioEndpointVolume).GUID;
+            int actHr = micDevice.Activate(ref volumeGuid, 23, IntPtr.Zero, out var ep);
+            WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Activate (Capture) hr=0x{actHr:X8}, ep type={(ep != null ? ep.GetType().FullName : "null")}");
+
+            if (actHr == 0 && ep is IAudioEndpointVolume vol)
+            {
+                _micEndpointVolume = vol;
+                _micVolumeCallback ??= new MicrophoneVolumeCallback(this);
+                try
+                {
+                    int regHr = _micEndpointVolume.RegisterControlChangeNotify(_micVolumeCallback);
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Mic RegisterControlChangeNotify hr=0x{regHr:X8}");
+                }
+                catch (Exception ex)
+                {
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Mic RegisterControlChangeNotify EXCEPTION: {ex}");
+                }
+
+                RefreshMicrophoneStateLocked();
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", $"Successfully initialized mic endpoint. CurrentVol={_micVolumePercent}%, Muted={_isMicMuted}, Dev='{_micDeviceName}'");
+            }
+            else
+            {
+                _micEndpointVolume = null;
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", "Capture ep is NOT IAudioEndpointVolume!");
+            }
+        }
+
+        private void UnregisterMicrophoneCallbackLocked()
+        {
+            if (_micEndpointVolume != null && _micVolumeCallback != null)
+            {
+                try { _micEndpointVolume.UnregisterControlChangeNotify(_micVolumeCallback); }
+                catch { }
+            }
+            _micEndpointVolume = null;
+        }
+
+        private void RefreshMicrophoneStateLocked()
+        {
+            if (_micEndpointVolume == null) return;
+            try
+            {
+                if (_micEndpointVolume.GetMasterVolumeLevelScalar(out float level) == 0)
+                {
+                    _micVolumePercent = (int)Math.Clamp(Math.Round(level * 100.0), 0, 100);
+                }
+                if (_micEndpointVolume.GetMute(out bool mute) == 0)
+                {
+                    _isMicMuted = mute;
+                }
+            }
+            catch { }
+        }
+
+        public void RefreshMicrophoneState()
+        {
+            lock (_syncLock)
+            {
+                if (_micEndpointVolume == null && _enumerator != null)
+                {
+                    BindDefaultMicrophoneEndpointLocked();
+                }
+                RefreshMicrophoneStateLocked();
+            }
+        }
+
         public void SetVolumePercent(int percent)
         {
             percent = Math.Clamp(percent, 0, 100);
@@ -240,6 +414,82 @@ namespace WindowsBuddy.Services
             VolumeNotification?.Invoke(_volumePercent, _isMuted, false);
         }
 
+        public void ToggleMicrophoneMute()
+        {
+            SetMicrophoneMute(!_isMicMuted);
+        }
+
+        public void SetMicrophoneMute(bool mute)
+        {
+            IAudioEndpointVolume ep;
+            lock (_syncLock)
+            {
+                if (_micEndpointVolume == null && _enumerator != null)
+                {
+                    BindDefaultMicrophoneEndpointLocked();
+                }
+                ep = _micEndpointVolume;
+            }
+
+            _isMicMuted = mute;
+
+            if (ep != null)
+            {
+                try
+                {
+                    var ctx = _selfEventContext;
+                    int hr = ep.SetMute(mute, ref ctx);
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SetMicrophoneMute({mute}) hr=0x{hr:X8}");
+                }
+                catch (Exception ex)
+                {
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SetMicrophoneMute EXCEPTION: {ex}");
+                }
+            }
+
+            MicrophoneMuteChanged?.Invoke(_isMicMuted);
+            MicrophoneVolumeNotification?.Invoke(_micVolumePercent, _isMicMuted, false);
+        }
+
+        public void SetMicrophoneVolumePercent(int percent)
+        {
+            percent = Math.Clamp(percent, 0, 100);
+            _micVolumePercent = percent;
+
+            IAudioEndpointVolume ep;
+            lock (_syncLock)
+            {
+                if (_micEndpointVolume == null && _enumerator != null)
+                {
+                    BindDefaultMicrophoneEndpointLocked();
+                }
+                ep = _micEndpointVolume;
+            }
+
+            if (ep != null)
+            {
+                try
+                {
+                    float scalar = percent / 100.0f;
+                    var ctx = _selfEventContext;
+                    int hr = ep.SetMasterVolumeLevelScalar(scalar, ref ctx);
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SetMicrophoneVolumeLevelScalar({scalar:F2}) returned hr=0x{hr:X8}");
+                    if (_isMicMuted && percent > 0)
+                    {
+                        ep.SetMute(false, ref ctx);
+                        _isMicMuted = false;
+                        MicrophoneMuteChanged?.Invoke(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WindowsBuddy.Core.LogWriter.WriteNow("audio", $"SetMicrophoneVolumePercent EXCEPTION: {ex}");
+                }
+            }
+
+            MicrophoneVolumeNotification?.Invoke(_micVolumePercent, _isMicMuted, false);
+        }
+
         private void HandleExternalVolumeNotify(IntPtr pNotifyData)
         {
             if (pNotifyData == IntPtr.Zero) return;
@@ -258,6 +508,32 @@ namespace WindowsBuddy.Services
                 VolumeNotification?.Invoke(pct, muted, true);
             }
             catch { }
+        }
+
+        private void HandleExternalMicrophoneNotify(IntPtr pNotifyData)
+        {
+            if (pNotifyData == IntPtr.Zero) return;
+            try
+            {
+                var data = Marshal.PtrToStructure<AUDIO_VOLUME_NOTIFICATION_DATA>(pNotifyData);
+                // Suppress self-initiated changes
+                if (data.guidEventContext == _selfEventContext)
+                    return;
+
+                bool muted = data.bMuted;
+                int pct = (int)Math.Clamp(Math.Round(data.fMasterVolume * 100.0), 0, 100);
+
+                _isMicMuted = muted;
+                _micVolumePercent = pct;
+
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", $"External mic notify: muted={muted}, pct={pct}");
+                MicrophoneMuteChanged?.Invoke(muted);
+                MicrophoneVolumeNotification?.Invoke(pct, muted, true);
+            }
+            catch (Exception ex)
+            {
+                WindowsBuddy.Core.LogWriter.WriteNow("audio", $"HandleExternalMicrophoneNotify EXCEPTION: {ex}");
+            }
         }
 
         private void HandleDefaultDeviceChangedAsync()
@@ -279,6 +555,26 @@ namespace WindowsBuddy.Services
             });
         }
 
+        private void HandleDefaultMicrophoneChangedAsync()
+        {
+            Task.Run(() =>
+            {
+                lock (_syncLock)
+                {
+                    try
+                    {
+                        if (_enumerator != null)
+                        {
+                            BindDefaultMicrophoneEndpointLocked();
+                        }
+                    }
+                    catch { }
+                }
+                try { MicrophoneMuteChanged?.Invoke(_isMicMuted); } catch { }
+                try { MicrophoneVolumeNotification?.Invoke(_micVolumePercent, _isMicMuted, true); } catch { }
+            });
+        }
+
         private sealed class AudioVolumeCallback : IAudioEndpointVolumeCallback
         {
             private readonly CoreAudioService _owner;
@@ -287,6 +583,18 @@ namespace WindowsBuddy.Services
             public int OnNotify(IntPtr pNotify)
             {
                 _owner.HandleExternalVolumeNotify(pNotify);
+                return 0;
+            }
+        }
+
+        private sealed class MicrophoneVolumeCallback : IAudioEndpointVolumeCallback
+        {
+            private readonly CoreAudioService _owner;
+            public MicrophoneVolumeCallback(CoreAudioService owner) => _owner = owner;
+
+            public int OnNotify(IntPtr pNotify)
+            {
+                _owner.HandleExternalMicrophoneNotify(pNotify);
                 return 0;
             }
         }
@@ -305,6 +613,10 @@ namespace WindowsBuddy.Services
                 if (flow == 0 && (role == 0 || role == 1))
                 {
                     _owner.HandleDefaultDeviceChangedAsync();
+                }
+                else if (flow == 1 && (role == 2 || role == 0 || role == 1))
+                {
+                    _owner.HandleDefaultMicrophoneChangedAsync();
                 }
                 return 0;
             }

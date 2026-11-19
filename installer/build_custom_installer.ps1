@@ -27,7 +27,7 @@ dotnet publish "$srcInstaller\Mayli.Installer.csproj" -c Release -r win-x64 --se
 
 # Copy resulting Mayli_Setup.exe to dist
 $setupExe = "$distDir\modern_setup\Mayli_Setup.exe"
-$finalSetupExe = "$distDir\Mayli_Modern_Setup_v1.1.65.exe"
+$finalSetupExe = "$distDir\Mayli_Modern_Setup_v1.1.66.exe"
 if (Test-Path $setupExe) {
     Copy-Item $setupExe $finalSetupExe -Force
     $finalSize = (Get-Item $finalSetupExe).Length / 1MB

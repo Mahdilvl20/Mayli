@@ -933,19 +933,29 @@ namespace WindowsBuddy.BuddyCapsule.UI
     /// </summary>
     public class EdgeLightWpf : Grid
     {
+        // 10 micro-stepped exponential fade layers for a seamless liquid gradient tail without visible seams
         private static readonly double[][] CometLayers =
         {
-            new[] { 0.016, 1.00 },
-            new[] { 0.052, 0.45 },
-            new[] { 0.110, 0.25 },
-            new[] { 0.175, 0.14 }
+            new[] { 0.014, 0.90 },
+            new[] { 0.030, 0.34 },
+            new[] { 0.048, 0.24 },
+            new[] { 0.068, 0.18 },
+            new[] { 0.088, 0.14 },
+            new[] { 0.110, 0.11 },
+            new[] { 0.132, 0.08 },
+            new[] { 0.155, 0.055 },
+            new[] { 0.178, 0.035 },
+            new[] { 0.202, 0.020 }
         };
 
         private struct CometStrokeEntry
         {
             public Path PathElement;
             public double SegFrac;
+            public double LayerFraction;
             public double Thickness;
+            public double BaseDashLen;
+            public double BaseGapLen;
             public bool IsGlow;
             public bool IsReverse;
             public double Alpha;
@@ -973,6 +983,22 @@ namespace WindowsBuddy.BuddyCapsule.UI
         private string _notchStyle = "Notch";
         private DateTime _burstUntilUtc = DateTime.MinValue;
         private double _burstOpacity = 1.0;
+        private bool _audioReactive;
+        private bool _isAudioLive;
+        private double _audioBassEnvelope;
+        private double _audioPulse;
+        private double _audioLevel;
+        private double _baseCoreThickness = 1.3;
+        private bool _wasInAudioOverride;
+        private long _lastAnimTimestamp;
+        private Geometry _silhouetteGeometry;
+        private string _silhouetteStyle = "";
+
+        public bool IsAudioReactiveEnabled => _audioReactive;
+        public double CurrentAudioPulse => _audioPulse;
+        public double CurrentGlowThickness => _breatheGlowPath.StrokeThickness;
+        public double CurrentContainerOpacity => _pulseContainer.Opacity;
+        public Geometry CurrentOutwardClip => _pulseContainer.Clip;
 
         public EdgeLightWpf()
         {
@@ -984,11 +1010,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             _glowLayer = new Grid
             {
-                Opacity = 0.70
+                Opacity = 0.92,
+                Effect = new BlurEffect { Radius = 6.5, KernelType = KernelType.Box, RenderingBias = RenderingBias.Performance }
             };
             _coreLayer = new Grid
             {
-                Opacity = 0.96
+                Opacity = 0.98,
+                Effect = new BlurEffect { Radius = 1.8, KernelType = KernelType.Box, RenderingBias = RenderingBias.Performance }
             };
 
             _breatheGlowPath = new Path { StrokeThickness = 3.2, Visibility = Visibility.Collapsed };
@@ -997,34 +1025,37 @@ namespace WindowsBuddy.BuddyCapsule.UI
             _baseBorderPath = new Path { StrokeThickness = 1.0 };
             _coreLayer.Children.Add(_baseBorderPath);
 
-            double tailScale = 0.15 / 0.18;
+            double tailScale = 0.16 / 0.202;
+            double maxSeg = CometLayers[CometLayers.Length - 1][0];
             _cometEntries = new CometStrokeEntry[CometLayers.Length * 4];
             int idx = 0;
             foreach (var layer in CometLayers)
             {
                 double segFrac = layer[0] * tailScale;
+                double layerFrac = Math.Clamp(layer[0] / maxSeg, 0.08, 1.0);
                 double alpha = layer[1];
 
                 var gf = CreateReusableCometPath();
                 var gr = CreateReusableCometPath();
                 _glowLayer.Children.Add(gf);
                 _glowLayer.Children.Add(gr);
-                _cometEntries[idx++] = new CometStrokeEntry { PathElement = gf, SegFrac = segFrac, IsGlow = true, IsReverse = false, Alpha = alpha };
-                _cometEntries[idx++] = new CometStrokeEntry { PathElement = gr, SegFrac = segFrac, IsGlow = true, IsReverse = true, Alpha = alpha };
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = gf, SegFrac = segFrac, LayerFraction = layerFrac, IsGlow = true, IsReverse = false, Alpha = alpha };
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = gr, SegFrac = segFrac, LayerFraction = layerFrac, IsGlow = true, IsReverse = true, Alpha = alpha };
 
                 var cf = CreateReusableCometPath();
                 var cr = CreateReusableCometPath();
                 _coreLayer.Children.Add(cf);
                 _coreLayer.Children.Add(cr);
-                _cometEntries[idx++] = new CometStrokeEntry { PathElement = cf, SegFrac = segFrac, IsGlow = false, IsReverse = false, Alpha = alpha };
-                _cometEntries[idx++] = new CometStrokeEntry { PathElement = cr, SegFrac = segFrac, IsGlow = false, IsReverse = true, Alpha = alpha };
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = cf, SegFrac = segFrac, LayerFraction = layerFrac, IsGlow = false, IsReverse = false, Alpha = alpha };
+                _cometEntries[idx++] = new CometStrokeEntry { PathElement = cr, SegFrac = segFrac, LayerFraction = layerFrac, IsGlow = false, IsReverse = true, Alpha = alpha };
             }
 
             _pulseContainer.Children.Add(_glowLayer);
             _pulseContainer.Children.Add(_coreLayer);
             Children.Add(_pulseContainer);
 
-            _animTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(45) };
+            _lastAnimTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+            _animTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
             _animTimer.Tick += OnAnimTick;
             _animTimer.Start();
 
@@ -1101,15 +1132,27 @@ namespace WindowsBuddy.BuddyCapsule.UI
             }
         }
 
-        public void Configure(string pattern, string speed, string triggerMode, string notchStyle = "Notch")
+        public void Configure(string pattern, string speed, string triggerMode, string notchStyle = "Notch", bool audioReactive = false)
         {
             bool rebuild = !string.Equals(_pattern, pattern, StringComparison.OrdinalIgnoreCase) ||
                            !string.Equals(_notchStyle, notchStyle, StringComparison.OrdinalIgnoreCase);
+            bool reactiveChanged = _audioReactive != audioReactive;
 
             _pattern = string.IsNullOrWhiteSpace(pattern) ? "Twin comets" : pattern;
             _speed = string.IsNullOrWhiteSpace(speed) ? "Normal" : speed;
             _triggerMode = string.IsNullOrWhiteSpace(triggerMode) ? "Always" : triggerMode;
             _notchStyle = string.IsNullOrWhiteSpace(notchStyle) ? "Notch" : notchStyle;
+            _audioReactive = audioReactive;
+
+            if (!_audioReactive)
+            {
+                _isAudioLive = false;
+                _audioPulse = 0.0;
+                _audioLevel = 0.0;
+                _audioBassEnvelope = 0.0;
+                _animTimer.Interval = TimeSpan.FromMilliseconds(16);
+                if (reactiveChanged) rebuild = true;
+            }
 
             if (string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase))
             {
@@ -1118,6 +1161,8 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             if (rebuild)
             {
+                _silhouetteGeometry = null;
+                _silhouetteStyle = "";
                 double prevW = _lastW;
                 double prevH = _lastH;
                 _lastW = -1;
@@ -1146,9 +1191,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
         public void UpdateGeometry(Geometry geometry, bool isExpanded, double width = 228.0, double height = 35.0)
         {
             if (_isMorphing) return;
-            if (Math.Abs(width - _lastW) < 0.5 && Math.Abs(height - _lastH) < 0.5 && string.Equals(_notchStyle, _lastStyle, StringComparison.OrdinalIgnoreCase))
+            bool geometryUpdated = geometry != null && !ReferenceEquals(geometry, _silhouetteGeometry);
+            bool sameSizeAndStyle = Math.Abs(width - _lastW) < 0.5 && Math.Abs(height - _lastH) < 0.5 && string.Equals(_notchStyle, _lastStyle, StringComparison.OrdinalIgnoreCase);
+            if (sameSizeAndStyle && !geometryUpdated)
                 return;
 
+            if (geometry != null)
+            {
+                _silhouetteGeometry = geometry;
+                _silhouetteStyle = _notchStyle;
+            }
             _lastW = width;
             _lastH = height;
             _lastStyle = _notchStyle;
@@ -1158,6 +1210,7 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
         private void RebuildCometPaths(double width, double height, double cornerRadius, double coreThickness)
         {
+            _baseCoreThickness = coreThickness;
             bool isIsland = string.Equals(_notchStyle, "Island", StringComparison.OrdinalIgnoreCase);
             bool isLine = string.Equals(_notchStyle, "Line", StringComparison.OrdinalIgnoreCase);
 
@@ -1207,33 +1260,49 @@ namespace WindowsBuddy.BuddyCapsule.UI
             bool isBreathe = string.Equals(_pattern, "Breathe", StringComparison.OrdinalIgnoreCase);
             bool isSingleComet = string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase);
 
-            // Base border & breathe glow
+            // Clip EdgeLight strictly to the exterior of the notch silhouette so glow/blur never bleeds inward over the notch
+            Geometry silhouette = (_silhouetteGeometry != null && string.Equals(_silhouetteStyle, _notchStyle, StringComparison.OrdinalIgnoreCase))
+                ? _silhouetteGeometry
+                : WindowsBuddy.BuddyCapsule.Renderer.NotchGeometryBuilder.BuildSilhouetteCore(
+                    isIsland ? "Island" : (isLine ? "Line" : "Shouldered"),
+                    width,
+                    height,
+                    cornerRadius,
+                    isOutline: false);
+
+            const double outerPad = 48.0;
+            double topPad = isIsland ? 36.0 : 0.0;
+            var outerRect = new RectangleGeometry(new Rect(-outerPad, -topPad, Math.Max(1.0, width) + outerPad * 2.0, Math.Max(1.0, height) + topPad + outerPad));
+            if (outerRect.CanFreeze) outerRect.Freeze();
+
+            var outsideClip = new CombinedGeometry(GeometryCombineMode.Exclude, outerRect, silhouette);
+            if (outsideClip.CanFreeze) outsideClip.Freeze();
+            _pulseContainer.Clip = outsideClip;
+
+            Geometry fullOutlineGeo = silhouette ?? geoForward;
+
+            // Base border & breathe glow (compensate stroke thickness slightly since inner 50% is clipped away)
             byte baseAlpha = isBreathe ? (byte)215 : (byte)32;
             var baseBrush = new SolidColorBrush(Color.FromArgb(baseAlpha, _lightColor.R, _lightColor.G, _lightColor.B));
             baseBrush.Freeze();
-            _baseBorderPath.Data = geoForward;
+            _baseBorderPath.Data = fullOutlineGeo;
             _baseBorderPath.Stroke = baseBrush;
-            _baseBorderPath.StrokeThickness = isBreathe ? coreThickness * 1.35 : 1.0;
+            _baseBorderPath.StrokeThickness = isBreathe ? coreThickness * 1.8 : 1.0;
 
-            if (isBreathe)
-            {
-                var glowBrush = new SolidColorBrush(Color.FromArgb(190, _lightColor.R, _lightColor.G, _lightColor.B));
-                glowBrush.Freeze();
-                _breatheGlowPath.Data = geoForward;
-                _breatheGlowPath.Stroke = glowBrush;
-                _breatheGlowPath.StrokeThickness = coreThickness * 3.0;
-                _breatheGlowPath.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                _breatheGlowPath.Visibility = Visibility.Collapsed;
-            }
+            var glowBrush = new SolidColorBrush(Color.FromArgb(255, _lightColor.R, _lightColor.G, _lightColor.B));
+            glowBrush.Freeze();
+            _breatheGlowPath.Data = fullOutlineGeo;
+            _breatheGlowPath.Stroke = glowBrush;
+            _breatheGlowPath.StrokeThickness = coreThickness * 3.6;
+            _breatheGlowPath.Visibility = isBreathe ? Visibility.Visible : Visibility.Collapsed;
 
-            double glowThickness = coreThickness * 2.4;
+            double glowThickness = coreThickness * 2.6;
             for (int i = 0; i < _cometEntries.Length; i++)
             {
                 ref var entry = ref _cometEntries[i];
-                double th = Math.Max(0.5, entry.IsGlow ? glowThickness : coreThickness);
+                // Subtle thickness taper from head to tail for an organic comet profile
+                double taper = 1.0 - 0.35 * entry.LayerFraction;
+                double th = Math.Max(0.5, (entry.IsGlow ? glowThickness : coreThickness) * taper);
                 entry.Thickness = th;
 
                 double totalInStrokeUnits = _totalLength / th;
@@ -1267,6 +1336,9 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     p.Visibility = Visibility.Visible;
                 }
 
+                entry.BaseDashLen = dashLen;
+                entry.BaseGapLen = gapLen;
+
                 if (p.StrokeDashArray != null && p.StrokeDashArray.Count == 2 && !p.StrokeDashArray.IsFrozen)
                 {
                     p.StrokeDashArray[0] = dashLen;
@@ -1282,9 +1354,58 @@ namespace WindowsBuddy.BuddyCapsule.UI
             UpdateDashOffsets();
         }
 
+        /// <summary>
+        /// Updates beat pulse and sustained audio energy envelopes from normalized audio metrics (0..1).
+        /// </summary>
+        public void ApplyAudioEnergy(float bass, float mid, float overall, bool isLive)
+        {
+            if (!_audioReactive || !isLive)
+            {
+                _isAudioLive = false;
+                _audioPulse *= 0.72;
+                _audioLevel *= 0.75;
+                _audioBassEnvelope *= 0.85;
+                if (_audioPulse < 0.01) _audioPulse = 0.0;
+                if (_audioLevel < 0.01) _audioLevel = 0.0;
+                return;
+            }
+
+            double b = Math.Clamp(bass * 1.85, 0.0, 1.0);
+            double ov = Math.Clamp(overall * 1.75, 0.0, 1.0);
+            _audioBassEnvelope = _audioBassEnvelope * 0.82 + b * 0.18;
+            double onset = Math.Max(0.0, b - _audioBassEnvelope * 0.82);
+            double targetPulse = Math.Clamp(b * 0.78 + onset * 2.8, 0.0, 1.0);
+
+            if (targetPulse > _audioPulse)
+                _audioPulse = _audioPulse * 0.25 + targetPulse * 0.75;
+            else
+                _audioPulse *= 0.82;
+
+            _audioLevel = Math.Clamp(_audioLevel * 0.45 + ov * 0.55, 0.0, 1.0);
+            _isAudioLive = (_audioLevel > 0.01 || _audioPulse > 0.01);
+        }
+
         private void OnAnimTick(object sender, EventArgs e)
         {
             if (!IsVisible || _isMorphing) return;
+
+            if (_audioReactive)
+            {
+                try
+                {
+                    WindowsBuddy.Services.AudioSpectrumService.Instance.ReadReactiveEnergy(out float bass, out float mid, out float overall, out bool isLive);
+                    ApplyAudioEnergy(bass, mid, overall, isLive);
+                }
+                catch { }
+
+                if (_animTimer.Interval != TimeSpan.FromMilliseconds(16)) _animTimer.Interval = TimeSpan.FromMilliseconds(16);
+
+                if (!string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase) && _isAudioLive && _audioLevel > 0.04)
+                {
+                    var minAudioBurst = DateTime.UtcNow.AddMilliseconds(900);
+                    if (minAudioBurst > _burstUntilUtc) _burstUntilUtc = minAudioBurst;
+                }
+            }
 
             if (!string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase))
             {
@@ -1308,7 +1429,13 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 _burstOpacity = 1.0;
             }
 
-            double step = _speed switch
+            long nowTs = System.Diagnostics.Stopwatch.GetTimestamp();
+            double elapsedSec = _lastAnimTimestamp > 0
+                ? Math.Clamp((double)(nowTs - _lastAnimTimestamp) / System.Diagnostics.Stopwatch.Frequency, 0.004, 0.06)
+                : 0.016;
+            _lastAnimTimestamp = nowTs;
+
+            double baseStepPer45Ms = _speed switch
             {
                 "Slow" => 0.0038,
                 "Fast" => 0.0125,
@@ -1316,30 +1443,58 @@ namespace WindowsBuddy.BuddyCapsule.UI
             };
             if (string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase))
             {
-                step *= 0.65;
+                baseStepPer45Ms *= 0.65;
             }
+            if (_audioReactive && _isAudioLive)
+            {
+                baseStepPer45Ms *= (1.0 + 1.35 * _audioPulse);
+            }
+            double step = baseStepPer45Ms * (elapsedSec / 0.045);
             _cyclePhase = (_cyclePhase + step) % 1.0;
             _lastBrushColor = _lightColor;
             UpdateDashOffsets();
         }
 
-        private void UpdateDashOffsets()
+        public void UpdateDashOffsets()
         {
+            bool audioActive = _audioReactive && (_isAudioLive || _audioPulse > 0.005 || _audioLevel > 0.005);
+
+            if (audioActive)
+            {
+                _wasInAudioOverride = true;
+                RenderDedicatedAudioEffect();
+                return;
+            }
+
+            if (_wasInAudioOverride)
+            {
+                _wasInAudioOverride = false;
+                if (_lastW > 0 && _lastH > 0 && !_isMorphing)
+                {
+                    bool isExp = _lastH > 90.0;
+                    RebuildCometPaths(_lastW, _lastH, isExp ? 22.0 : 14.0, _baseCoreThickness);
+                    return;
+                }
+            }
+
             double wave = 0.5 * (1.0 - Math.Cos(2.0 * Math.PI * _cyclePhase));
+            _glowLayer.Opacity = 0.78;
+            _coreLayer.Opacity = 0.96;
+            _baseBorderPath.Opacity = 1.0;
 
             if (string.Equals(_pattern, "Breathe", StringComparison.OrdinalIgnoreCase))
             {
+                _baseBorderPath.StrokeThickness = _baseCoreThickness * 1.8;
+                _breatheGlowPath.StrokeThickness = _baseCoreThickness * 3.6;
+                _breatheGlowPath.Opacity = 1.0;
                 _pulseContainer.Opacity = (0.28 + 0.72 * wave) * _burstOpacity;
                 return;
             }
 
+            _baseBorderPath.StrokeThickness = 1.0;
             bool isSingleComet = string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase);
             if (isSingleComet)
             {
-                // Two-way forward comet:
-                // Leg 1 (0.0 to 0.5): Sweeps Right -> Left and completes/exits at Left
-                // Leg 2 (0.5 to 1.0): Sweeps Left -> Right and completes/exits at Right
-                // Neither leg reverses backwards ("دنده عقب"); comet head always leads and tail trails!
                 bool isLegRightToLeft = _cyclePhase < 0.5;
                 double legProgress = isLegRightToLeft
                     ? (_cyclePhase / 0.5)
@@ -1372,9 +1527,70 @@ namespace WindowsBuddy.BuddyCapsule.UI
 
             for (int i = 0; i < _cometEntries.Length; i++)
             {
-                var entry = _cometEntries[i];
+                ref var entry = ref _cometEntries[i];
                 if (entry.Thickness <= 0 || entry.PathElement.Visibility != Visibility.Visible) continue;
                 entry.PathElement.StrokeDashOffset = (entry.SegFrac - pTwin) * (_totalLength / entry.Thickness);
+            }
+        }
+
+        /// <summary>
+        /// Takes complete control of all EdgeLight layers during active audio playback,
+        /// disabling standard Breathe/Comet patterns in favor of bright symmetrical audio wings + beat halo.
+        /// </summary>
+        private void RenderDedicatedAudioEffect()
+        {
+            double pulse = Math.Clamp(_audioPulse, 0.0, 1.0);
+            double level = Math.Clamp(_audioLevel, 0.0, 1.0);
+            double drive = Math.Clamp(level * 0.45 + pulse * 0.85, 0.0, 1.0);
+
+            // High-visibility full-container brightness & vibrant neon outer glow driven directly by beat energy
+            _glowLayer.Opacity = 0.78 + 0.22 * drive;
+            _coreLayer.Opacity = 1.0;
+            _pulseContainer.Opacity = Math.Clamp(0.55 + 0.45 * drive, 0.55, 1.0) * _burstOpacity;
+
+            // Bright full-perimeter reactive neon aura
+            _breatheGlowPath.Visibility = Visibility.Visible;
+            _breatheGlowPath.Opacity = Math.Clamp(0.60 + 0.40 * drive, 0.60, 1.0);
+            _breatheGlowPath.StrokeThickness = _baseCoreThickness * (3.6 + 7.2 * drive);
+
+            _baseBorderPath.Visibility = Visibility.Visible;
+            _baseBorderPath.Opacity = Math.Clamp(0.58 + 0.42 * drive, 0.58, 1.0);
+            _baseBorderPath.StrokeThickness = _baseCoreThickness * (1.45 + 2.25 * pulse);
+
+            // Smoothly tapered symmetrical energy wings expanding outward from bottom center (0.50) up left & right walls
+            double wingSpan = 0.14 + 0.35 * drive;
+            for (int i = 0; i < _cometEntries.Length; i++)
+            {
+                ref var entry = ref _cometEntries[i];
+                if (entry.Thickness <= 0) continue;
+
+                var path = entry.PathElement;
+                path.Visibility = Visibility.Visible;
+
+                double thScale = entry.IsGlow ? (1.45 + 1.65 * pulse) : (1.25 + 0.85 * pulse);
+                double activeTh = Math.Max(1.0, entry.Thickness * thScale);
+                if (Math.Abs(path.StrokeThickness - activeTh) > 0.03)
+                {
+                    path.StrokeThickness = activeTh;
+                }
+
+                double layerSpan = Math.Max(0.02, wingSpan * entry.LayerFraction);
+                double totalInStroke = _totalLength / activeTh;
+                double wingDash = Math.Max(0.4, layerSpan * totalInStroke);
+                double gapDash = Math.Max(2.0, totalInStroke * 4.0);
+
+                if (path.StrokeDashArray != null && path.StrokeDashArray.Count == 2 && !path.StrokeDashArray.IsFrozen)
+                {
+                    path.StrokeDashArray[0] = wingDash;
+                    path.StrokeDashArray[1] = gapDash;
+                }
+                else
+                {
+                    path.StrokeDashArray = new DoubleCollection { wingDash, gapDash };
+                }
+
+                // Anchor dash end at exact bottom-center (0.50) so forward & reverse form mirrored seamless left/right audio wings
+                path.StrokeDashOffset = (layerSpan - 0.50) * totalInStroke;
             }
         }
 

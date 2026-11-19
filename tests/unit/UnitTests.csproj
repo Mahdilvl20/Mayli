@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Platforms>AnyCPU;x64</Platforms>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <StartupObject>WindowsBuddy.Tests.PrivacyDetectionServiceTests</StartupObject>
+    <NoWarn>NU1900</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="PrivacyDetectionServiceTests.cs" />
+    <Compile Include="..\..\src\Mayli\Services\IDevicePrivacyService.cs" Link="Services\IDevicePrivacyService.cs" />
+    <Compile Include="..\..\src\Mayli\Services\DevicePrivacyService.cs" Link="Services\DevicePrivacyService.cs" />
+    <Compile Include="..\..\src\Mayli\Services\RegistryAccessMonitor.cs" Link="Services\RegistryAccessMonitor.cs" />
+    <Compile Include="..\..\src\Mayli\Services\WasapiCaptureMonitor.cs" Link="Services\WasapiCaptureMonitor.cs" />
+    <Compile Include="..\..\src\Mayli\Services\ProcessResolver.cs" Link="Services\ProcessResolver.cs" />
+  </ItemGroup>
+</Project>

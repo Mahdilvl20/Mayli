@@ -922,7 +922,7 @@ namespace WindowsBuddy.UI.Settings
                     if (prefs.EnableEdgeLight)
                     {
                         var previewEdge = new WindowsBuddy.BuddyCapsule.UI.EdgeLightWpf();
-                        previewEdge.Configure(prefs.EdgeLightPattern, prefs.EdgeLightSpeed, "Always", style);
+                        previewEdge.Configure(prefs.EdgeLightPattern, prefs.EdgeLightSpeed, "Always", style, prefs.EdgeLightAudioReactive);
                         try
                         {
                             Color edgeCol = (prefs.EdgeLightSyncWithMusic && RealtimeNotchActionService.Instance.IsMusicPlaying)
@@ -1051,7 +1051,7 @@ namespace WindowsBuddy.UI.Settings
                     if (prefs.EnableEdgeLight)
                     {
                         var previewEdge = new WindowsBuddy.BuddyCapsule.UI.EdgeLightWpf();
-                        previewEdge.Configure(prefs.EdgeLightPattern, prefs.EdgeLightSpeed, "Always", style);
+                        previewEdge.Configure(prefs.EdgeLightPattern, prefs.EdgeLightSpeed, "Always", style, prefs.EdgeLightAudioReactive);
                         try
                         {
                             Color edgeCol = (prefs.EdgeLightSyncWithMusic && RealtimeNotchActionService.Instance.IsMusicPlaying)
@@ -1642,6 +1642,19 @@ namespace WindowsBuddy.UI.Settings
                 LocalizationService.T("notch.edge.color", "Color"),
                 "",
                 colorStack
+            ));
+
+            // Audio-reactive beat pulse toggle (Default: On)
+            var audioReactiveToggle = new MayliToggleSwitch(AppPreferences.Instance.EdgeLightAudioReactive);
+            audioReactiveToggle.CheckedChanged += ar =>
+            {
+                AppPreferences.Instance.EdgeLightAudioReactive = ar;
+                UpdateLivePreview(currentPreviewHover);
+            };
+            stack.Children.Add(new MayliSettingRow(
+                LocalizationService.T("notch.edge.audioreactive.title", "Audio-reactive music light"),
+                LocalizationService.T("notch.edge.audioreactive.desc", "Overrides normal edge light patterns with a bright beat-reactive glow while audio plays"),
+                audioReactiveToggle
             ));
 
             // Intensity

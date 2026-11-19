@@ -20,12 +20,19 @@ namespace Mayli.Installer
         private const int WM_NCLBUTTONDOWN = 0xA1;
         private const int HTCAPTION = 0x2;
 
+        private readonly InstallerCliOptions _cliOptions;
         private string _targetDirectory;
 
-        public MainWindow()
+        public MainWindow() : this(new InstallerCliOptions())
         {
+        }
+
+        public MainWindow(InstallerCliOptions cliOptions)
+        {
+            _cliOptions = cliOptions ?? new InstallerCliOptions();
             InitializeComponent();
             Loaded += MainWindow_Loaded;
+            Closed += MainWindow_Closed;
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -47,12 +54,34 @@ namespace Mayli.Installer
 
                 InstallerWebView.NavigationCompleted += (s, args) =>
                 {
-                    _targetDirectory = InstallerService.GetDefaultInstallPath();
-                    PostToJs(new
+                    if (_cliOptions.IsUninstall)
                     {
-                        type = "init:path",
-                        path = _targetDirectory
-                    });
+                        _targetDirectory = InstallerService.ResolveInstalledDirectory(_cliOptions.InstallDir);
+                        PostToJs(new
+                        {
+                            type = "init:mode",
+                            mode = "uninstall",
+                            path = _targetDirectory,
+                            version = InstallerService.GetAppVersion()
+                        });
+                    }
+                    else
+                    {
+                        _targetDirectory = InstallerService.GetDefaultInstallPath();
+                        string detectedExisting = InstallerService.ResolveInstalledDirectory();
+                        bool isAlreadyInstalled = !string.IsNullOrWhiteSpace(detectedExisting) &&
+                                                  Directory.Exists(detectedExisting) &&
+                                                  (File.Exists(Path.Combine(detectedExisting, "Mayli.exe")) ||
+                                                   File.Exists(Path.Combine(detectedExisting, InstallerService.UninstallerExeName)));
+
+                        PostToJs(new
+                        {
+                            type = "init:path",
+                            path = _targetDirectory,
+                            existingPath = isAlreadyInstalled ? detectedExisting : null,
+                            version = InstallerService.GetAppVersion()
+                        });
+                    }
                 };
             }
             catch (Exception ex)
@@ -60,6 +89,15 @@ namespace Mayli.Installer
                 MessageBox.Show($"Setup initialization error: {ex.Message}", "Mayli Setup", MessageBoxButton.OK, MessageBoxImage.Error);
                 Close();
             }
+        }
+
+        private void MainWindow_Closed(object sender, EventArgs e)
+        {
+            try
+            {
+                InstallerWebView?.Dispose();
+            }
+            catch { }
         }
 
         private string LoadEmbeddedHtml()
@@ -164,8 +202,8 @@ namespace Mayli.Installer
                                     PostToJs(new
                                     {
                                         type = "install:progress",
-                                        percent = percent,
-                                        status = status
+                                        percent,
+                                        status
                                     });
                                 });
                             });
@@ -186,6 +224,43 @@ namespace Mayli.Installer
                                 });
                             });
                         }
+                        break;
+
+                    case "uninstall:start":
+                        var uData = root.TryGetProperty("data", out var ud) ? ud : root;
+                        string uninstPath = uData.TryGetProperty("path", out var up) && !string.IsNullOrWhiteSpace(up.GetString())
+                            ? up.GetString()
+                            : InstallerService.ResolveInstalledDirectory(_cliOptions.InstallDir);
+                        bool removeData = uData.TryGetProperty("removeUserData", out var rdp) && rdp.GetBoolean();
+
+                        var result = await InstallerService.ExecuteUninstallAsync(uninstPath, removeData, (percent, status) =>
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                PostToJs(new
+                                {
+                                    type = "uninstall:progress",
+                                    percent,
+                                    status
+                                });
+                            });
+                        });
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (result.Success)
+                            {
+                                PostToJs(new { type = "uninstall:done" });
+                            }
+                            else
+                            {
+                                PostToJs(new
+                                {
+                                    type = "uninstall:error",
+                                    error = result.ErrorMessage ?? "Uninstallation failed."
+                                });
+                            }
+                        });
                         break;
 
                     case "app:launch":

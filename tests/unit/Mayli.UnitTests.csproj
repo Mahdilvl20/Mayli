@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NuGetAudit>false</NuGetAudit>
+    <UseWPF>true</UseWPF>
+    <StartupObject>Mayli.UnitTests.TestRunner</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="PrivacyDetectionServiceTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Mayli\Mayli.csproj" />
+  </ItemGroup>
+
+</Project>

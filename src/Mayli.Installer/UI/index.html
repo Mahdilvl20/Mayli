@@ -708,6 +708,63 @@
     .btn-ghost:hover {
       color: #e2e8f0;
     }
+
+    .btn-danger {
+      background: linear-gradient(90deg, #e11d48, #dc2626);
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 10px 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(225, 29, 72, 0.35);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-danger:hover {
+      background: linear-gradient(90deg, #f43f5e, #ef4444);
+      box-shadow: 0 6px 20px rgba(244, 63, 94, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-danger:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .existing-banner {
+      display: none;
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.25);
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+    .existing-banner button {
+      background: rgba(244, 63, 94, 0.16);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      color: #fda4af;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .existing-banner button:hover {
+      background: rgba(244, 63, 94, 0.28);
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
@@ -739,7 +796,7 @@
             <ellipse cx="82" cy="61" rx="8" ry="12" fill="#080D1B"/>
             <circle cx="79" cy="56" r="2.5" fill="#FFFFFF"/>
           </svg>
-          Mayli Setup & Onboarding v1.1.65
+          Mayli Setup & Onboarding v1.1.66
         </span>
       </div>
       <div>
@@ -884,6 +941,14 @@
               </div>
             </div>
           </div>
+
+          <div id="existing-install-banner" class="existing-banner">
+            <div>
+              <strong style="color: #fda4af;">Existing Mayli installation detected</strong>
+              <div id="existing-install-path" class="font-mono" style="font-size: 11px; color: #94a3b8; margin-top: 2px;"></div>
+            </div>
+            <button onclick="switchToDetectedUninstall()">Uninstall Mayli</button>
+          </div>
         </div>
 
         <!-- STEP 2: Destination & Shortcuts -->
@@ -1002,6 +1067,59 @@
             </div>
             <div class="progress-track">
               <div id="bar-progress-fill" class="progress-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- UNINSTALL VIEW -->
+        <div id="step-view-uninstall" class="step-view">
+          <div style="text-align: center; margin-bottom: 14px;">
+            <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, rgba(225,29,72,0.28), rgba(139,92,246,0.2)); border: 1px solid rgba(244,63,94,0.3); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 8px; padding: 6px;">
+              <svg viewBox="0 0 128 128" style="width: 40px; height: 40px;">
+                <circle cx="64" cy="64" r="52" fill="url(#sideOrbGlow)"/>
+                <circle cx="64" cy="64" r="48" fill="url(#sideOrbGrad)"/>
+                <ellipse cx="45" cy="34" rx="23" ry="12" fill="#FFFFFF" opacity=".22" transform="rotate(-30 45 34)"/>
+                <ellipse cx="46" cy="61" rx="8" ry="12" fill="url(#sideEyeGrad)"/>
+                <circle cx="43" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
+                <ellipse cx="82" cy="61" rx="8" ry="12" fill="url(#sideEyeGrad)"/>
+                <circle cx="79" cy="56" r="2.5" fill="#FFFFFF" opacity=".95"/>
+              </svg>
+            </div>
+            <h2 style="font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 4px;">Uninstall Mayli</h2>
+            <p style="font-size: 12px; color: #94a3b8;">This will cleanly remove Mayli binaries, shortcuts, startup entry, and Windows registration.</p>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-item">
+              <span>Installed Location:</span>
+              <span id="uninst-path" class="summary-val font-mono" style="color: #fda4af;">C:\Users\...\Mayli</span>
+            </div>
+            <div class="summary-item">
+              <span>Components to Remove:</span>
+              <span class="summary-val" style="color: #e2e8f0;">App files • Shortcuts • Startup • Windows Apps Entry</span>
+            </div>
+          </div>
+
+          <div class="toggles-list" style="margin-top: 12px;">
+            <div class="toggle-row" onclick="toggleInput('chk-remove-data')">
+              <div class="toggle-content">
+                <span style="font-size: 20px;">🧹</span>
+                <div>
+                  <div style="font-size: 13px; font-weight: 600; color: #fff;">Also remove user settings &amp; saved history</div>
+                  <div style="font-size: 11px; color: #94a3b8;">Deletes weather preferences, notes, clipboard cache &amp; local data folder</div>
+                </div>
+              </div>
+              <input type="checkbox" id="chk-remove-data" class="toggle-checkbox" onclick="event.stopPropagation()">
+            </div>
+          </div>
+
+          <div id="uninst-progress-box" class="progress-section" style="margin-top: 14px;">
+            <div class="progress-info">
+              <span id="txt-uninst-status">Preparing uninstaller...</span>
+              <span id="txt-uninst-pct" class="font-mono" style="color: #fda4af;">0%</span>
+            </div>
+            <div class="progress-track">
+              <div id="bar-uninst-fill" class="progress-fill" style="background: linear-gradient(90deg, #f43f5e, #a855f7);"></div>
             </div>
           </div>
         </div>
@@ -1334,6 +1452,78 @@
       };
     }
 
+    let uninstallTargetPath = '';
+
+    function switchToDetectedUninstall() {
+      if (uninstallTargetPath) {
+        enterUninstallMode(uninstallTargetPath);
+      }
+    }
+
+    function enterUninstallMode(targetPath) {
+      uninstallTargetPath = targetPath || uninstallTargetPath || '';
+      document.getElementById('uninst-path').textContent = uninstallTargetPath;
+
+      for (let i = 1; i <= 4; i++) {
+        const v = document.getElementById(`step-view-${i}`);
+        const n = document.getElementById(`step-nav-${i}`);
+        if (v) v.classList.remove('active');
+        if (n) {
+          n.classList.remove('active');
+          n.style.opacity = '0.35';
+          n.disabled = true;
+        }
+      }
+
+      const uninstView = document.getElementById('step-view-uninstall');
+      if (uninstView) uninstView.classList.add('active');
+
+      const backBtn = document.getElementById('btn-back');
+      if (backBtn) backBtn.style.visibility = 'hidden';
+
+      const nextBtn = document.getElementById('btn-next');
+      nextBtn.className = 'btn-danger';
+      nextBtn.disabled = false;
+      document.getElementById('btn-next-label').textContent = 'Uninstall Mayli';
+      document.getElementById('btn-next-arrow').textContent = '';
+      nextBtn.onclick = startUninstall;
+    }
+
+    function startUninstall() {
+      const nextBtn = document.getElementById('btn-next');
+      const progressBox = document.getElementById('uninst-progress-box');
+      nextBtn.disabled = true;
+      progressBox.style.display = 'block';
+
+      const payload = {
+        path: document.getElementById('uninst-path').textContent,
+        removeUserData: document.getElementById('chk-remove-data').checked
+      };
+
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage({
+          type: 'uninstall:start',
+          data: payload
+        });
+      }
+    }
+
+    function setUninstallProgressBar(pct, text) {
+      document.getElementById('bar-uninst-fill').style.width = pct + '%';
+      document.getElementById('txt-uninst-pct').textContent = pct + '%';
+      if (text) document.getElementById('txt-uninst-status').textContent = text;
+    }
+
+    function onUninstallDone() {
+      setUninstallProgressBar(100, 'Mayli has been cleanly uninstalled.');
+      const nextBtn = document.getElementById('btn-next');
+      nextBtn.className = 'btn-primary';
+      nextBtn.disabled = false;
+      document.getElementById('btn-next-label').textContent = 'Finish & Close';
+      document.getElementById('btn-next-arrow').textContent = '';
+      nextBtn.onclick = closeApp;
+    }
+
     // Bridge messages from C#
     if (window.chrome && window.chrome.webview) {
       window.chrome.webview.addEventListener('message', (ev) => {
@@ -1342,6 +1532,15 @@
 
         if (msg.type === 'init:path') {
           if (msg.path) document.getElementById('txt-install-path').textContent = msg.path;
+          if (msg.existingPath) {
+            uninstallTargetPath = msg.existingPath;
+            document.getElementById('existing-install-path').textContent = msg.existingPath;
+            document.getElementById('existing-install-banner').style.display = 'flex';
+          }
+        } else if (msg.type === 'init:mode') {
+          if (msg.mode === 'uninstall') {
+            enterUninstallMode(msg.path);
+          }
         } else if (msg.type === 'folder:selected') {
           if (msg.path) document.getElementById('txt-install-path').textContent = msg.path;
         } else if (msg.type === 'install:progress') {
@@ -1351,6 +1550,14 @@
         } else if (msg.type === 'install:error') {
           alert('Error: ' + msg.error);
           document.getElementById('txt-progress-status').textContent = 'Error: ' + msg.error;
+        } else if (msg.type === 'uninstall:progress') {
+          setUninstallProgressBar(msg.percent, msg.status);
+        } else if (msg.type === 'uninstall:done') {
+          onUninstallDone();
+        } else if (msg.type === 'uninstall:error') {
+          alert('Error: ' + msg.error);
+          document.getElementById('txt-uninst-status').textContent = 'Error: ' + msg.error;
+          document.getElementById('btn-next').disabled = false;
         }
       });
     }

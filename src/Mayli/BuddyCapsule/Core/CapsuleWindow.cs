@@ -58,6 +58,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly Path _notchOutlinePath;
         private readonly Line _notchTopBlackLine;
         private readonly EdgeLightWpf _edgeLight;
+        private readonly NotchPrivacyIndicator _privacyIndicator;
+        private readonly NotchMousePassThroughController _passThroughController;
         private readonly Grid _collapsedContent;
         private readonly Grid _expandedContent;
         private readonly Border _viewportHost;
@@ -70,6 +72,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private readonly TextBlock _headerSubtitleText;
         private readonly TextBlock _headerBatteryText;
         private readonly StackPanel _toolHeaderActions = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+        private readonly StackPanel _headerRightActions;
 
         // 1. Collapsed Resting Normal View (matching video 00:00-00:02: "8:51 PM" + [Green Battery] "100")
         private readonly Grid _collapsedNormalView;
@@ -251,6 +254,14 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
         public static CapsuleWindow Current { get; private set; }
         public bool IsTucked => _isTucked;
+        public NotchPrivacyIndicator PrivacyIndicator => _privacyIndicator;
+        public Grid CapsuleCard => _capsuleCard;
+        public Path NotchBackdropPath => _notchBackdropPath;
+        public Border MusicSatelliteIsland => _musicSatelliteIsland;
+        public Border LeftTimerIsland => _leftTimerIsland;
+        public Border RightTimerIsland => _rightTimerIsland;
+        public Border RightHudSatelliteIsland => _rightHudSatelliteIsland;
+        public NotchMousePassThroughController PassThroughController => _passThroughController;
 
         public static void ToggleWindow()
         {
@@ -1093,6 +1104,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             // Right header actions: Tool Actions + Battery + Theme Switcher + Settings + Close
             var rightActions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            _headerRightActions = rightActions;
             rightActions.Children.Add(_toolHeaderActions);
 
             _headerBatteryText = new TextBlock
@@ -1189,6 +1201,10 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _capsuleCard.Children.Add(_collapsedContent);
             _capsuleCard.Children.Add(_collapsedMessageView);
             _capsuleCard.Children.Add(_expandedContent);
+            _privacyIndicator = new NotchPrivacyIndicator();
+            Panel.SetZIndex(_privacyIndicator, 50);
+            _capsuleCard.Children.Add(_privacyIndicator);
+            _passThroughController = new NotchMousePassThroughController(this);
 
             // -------------------------------------------------------------
             // Detached Split Dynamic Island Capsules (when Music is playing + Timer is active)
@@ -1495,6 +1511,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _envelopeRoot.Children.Add(_rightTimerIsland);
             _envelopeRoot.Children.Add(_rightHudSatelliteIsland);
             _envelopeRoot.Children.Add(_capsuleCard);
+            _envelopeRoot.Background = null;
             Content = _envelopeRoot;
 
             // Morph Animation timer (Render priority for 60fps smooth transitions)
@@ -1536,6 +1553,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
 
             _capsuleCard.MouseEnter += (_, _) =>
             {
+                if (_privacyIndicator != null && _privacyIndicator.IsHovered) return;
                 _edgeLight.TriggerBurst(4.2);
                 if (_isMinimalModeActive && AppPreferences.Instance.OpensOnClick)
                 {
@@ -1569,6 +1587,48 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
             };
 
+            // Wire Privacy Detection and Microphone Mute services
+            DevicePrivacyService.Instance.DeviceAccessChanged += (s, e) =>
+            {
+                Dispatcher.InvokeAsync(() =>
+                {
+                    bool wasActive = _privacyIndicator.IsMicrophoneInUse || _privacyIndicator.IsCameraInUse;
+                    _privacyIndicator.UpdateAccessState(e);
+                    bool nowActive = _privacyIndicator.IsMicrophoneInUse || _privacyIndicator.IsCameraInUse;
+                    if (!wasActive && nowActive)
+                    {
+                        _edgeLight?.TriggerBurst(2.2);
+                    }
+                    UpdateMorphVisuals(_morphProgress);
+                });
+            };
+
+            CoreAudioService.Instance.MicrophoneMuteChanged += isMuted =>
+            {
+                Dispatcher.InvokeAsync(() => _privacyIndicator.UpdateMuteState(isMuted));
+            };
+
+            _privacyIndicator.MouseEnter += (_, _) =>
+            {
+                if (_morphProgress <= 0.1)
+                {
+                    _machine.PointerMoved(false, "privacy-hover-suppress");
+                }
+            };
+
+            _privacyIndicator.MuteToggleRequested += () =>
+            {
+                _edgeLight.TriggerBurst(2.5);
+            };
+
+            // Initialize current live state
+            _privacyIndicator.UpdateMuteState(CoreAudioService.Instance.IsMicrophoneMuted);
+            _privacyIndicator.UpdateAccessState(
+                DevicePrivacyService.Instance.IsMicrophoneInUse,
+                DevicePrivacyService.Instance.MicrophoneAppName,
+                DevicePrivacyService.Instance.IsCameraInUse,
+                DevicePrivacyService.Instance.CameraAppName);
+
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) =>
             {
@@ -1585,6 +1645,16 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 if (!_isTucked && !_isAutoHiddenByVisibility && (_topmostTickCounter % 5 == 0))
                 {
                     EnsureTopmost();
+                }
+
+                if (AppPreferences.Instance.EnableEdgeLight && AppPreferences.Instance.EdgeLightAudioReactive &&
+                    !_isTucked && !string.Equals(AppPreferences.Instance.EdgeLightTrigger, "Always", StringComparison.OrdinalIgnoreCase))
+                {
+                    AudioSpectrumService.Instance.ReadReactiveEnergy(out _, out _, out float overall, out bool isLive);
+                    if (isLive && overall > 0.04f)
+                    {
+                        _edgeLight?.TriggerBurst(1.6);
+                    }
                 }
             };
             _clockTimer.Start();
@@ -1610,7 +1680,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     if (miniSettled && waveSettled && wideWaveSettled)
                     {
                         _spectrumTimer.Stop();
-                        AudioSpectrumService.Instance.SetActive(false);
+                        SyncAudioSpectrumServiceState();
                     }
                     return;
                 }
@@ -3745,12 +3815,14 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             PositionAtTopCenter();
 
             NativeMethods.AddClipboardFormatListener(hwnd);
+            _passThroughController?.AttachWindow(hwnd);
             var source = HwndSource.FromHwnd(hwnd);
             source?.AddHook(WndProc);
 
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
             Closed += (_, _) =>
             {
+                try { _passThroughController?.Dispose(); } catch { }
                 try { Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged; } catch { }
             };
         }
@@ -3819,6 +3891,8 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
 
             if (_isTucked)
             {
+                _passThroughController?.SetWindowClickThrough(true);
+                SyncAudioSpectrumServiceState();
                 _edgeLight?.Stop();
                 _isTuckCompletedHidden = false;
                 _leftTimerIsland.IsHitTestVisible = false;
@@ -3848,6 +3922,8 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             else
             {
                 _isTuckCompletedHidden = false;
+                _passThroughController?.SetWindowClickThrough(false);
+                SyncAudioSpectrumServiceState();
                 _capsuleCard.Visibility = Visibility.Visible;
                 _capsuleCard.IsHitTestVisible = true;
                 _edgeLight?.ResumeIfAlways();
@@ -3882,6 +3958,11 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
+            if (msg == NativeMethods.WM_NCHITTEST && _passThroughController != null)
+            {
+                return _passThroughController.HandleNcHitTest(lParam, out handled);
+            }
+
             const int WM_MOUSEHWHEEL = 0x020E;
             if (msg == WM_MOUSEHWHEEL && _navDockBorder != null && _navDockBorder.IsVisible)
             {
@@ -4439,9 +4520,14 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             double topClearance = isIsland ? islandGap : (isLine ? 3.0 : 6.5);
             double bottomClearance = (isIsland || isLine) ? 4.0 : 7.0;
 
+            bool isPrivacyVisible = _privacyIndicator != null && (_privacyIndicator.IsMicrophoneInUse || _privacyIndicator.IsCameraInUse);
+            double privacyShiftRight = (isPrivacyVisible && !_isBannerActive && !_isMinimalModeActive)
+                ? Math.Round(((_privacyIndicator.Width > 0 ? _privacyIndicator.Width : 26.0) - 6.0) * Math.Clamp(1.0 - t * 3.0, 0.0, 1.0))
+                : 0.0;
+
             double collapsedInnerWidth = _isBannerActive
                 ? Math.Max(40.0, baseW - ((isIsland || isLine) ? 16.0 : 36.0))
-                : Math.Max(40.0, baseW - sideClearance);
+                : Math.Max(40.0, baseW - sideClearance - privacyShiftRight);
 
             if (_isBannerActive)
             {
@@ -4494,6 +4580,33 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                 _collapsedContent.HorizontalAlignment = HorizontalAlignment.Center;
                 _collapsedContent.VerticalAlignment = VerticalAlignment.Center;
                 _collapsedContent.Margin = new Thickness(0, isIsland ? islandGap : 0, 0, 0);
+            }
+
+            if (!_isBannerActive && privacyShiftRight > 0.5)
+            {
+                var curMargin = _collapsedContent.Margin;
+                _collapsedContent.Margin = new Thickness(curMargin.Left, curMargin.Top, privacyShiftRight, curMargin.Bottom);
+            }
+
+            // Keep privacy indicator clear of shoulder curves when collapsed and cleanly inside expanded header when open
+            if (_privacyIndicator != null && (isPrivacyVisible || _privacyIndicator.Visibility == Visibility.Visible))
+            {
+                double indH = _privacyIndicator.ActualHeight > 0 ? _privacyIndicator.ActualHeight : (_privacyIndicator.Height > 0 ? _privacyIndicator.Height : 24.0);
+                double collapsedRightInset = (isIsland || isLine) ? 10.0 : 16.0;
+                double collapsedTopInset = islandGap + Math.Max(0.0, (baseH - indH) / 2.0);
+                double headerRightW = (_headerRightActions != null && _headerRightActions.ActualWidth > 0) ? _headerRightActions.ActualWidth : 148.0;
+                double expandedRightInset = headerRightW + 24.0;
+                double expandedTopInset = islandGap + 14.0;
+
+                if (_privacyIndicator.VerticalAlignment != VerticalAlignment.Top)
+                {
+                    _privacyIndicator.VerticalAlignment = VerticalAlignment.Top;
+                }
+                _privacyIndicator.Margin = new Thickness(
+                    0,
+                    collapsedTopInset + (expandedTopInset - collapsedTopInset) * ease,
+                    collapsedRightInset + (expandedRightInset - collapsedRightInset) * ease,
+                    0);
             }
 
             // Confine media views strictly within inner bounds and constrain text MaxWidth to prevent grid blowouts
@@ -4707,6 +4820,12 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             }
         }
 
+        private void SyncAudioSpectrumServiceState()
+        {
+            bool shouldRun = !_isTucked && (_isMusicActive || _isMediaRetained || (AppPreferences.Instance.EnableEdgeLight && AppPreferences.Instance.EdgeLightAudioReactive));
+            AudioSpectrumService.Instance.SetActive(shouldRun);
+        }
+
         private void UpdateEdgeLightEffectiveColor()
         {
             if (_leftTimerIsland != null)
@@ -4823,7 +4942,8 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                     AppPreferences.Instance.EdgeLightPattern,
                     AppPreferences.Instance.EdgeLightSpeed,
                     AppPreferences.Instance.EdgeLightTrigger,
-                    AppPreferences.Instance.NotchStyle);
+                    AppPreferences.Instance.NotchStyle,
+                    AppPreferences.Instance.EdgeLightAudioReactive);
                 UpdateEdgeLightEffectiveColor();
                 _edgeLight.Opacity = Math.Clamp(AppPreferences.Instance.EdgeLightIntensity / 100.0, 0.1, 1.0);
             }
@@ -4832,6 +4952,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                 _edgeLight.Visibility = Visibility.Collapsed;
                 _edgeLight.Stop();
             }
+            SyncAudioSpectrumServiceState();
 
             // 4. Soft Edge effect
             if (!string.Equals(AppPreferences.Instance.NotchSoftEdge, "None", StringComparison.OrdinalIgnoreCase))
