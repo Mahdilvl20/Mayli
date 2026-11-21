@@ -43,6 +43,7 @@ namespace WindowsBuddy.Core
         public const int VK_LWIN = 0x5B;
         public const int VK_RWIN = 0x5C;
         public const int VK_DELETE = 0x2E;
+        public const int VK_CAPITAL = 0x14;
         public const int VK_X = 0x58;
         public const int VK_C = 0x43;
         public const int VK_INSERT = 0x2D;
@@ -64,6 +65,9 @@ namespace WindowsBuddy.Core
 
         [DllImport("user32.dll")]
         public static extern short GetAsyncKeyState(int vKey);
+
+        [DllImport("user32.dll")]
+        public static extern short GetKeyState(int nVirtKey);
 
         public const uint EVENT_SYSTEM_FOREGROUND = 3;
         public const uint WINEVENT_OUTOFCONTEXT = 0;

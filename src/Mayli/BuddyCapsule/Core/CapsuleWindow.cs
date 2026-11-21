@@ -207,6 +207,24 @@ namespace WindowsBuddy.BuddyCapsule.Core
         private double _rightHudProgress = 0.0;
         private double _rightHudTarget = 0.0;
 
+        // 5E. Lowest-Priority Right-Side Caps Lock Capsule
+        // Emerges as expanded "Caps Lock ON" pill, then shrinks into compact circular 'A' indicator while Caps Lock remains active
+        private readonly Border _capsLockSatelliteIsland;
+        private readonly StackPanel _capsLockExpandedRow;
+        private readonly Border _capsLockDot;
+        private readonly TextBlock _capsLockLabelText;
+        private readonly Grid _capsLockCircleGlyph;
+        private readonly Ellipse _capsLockCircleRing;
+        private readonly TextBlock _capsLockCircleText;
+        private readonly TranslateTransform _capsLockTranslate = new(0, 0);
+        private readonly ScaleTransform _capsLockScale = new(0.8, 0.8);
+        private readonly DispatcherTimer _capsLockShrinkTimer;
+        private bool _isCapsLockOn = false;
+        private double _capsLockTarget = 0.0;
+        private double _capsLockProgress = 0.0;
+        private double _capsLockPillTarget = 0.0;
+        private double _capsLockPillProgress = 0.0;
+
         private double _splitIslandsProgress = 0.0;
         private double _splitIslandsTarget = 0.0;
         private bool _lastTimerActiveState = false;
@@ -261,6 +279,11 @@ namespace WindowsBuddy.BuddyCapsule.Core
         public Border LeftTimerIsland => _leftTimerIsland;
         public Border RightTimerIsland => _rightTimerIsland;
         public Border RightHudSatelliteIsland => _rightHudSatelliteIsland;
+        public Border CapsLockSatelliteIsland => _capsLockSatelliteIsland;
+        public bool IsCapsLockActive => _isCapsLockOn;
+        public bool IsCapsLockPillExpanded => _capsLockPillTarget > 0.5 || _capsLockPillProgress > 0.5;
+        public string CapsLockDisplayText => _capsLockLabelText?.Text ?? "";
+        public string CapsLockCircleGlyphText => _capsLockCircleText?.Text ?? "";
         public NotchMousePassThroughController PassThroughController => _passThroughController;
 
         public static void ToggleWindow()
@@ -1505,11 +1528,130 @@ namespace WindowsBuddy.BuddyCapsule.Core
                 }
             };
 
+            // 5E. Detached Right-Side Lowest-Priority Caps Lock Satellite Capsule
+            var capsTransformGroup = new TransformGroup();
+            capsTransformGroup.Children.Add(_capsLockScale);
+            capsTransformGroup.Children.Add(_capsLockTranslate);
+
+            var capsGrid = new Grid
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                ClipToBounds = true
+            };
+
+            _capsLockExpandedRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(14, 0, 14, 0),
+                IsHitTestVisible = false
+            };
+            _capsLockDot = new Border
+            {
+                Width = 8,
+                Height = 8,
+                CornerRadius = new CornerRadius(4.0),
+                Background = new SolidColorBrush(Color.FromRgb(255, 159, 10)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            _capsLockLabelText = new TextBlock
+            {
+                Text = "Caps Lock ON",
+                FontSize = 12.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _capsLockExpandedRow.Children.Add(_capsLockDot);
+            _capsLockExpandedRow.Children.Add(_capsLockLabelText);
+
+            _capsLockCircleGlyph = new Grid
+            {
+                Width = 40,
+                Height = 40,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Opacity = 0.0,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false,
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = new ScaleTransform(0.85, 0.85)
+            };
+            _capsLockCircleRing = new Ellipse
+            {
+                Width = 30,
+                Height = 30,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Stroke = new SolidColorBrush(Color.FromArgb(155, 255, 159, 10)),
+                Fill = new SolidColorBrush(Color.FromArgb(32, 255, 159, 10)),
+                StrokeThickness = 1.8
+            };
+            _capsLockCircleText = new TextBlock
+            {
+                Text = "A",
+                FontSize = 16.0,
+                FontWeight = FontWeights.Bold,
+                Foreground = CapsuleTheme.Brush(p.Text),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 0.5)
+            };
+            _capsLockCircleGlyph.Children.Add(_capsLockCircleRing);
+            _capsLockCircleGlyph.Children.Add(_capsLockCircleText);
+
+            capsGrid.Children.Add(_capsLockExpandedRow);
+            capsGrid.Children.Add(_capsLockCircleGlyph);
+
+            _capsLockSatelliteIsland = new Border
+            {
+                Width = 134,
+                Height = 40,
+                CornerRadius = new CornerRadius(20),
+                Background = CapsuleTheme.Brush(p.Bg),
+                BorderBrush = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 4.5, 0, 0),
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = capsTransformGroup,
+                Cursor = Cursors.Hand,
+                ClipToBounds = true,
+                Visibility = Visibility.Collapsed,
+                ToolTip = "Caps Lock ON",
+                Child = capsGrid
+            };
+            _capsLockSatelliteIsland.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                if (_isCapsLockOn)
+                {
+                    ExpandCapsLockPillTemporarily();
+                }
+            };
+
+            _capsLockShrinkTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2600) };
+            _capsLockShrinkTimer.Tick += (_, _) =>
+            {
+                _capsLockShrinkTimer.Stop();
+                if (_isCapsLockOn)
+                {
+                    _capsLockPillTarget = 0.0;
+                    _lastMorphTickTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+                    _morphTimer.Start();
+                }
+            };
+
             // Add detached islands before _capsuleCard so they emerge smoothly from behind the main notch
             _envelopeRoot.Children.Add(_musicSatelliteIsland);
             _envelopeRoot.Children.Add(_leftTimerIsland);
             _envelopeRoot.Children.Add(_rightTimerIsland);
             _envelopeRoot.Children.Add(_rightHudSatelliteIsland);
+            _envelopeRoot.Children.Add(_capsLockSatelliteIsland);
             _envelopeRoot.Children.Add(_capsuleCard);
             _envelopeRoot.Background = null;
             Content = _envelopeRoot;
@@ -1634,6 +1776,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             {
                 UpdateRestingClockAndStatus();
                 EvaluateDynamicVisibility();
+                SyncCapsLockState();
 
                 if (_isMusicActive)
                 {
@@ -1777,6 +1920,8 @@ namespace WindowsBuddy.BuddyCapsule.Core
             var actionService = RealtimeNotchActionService.Instance;
             actionService.NotificationRequested += OnRealNotificationRequested;
             actionService.MediaSessionChanged += OnRealMediaSessionChanged;
+            actionService.CapsLockStateChanged += isOn => Dispatcher.InvokeAsync(() => OnCapsLockStateChanged(isOn));
+            SyncCapsLockState();
 
             // Hook Real Windows Notifications (Toasts from all apps: Telegram, WhatsApp, Chrome, Discord, System)
             var winNotifService = WindowsNotificationListenerService.Instance;
@@ -2721,6 +2866,99 @@ namespace WindowsBuddy.BuddyCapsule.Core
             _hudDismissTimer.Start();
         }
 
+        public void SetCapsLockStateForTest(bool isOn, bool expandPill = true, bool immediate = false, bool rightHudOccupied = false, bool rightTimerOccupied = false)
+        {
+            if (rightHudOccupied)
+            {
+                _rightHudTarget = 1.0;
+                _rightHudProgress = 1.0;
+            }
+            else
+            {
+                _rightHudTarget = 0.0;
+                _rightHudProgress = 0.0;
+            }
+
+            if (rightTimerOccupied)
+            {
+                _splitIslandsTarget = 1.0;
+                _splitIslandsProgress = 1.0;
+            }
+            else
+            {
+                _splitIslandsTarget = 0.0;
+                _splitIslandsProgress = 0.0;
+            }
+
+            OnCapsLockStateChanged(isOn, expandPill);
+            if (immediate)
+            {
+                _capsLockTarget = _isCapsLockOn ? 1.0 : 0.0;
+                _capsLockProgress = _capsLockTarget;
+                _capsLockPillTarget = (isOn && expandPill) ? 1.0 : 0.0;
+                _capsLockPillProgress = _capsLockPillTarget;
+                if (!expandPill) _capsLockShrinkTimer?.Stop();
+                UpdateMorphVisuals(_morphProgress);
+            }
+        }
+
+        private void SyncCapsLockState()
+        {
+            bool liveCaps = RealtimeNotchActionService.ReadCapsLockState();
+            if (liveCaps != _isCapsLockOn)
+            {
+                OnCapsLockStateChanged(liveCaps);
+            }
+        }
+
+        private void ExpandCapsLockPillTemporarily()
+        {
+            _capsLockPillTarget = 1.0;
+            _capsLockShrinkTimer.Stop();
+            _capsLockShrinkTimer.Start();
+            _lastMorphTickTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+            _morphTimer.Start();
+        }
+
+        private void OnCapsLockStateChanged(bool isOn, bool startExpandedPill = true)
+        {
+            bool stateChanged = _isCapsLockOn != isOn;
+            _isCapsLockOn = isOn;
+
+            _capsLockTarget = isOn ? 1.0 : 0.0;
+
+            if (isOn)
+            {
+                if (stateChanged || startExpandedPill)
+                {
+                    if (startExpandedPill)
+                    {
+                        _capsLockPillTarget = 1.0;
+                        if (stateChanged)
+                        {
+                            _capsLockPillProgress = 1.0;
+                        }
+                        _capsLockShrinkTimer.Stop();
+                        _capsLockShrinkTimer.Start();
+                    }
+                    else
+                    {
+                        _capsLockShrinkTimer.Stop();
+                        _capsLockPillTarget = 0.0;
+                        _capsLockPillProgress = 0.0;
+                    }
+                }
+            }
+            else
+            {
+                _capsLockShrinkTimer.Stop();
+                _capsLockPillTarget = 0.0;
+            }
+
+            _lastMorphTickTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+            _morphTimer.Start();
+        }
+
         private void DismissHudNotification()
         {
             if (!_isHudActive) return;
@@ -3494,6 +3732,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                         _rightTimerIsland.Visibility = Visibility.Collapsed;
                         _musicSatelliteIsland.Visibility = Visibility.Collapsed;
                         _rightHudSatelliteIsland.Visibility = Visibility.Collapsed;
+                        _capsLockSatelliteIsland.Visibility = Visibility.Collapsed;
                     }
                 };
             }
@@ -3512,6 +3751,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             _rightIslandTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
             _musicSatelliteTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
             _rightHudTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _capsLockTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
         }
 
                 private bool _lastSmartDesiredHide = false;
@@ -3899,6 +4139,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                 _rightTimerIsland.IsHitTestVisible = false;
                 _musicSatelliteIsland.IsHitTestVisible = false;
                 _rightHudSatelliteIsland.IsHitTestVisible = false;
+                _capsLockSatelliteIsland.IsHitTestVisible = false;
 
                 if (_morphProgress > 0.05)
                 {
@@ -3916,6 +4157,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                         _rightTimerIsland.Visibility = Visibility.Collapsed;
                         _musicSatelliteIsland.Visibility = Visibility.Collapsed;
                         _rightHudSatelliteIsland.Visibility = Visibility.Collapsed;
+                        _capsLockSatelliteIsland.Visibility = Visibility.Collapsed;
                     }
                 };
             }
@@ -3939,6 +4181,7 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                         _rightTimerIsland.BeginAnimation(OpacityProperty, null);
                         _musicSatelliteIsland.BeginAnimation(OpacityProperty, null);
                         _rightHudSatelliteIsland.BeginAnimation(OpacityProperty, null);
+                        _capsLockSatelliteIsland.BeginAnimation(OpacityProperty, null);
                         UpdateMorphVisuals(_morphProgress);
                     }
                 };
@@ -3950,10 +4193,12 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
             _rightIslandTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
             _musicSatelliteTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
             _rightHudTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            _capsLockTranslate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
             _leftTimerIsland.BeginAnimation(OpacityProperty, fadeAnim);
             _rightTimerIsland.BeginAnimation(OpacityProperty, fadeAnim);
             _musicSatelliteIsland.BeginAnimation(OpacityProperty, fadeAnim);
             _rightHudSatelliteIsland.BeginAnimation(OpacityProperty, fadeAnim);
+            _capsLockSatelliteIsland.BeginAnimation(OpacityProperty, fadeAnim);
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -4463,7 +4708,20 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                 UpdateHudProgressGeometry();
             }
 
-            bool allSettled = morphSettled && sizeSettled && splitSettled && musicSettled && rightHudSettled && hudValSettled;
+            // Outermost right-side CapsLock satellite stays visible whenever Caps Lock is ON (even alongside 3-capsule Timer or HUD)
+            _capsLockTarget = _isCapsLockOn ? 1.0 : 0.0;
+
+            double capsDiff = _capsLockTarget - _capsLockProgress;
+            double capsStep = dt / 0.24;
+            bool capsSettled = Math.Abs(capsDiff) <= capsStep;
+            _capsLockProgress = capsSettled ? _capsLockTarget : _capsLockProgress + Math.Sign(capsDiff) * capsStep;
+
+            double capsPillDiff = _capsLockPillTarget - _capsLockPillProgress;
+            double capsPillStep = dt / 0.32;
+            bool capsPillSettled = Math.Abs(capsPillDiff) <= capsPillStep;
+            _capsLockPillProgress = capsPillSettled ? _capsLockPillTarget : _capsLockPillProgress + Math.Sign(capsPillDiff) * capsPillStep;
+
+            bool allSettled = morphSettled && sizeSettled && splitSettled && musicSettled && rightHudSettled && hudValSettled && capsSettled && capsPillSettled;
             _edgeLight.SetMorphing(!morphSettled);
 
             if (allSettled)
@@ -4818,6 +5076,80 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                     _rightTimerIsland.IsHitTestVisible = splitFactor > 0.6;
                 }
             }
+
+            // Update Outermost Right Detached Caps Lock Capsule ("Caps Lock ON" -> shrunk circular 'A')
+            // Lowest-priority slot: sits directly next to the main notch when free, or smoothly chains to the right of active Timer/HUD satellites (never hidden in 3-capsule mode)
+            double capsFactor = _capsLockProgress * Math.Clamp(1.0 - t * 3.0, 0.0, 1.0);
+            if (capsFactor <= 0.005 || _isTuckCompletedHidden || _isAutoHiddenByVisibility)
+            {
+                _capsLockSatelliteIsland.Visibility = Visibility.Collapsed;
+                _capsLockSatelliteIsland.IsHitTestVisible = false;
+            }
+            else
+            {
+                _capsLockSatelliteIsland.Visibility = Visibility.Visible;
+
+                double scale = Math.Clamp(AppPreferences.Instance.NotchScalePercent / 100.0, 0.75, 1.30);
+                double satH = 40.0;
+                double pillW = 134.0;
+                double pillEase = 1.0 - Math.Pow(1.0 - Math.Clamp(_capsLockPillProgress, 0.0, 1.0), 3);
+                double curBaseW = satH + (pillW - satH) * pillEase;
+                double satTop = isIsland ? Math.Max(1.0, islandGap - 1.0) : (isLine ? 1.5 : 3.5);
+
+                _capsLockSatelliteIsland.Width = curBaseW;
+                _capsLockSatelliteIsland.Height = satH;
+                _capsLockSatelliteIsland.CornerRadius = new CornerRadius(satH / 2.0);
+                _capsLockSatelliteIsland.Margin = new Thickness(0, satTop, 0, 0);
+
+                // Smoothly crossfade between expanded "Caps Lock ON" text and centered circular 'A'
+                double textFade = Math.Clamp((pillEase - 0.35) / 0.65, 0.0, 1.0);
+                _capsLockExpandedRow.Opacity = textFade;
+                _capsLockExpandedRow.Visibility = textFade <= 0.01 ? Visibility.Collapsed : Visibility.Visible;
+
+                double glyphFade = Math.Clamp(1.0 - pillEase * 1.45, 0.0, 1.0);
+                _capsLockCircleGlyph.Opacity = glyphFade;
+                _capsLockCircleGlyph.Visibility = glyphFade <= 0.01 ? Visibility.Collapsed : Visibility.Visible;
+                if (_capsLockCircleGlyph.RenderTransform is ScaleTransform glyphScale)
+                {
+                    double gs = 0.82 + 0.18 * glyphFade;
+                    glyphScale.ScaleX = gs;
+                    glyphScale.ScaleY = gs;
+                }
+
+                double capsEase = 1.0 - Math.Pow(1.0 - capsFactor, 3);
+                double gap = 8.0 * scale;
+                double hudSpan = 0.0;
+                if (rightHudFactor > 0.005)
+                {
+                    double hudEase = 1.0 - Math.Pow(1.0 - rightHudFactor, 3);
+                    hudSpan = (gap + 36.0 * scale) * hudEase;
+                }
+                double timerSpan = 0.0;
+                if (splitFactor > 0.005 && rightHudFactor <= 0.12)
+                {
+                    double splitEase = 1.0 - Math.Pow(1.0 - splitFactor, 3);
+                    double rightTimerW = (_rightTimerIsland.Width > 20.0 ? _rightTimerIsland.Width : 68.0) * scale;
+                    timerSpan = (gap + rightTimerW) * splitEase;
+                }
+
+                double occupiedRightSpan = Math.Max(hudSpan, timerSpan);
+                double rightEdgeCursor = (baseW / 2.0) + occupiedRightSpan;
+                double curVisualW = curBaseW * scale;
+                double startRightX = +(rightEdgeCursor - curVisualW / 2.0 - 8.0);
+                double fullRightX = +(rightEdgeCursor + gap + curVisualW / 2.0);
+                _capsLockTranslate.X = startRightX + (fullRightX - startRightX) * capsEase;
+
+                double capsScale = (0.78 + 0.22 * capsEase) * scale;
+                _capsLockScale.ScaleX = capsScale;
+                _capsLockScale.ScaleY = capsScale;
+
+                if (!_isTucked)
+                {
+                    double capsOpacity = Math.Clamp(capsEase * 1.15, 0.0, 1.0);
+                    _capsLockSatelliteIsland.Opacity = capsOpacity;
+                    _capsLockSatelliteIsland.IsHitTestVisible = capsFactor > 0.6;
+                }
+            }
         }
 
         private void SyncAudioSpectrumServiceState()
@@ -4907,6 +5239,14 @@ private static void GetConfiguredRestingDimensions(out double width, out double 
                 _rightHudSatelliteIsland.BorderBrush = outlineBrush;
                 _rightHudSatelliteIsland.BorderThickness = outlineThickness;
                 UpdateHudStylingAndIcons();
+            }
+            if (_capsLockSatelliteIsland != null)
+            {
+                _capsLockSatelliteIsland.Background = CapsuleTheme.Brush(p.Bg);
+                _capsLockSatelliteIsland.BorderBrush = outlineBrush;
+                _capsLockSatelliteIsland.BorderThickness = outlineThickness;
+                if (_capsLockLabelText != null) _capsLockLabelText.Foreground = CapsuleTheme.Brush(p.Text);
+                if (_capsLockCircleText != null) _capsLockCircleText.Foreground = CapsuleTheme.Brush(p.Text);
             }
 
             // Compact & Wide Media player reactive styling

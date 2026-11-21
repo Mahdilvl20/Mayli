@@ -201,6 +201,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
             if (HitTestVisual(_window.LeftTimerIsland, screenPoint)) return true;
             if (HitTestVisual(_window.RightTimerIsland, screenPoint)) return true;
             if (HitTestVisual(_window.RightHudSatelliteIsland, screenPoint)) return true;
+            if (HitTestVisual(_window.CapsLockSatelliteIsland, screenPoint)) return true;
 
             // 3. Main notch card / backdrop silhouette geometry
             if (_window.CapsuleCard != null &&

@@ -67,6 +67,7 @@ namespace Mayli.UnitTests
             RunTest("Test_CapsuleWindow_ComponentsIntegration", Test_CapsuleWindow_ComponentsIntegration);
             RunTest("Test_EdgeLightAudioReactive_DefaultOnAndBeatPulseModulation", Test_EdgeLightAudioReactive_DefaultOnAndBeatPulseModulation);
             RunTest("Test_EdgeLightBreathe_OutwardOnlyClipExcludesInterior", Test_EdgeLightBreathe_OutwardOnlyClipExcludesInterior);
+            RunTest("Test_CapsLockSatellite_LowestPriorityAndTwoPhaseShrinkMorph", Test_CapsLockSatellite_LowestPriorityAndTwoPhaseShrinkMorph);
 
             Console.WriteLine("=================================================");
             Console.WriteLine($" Test Results: {_passedCount} Passed, {_failedCount} Failed");
@@ -455,6 +456,65 @@ namespace Mayli.UnitTests
             AssertNotNull(islandClip, "Island outward clip must be set");
             AssertFalse(islandClip.FillContains(new Point(110.0, 22.0)), "Island interior must be strictly excluded from EdgeLight glow");
             AssertTrue(islandClip.FillContains(new Point(110.0, 2.0)), "Island top exterior margin must remain visible for outward glow");
+        }
+
+        private static void Test_CapsLockSatellite_LowestPriorityAndTwoPhaseShrinkMorph()
+        {
+            var window = new CapsuleWindow();
+            try
+            {
+                var capsIsland = window.CapsLockSatelliteIsland;
+                AssertNotNull(capsIsland, "CapsLockSatelliteIsland must be constructed");
+
+                double GetCapsTranslateX()
+                {
+                    foreach (var tr in ((TransformGroup)capsIsland.RenderTransform).Children)
+                    {
+                        if (tr is TranslateTransform tt) return tt.X;
+                    }
+                    return 0.0;
+                }
+
+                // 1. Even with NO music playing (idle main notch), Caps Lock ON opens as "Caps Lock ON" pill on the right
+                window.SetCapsLockStateForTest(isOn: true, expandPill: true, immediate: true);
+                AssertTrue(capsIsland.Visibility == Visibility.Visible, "CapsLock capsule must be visible even when notch is idle and nothing is playing");
+                AssertTrue(capsIsland.Width > 120.0, "Initial CapsLock phase must expand as a roomy pill for text");
+                AssertTrue(string.Equals(window.CapsLockDisplayText, "Caps Lock ON", StringComparison.Ordinal), "Expanded pill must display 'Caps Lock ON'");
+                AssertTrue(GetCapsTranslateX() > 90.0, "CapsLock capsule must be positioned to the right of the main notch");
+
+                // 2. After delay, shrinks smoothly into compact enlarged circle (40x40) with centered 'A'
+                window.SetCapsLockStateForTest(isOn: true, expandPill: false, immediate: true);
+                AssertTrue(capsIsland.Visibility == Visibility.Visible, "CapsLock shrunk circle must remain visible while Caps Lock is ON");
+                AssertTrue(Math.Abs(capsIsland.Width - 40.0) < 0.5 && Math.Abs(capsIsland.Height - 40.0) < 0.5, "Shrunk CapsLock capsule must become a 40x40 circle");
+                AssertTrue(Math.Abs(capsIsland.CornerRadius.TopLeft - 20.0) < 0.5, "Shrunk CapsLock capsule must be fully circular");
+                AssertTrue(string.Equals(window.CapsLockCircleGlyphText, "A", StringComparison.Ordinal), "Shrunk circle center must show 'A'");
+                double idleRightX = GetCapsTranslateX();
+
+                // 3. Lowest-priority outermost slot: when 3-capsule Split Timer is open, CapsLock stays visible AND shifts right beside RightTimer without overlap
+                window.SetCapsLockStateForTest(isOn: true, expandPill: false, immediate: true, rightTimerOccupied: true);
+                AssertTrue(capsIsland.Visibility == Visibility.Visible, "CapsLock capsule must remain visible alongside 3 open timer capsules");
+                double withTimerRightX = GetCapsTranslateX();
+                AssertTrue(withTimerRightX > idleRightX + 45.0, "CapsLock capsule must shift cleanly to the outermost right slot next to RightTimerIsland");
+
+                // 4. When Volume/Brightness HUD opens on right slot, CapsLock stays visible and shifts cleanly beside RightHudSatelliteIsland
+                window.SetCapsLockStateForTest(isOn: true, expandPill: false, immediate: true, rightHudOccupied: true);
+                AssertTrue(capsIsland.Visibility == Visibility.Visible, "CapsLock capsule must remain visible alongside right HUD satellite");
+                double withHudRightX = GetCapsTranslateX();
+                AssertTrue(withHudRightX > idleRightX + 25.0, "CapsLock capsule must shift cleanly next to RightHudSatelliteIsland");
+
+                // 5. Shifts smoothly back next to main notch once higher-priority islands close
+                window.SetCapsLockStateForTest(isOn: true, expandPill: false, immediate: true, rightHudOccupied: false, rightTimerOccupied: false);
+                AssertTrue(capsIsland.Visibility == Visibility.Visible, "CapsLock capsule must stay visible");
+                AssertTrue(Math.Abs(GetCapsTranslateX() - idleRightX) < 1.0, "CapsLock capsule must slide back beside main notch once right slot clears");
+
+                // 6. Collapses when Caps Lock turns OFF
+                window.SetCapsLockStateForTest(isOn: false, expandPill: false, immediate: true);
+                AssertTrue(capsIsland.Visibility == Visibility.Collapsed, "CapsLock capsule must collapse when Caps Lock turns OFF");
+            }
+            finally
+            {
+                window.Close();
+            }
         }
     }
 }

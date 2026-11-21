@@ -55,6 +55,9 @@ namespace WindowsBuddy.Services
 
         public event Action<NotchNotificationPayload> NotificationRequested;
         public event Action<MediaSessionSnapshot> MediaSessionChanged;
+        public event Action<bool> CapsLockStateChanged;
+
+        public static bool ReadCapsLockState() => (NativeMethods.GetKeyState(NativeMethods.VK_CAPITAL) & 0x0001) != 0;
 
         private readonly DispatcherTimer _pollTimer;
         private readonly HashSet<string> _knownBluetoothDevices = new(StringComparer.OrdinalIgnoreCase);
@@ -184,6 +187,13 @@ namespace WindowsBuddy.Services
             {
                 int msg = (int)wParam;
                 int vkCode = Marshal.ReadInt32(lParam);
+
+                if ((msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_KEYUP ||
+                     msg == NativeMethods.WM_SYSKEYDOWN || msg == NativeMethods.WM_SYSKEYUP) &&
+                    vkCode == NativeMethods.VK_CAPITAL)
+                {
+                    ScheduleCapsLockStateNotification();
+                }
 
                 if (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN)
                 {
@@ -367,6 +377,25 @@ namespace WindowsBuddy.Services
             }
 
             return NativeMethods.CallNextHookEx(_llKeyboardHook, nCode, wParam, lParam);
+        }
+
+        private static void ScheduleCapsLockStateNotification()
+        {
+            Task.Delay(18).ContinueWith(_ =>
+            {
+                try
+                {
+                    bool isOn = ReadCapsLockState();
+                    if (_lazy.IsValueCreated)
+                    {
+                        Application.Current?.Dispatcher?.InvokeAsync(() =>
+                        {
+                            _lazy.Value.CapsLockStateChanged?.Invoke(isOn);
+                        });
+                    }
+                }
+                catch { }
+            });
         }
 
         private static void ScheduleKeyboardLayoutCheck(int delayMs, bool isComboTrigger)
