@@ -96,7 +96,7 @@ namespace Mayli.Installer
                 return plusIndex > 0 ? infoAttr.Substring(0, plusIndex) : infoAttr;
             }
 
-            return "1.1.67";
+            return "1.1.68";
         }
 
         public static string ResolveInstalledDirectory(string explicitDir = null)

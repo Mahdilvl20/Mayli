@@ -3159,6 +3159,16 @@ namespace WindowsBuddy.UI.Settings
             langRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.KeyboardLanguageActivity = chk;
             stack.Children.Add(langRow);
 
+            var capsLockRow = new MayliActivityRow(
+                LocalizationService.T("settings.live.capslock.title", "Caps Lock indicator"),
+                LocalizationService.T("settings.live.capslock.desc", "Show a floating right-side capsule while Caps Lock is ON"),
+                Color.FromRgb(255, 159, 10),
+                "A",
+                AppPreferences.Instance.CapsLockActivity
+            );
+            capsLockRow.Toggle.CheckedChanged += chk => AppPreferences.Instance.CapsLockActivity = chk;
+            stack.Children.Add(capsLockRow);
+
             stack.Children.Add(new MayliSectionHeader("REMINDERS"));
 
             var runningTimersRow = new MayliActivityRow(

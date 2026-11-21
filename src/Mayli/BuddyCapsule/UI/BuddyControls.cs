@@ -1355,34 +1355,41 @@ namespace WindowsBuddy.BuddyCapsule.UI
         }
 
         /// <summary>
-        /// Updates beat pulse and sustained audio energy envelopes from normalized audio metrics (0..1).
+        /// Converts live bass & overall audio energy (0..1) into a high-contrast kick drum beat pulse (0..1).
+        /// Drops low between beats and snaps up on every bass transient.
         /// </summary>
         public void ApplyAudioEnergy(float bass, float mid, float overall, bool isLive)
         {
             if (!_audioReactive || !isLive)
             {
                 _isAudioLive = false;
-                _audioPulse *= 0.72;
-                _audioLevel *= 0.75;
+                _audioPulse *= 0.80;
+                _audioLevel *= 0.80;
                 _audioBassEnvelope *= 0.85;
-                if (_audioPulse < 0.01) _audioPulse = 0.0;
-                if (_audioLevel < 0.01) _audioLevel = 0.0;
+                if (_audioPulse < 0.015) _audioPulse = 0.0;
+                if (_audioLevel < 0.015) _audioLevel = 0.0;
                 return;
             }
 
-            double b = Math.Clamp(bass * 1.85, 0.0, 1.0);
-            double ov = Math.Clamp(overall * 1.75, 0.0, 1.0);
-            _audioBassEnvelope = _audioBassEnvelope * 0.82 + b * 0.18;
-            double onset = Math.Max(0.0, b - _audioBassEnvelope * 0.82);
-            double targetPulse = Math.Clamp(b * 0.78 + onset * 2.8, 0.0, 1.0);
+            double b = Math.Clamp(bass, 0.0, 1.0);
+            double ov = Math.Clamp(overall, 0.0, 1.0);
+
+            // Track rolling bass baseline smoothly
+            _audioBassEnvelope = (_audioBassEnvelope * 0.88) + (b * 0.12);
+            double kickOnset = Math.Max(0.0, b - (_audioBassEnvelope * 0.85));
+
+            // Smooth, fluid beat shaping without harsh transient jumps
+            double directBass = Math.Pow(b, 1.15) * 0.68;
+            double transientBoost = Math.Min(1.0, kickOnset * 1.45) * 0.42;
+            double targetPulse = Math.Clamp(directBass + transientBoost, 0.0, 1.0);
 
             if (targetPulse > _audioPulse)
-                _audioPulse = _audioPulse * 0.25 + targetPulse * 0.75;
+                _audioPulse = (_audioPulse * 0.54) + (targetPulse * 0.46); // Smooth, soft attack
             else
-                _audioPulse *= 0.82;
+                _audioPulse = (_audioPulse * 0.86) + (targetPulse * 0.14); // Silky, gradual release between beats
 
-            _audioLevel = Math.Clamp(_audioLevel * 0.45 + ov * 0.55, 0.0, 1.0);
-            _isAudioLive = (_audioLevel > 0.01 || _audioPulse > 0.01);
+            _audioLevel = Math.Clamp((_audioLevel * 0.72) + (ov * 0.28), 0.0, 1.0);
+            _isAudioLive = true;
         }
 
         private void OnAnimTick(object sender, EventArgs e)
@@ -1393,14 +1400,17 @@ namespace WindowsBuddy.BuddyCapsule.UI
             {
                 try
                 {
-                    WindowsBuddy.Services.AudioSpectrumService.Instance.ReadReactiveEnergy(out float bass, out float mid, out float overall, out bool isLive);
+                    WindowsBuddy.Services.AudioSpectrumService.Instance.ReadReactiveEnergy(
+                        out float bass, out float mid, out float overall, out bool isLive);
                     ApplyAudioEnergy(bass, mid, overall, isLive);
                 }
                 catch { }
 
-                if (_animTimer.Interval != TimeSpan.FromMilliseconds(16)) _animTimer.Interval = TimeSpan.FromMilliseconds(16);
+                if (_animTimer.Interval != TimeSpan.FromMilliseconds(16))
+                    _animTimer.Interval = TimeSpan.FromMilliseconds(16);
 
-                if (!string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase) && _isAudioLive && _audioLevel > 0.04)
+                if (!string.Equals(_triggerMode, "Always", StringComparison.OrdinalIgnoreCase) &&
+                    _isAudioLive && (_audioPulse > 0.03 || _audioLevel > 0.03))
                 {
                     var minAudioBurst = DateTime.UtcNow.AddMilliseconds(900);
                     if (minAudioBurst > _burstUntilUtc) _burstUntilUtc = minAudioBurst;
@@ -1435,34 +1445,35 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 : 0.016;
             _lastAnimTimestamp = nowTs;
 
-            double baseStepPer45Ms = _speed switch
+            // Advance idle cycle phase only when not overridden by live music bass mode
+            if (!(_audioReactive && _isAudioLive))
             {
-                "Slow" => 0.0038,
-                "Fast" => 0.0125,
-                _ => 0.0068
-            };
-            if (string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase))
-            {
-                baseStepPer45Ms *= 0.65;
+                double baseStepPer45Ms = _speed switch
+                {
+                    "Slow" => 0.0038,
+                    "Fast" => 0.0125,
+                    _ => 0.0068
+                };
+                if (string.Equals(_pattern, "Comet", StringComparison.OrdinalIgnoreCase))
+                {
+                    baseStepPer45Ms *= 0.65;
+                }
+                double step = baseStepPer45Ms * (elapsedSec / 0.045);
+                _cyclePhase = (_cyclePhase + step) % 1.0;
             }
-            if (_audioReactive && _isAudioLive)
-            {
-                baseStepPer45Ms *= (1.0 + 1.35 * _audioPulse);
-            }
-            double step = baseStepPer45Ms * (elapsedSec / 0.045);
-            _cyclePhase = (_cyclePhase + step) % 1.0;
+
             _lastBrushColor = _lightColor;
             UpdateDashOffsets();
         }
 
         public void UpdateDashOffsets()
         {
-            bool audioActive = _audioReactive && (_isAudioLive || _audioPulse > 0.005 || _audioLevel > 0.005);
+            bool bassModeActive = _audioReactive && (_isAudioLive || _audioPulse > 0.008);
 
-            if (audioActive)
+            if (bassModeActive)
             {
                 _wasInAudioOverride = true;
-                RenderDedicatedAudioEffect();
+                RenderBassReactiveEdgeLight();
                 return;
             }
 
@@ -1534,31 +1545,33 @@ namespace WindowsBuddy.BuddyCapsule.UI
         }
 
         /// <summary>
-        /// Takes complete control of all EdgeLight layers during active audio playback,
-        /// disabling standard Breathe/Comet patterns in favor of bright symmetrical audio wings + beat halo.
+        /// Dedicated from-scratch Music Bass Mode for EdgeLight:
+        /// Completely turns off idle Breathe/Comet cycling, dims between beats, and fires an outward neon
+        /// bass halo + symmetrical bottom-to-top side equalizer wings on every kick drum hit.
         /// </summary>
-        private void RenderDedicatedAudioEffect()
+        private void RenderBassReactiveEdgeLight()
         {
             double pulse = Math.Clamp(_audioPulse, 0.0, 1.0);
-            double level = Math.Clamp(_audioLevel, 0.0, 1.0);
-            double drive = Math.Clamp(level * 0.45 + pulse * 0.85, 0.0, 1.0);
+            // Hermite smoothstep S-curve so low and high turnarounds ease in/out gently without jarring flashes
+            double smoothPulse = pulse * pulse * (3.0 - 2.0 * pulse);
 
-            // High-visibility full-container brightness & vibrant neon outer glow driven directly by beat energy
-            _glowLayer.Opacity = 0.78 + 0.22 * drive;
-            _coreLayer.Opacity = 1.0;
-            _pulseContainer.Opacity = Math.Clamp(0.55 + 0.45 * drive, 0.55, 1.0) * _burstOpacity;
+            // Warm, comfortable opacity range (0.38 resting glow -> 0.96 on beats) to avoid harsh strobing
+            _pulseContainer.Opacity = (0.38 + 0.58 * smoothPulse) * _burstOpacity;
+            _glowLayer.Opacity = 0.82;
+            _coreLayer.Opacity = 0.95;
 
-            // Bright full-perimeter reactive neon aura
+            // Smooth outward neon bass halo (clipped strictly outside the notch silhouette)
             _breatheGlowPath.Visibility = Visibility.Visible;
-            _breatheGlowPath.Opacity = Math.Clamp(0.60 + 0.40 * drive, 0.60, 1.0);
-            _breatheGlowPath.StrokeThickness = _baseCoreThickness * (3.6 + 7.2 * drive);
+            _breatheGlowPath.Opacity = 0.42 + 0.58 * smoothPulse;
+            _breatheGlowPath.StrokeThickness = _baseCoreThickness * (2.6 + 6.4 * smoothPulse);
 
+            // Soft neon core rim that swells smoothly with bass
             _baseBorderPath.Visibility = Visibility.Visible;
-            _baseBorderPath.Opacity = Math.Clamp(0.58 + 0.42 * drive, 0.58, 1.0);
-            _baseBorderPath.StrokeThickness = _baseCoreThickness * (1.45 + 2.25 * pulse);
+            _baseBorderPath.Opacity = 0.55 + 0.45 * smoothPulse;
+            _baseBorderPath.StrokeThickness = _baseCoreThickness * (1.2 + 1.8 * smoothPulse);
 
-            // Smoothly tapered symmetrical energy wings expanding outward from bottom center (0.50) up left & right walls
-            double wingSpan = 0.14 + 0.35 * drive;
+            // Symmetrical bass wings anchored at bottom-center (0.50) gliding smoothly along left & right walls
+            double wingSpan = 0.12 + 0.34 * smoothPulse;
             for (int i = 0; i < _cometEntries.Length; i++)
             {
                 ref var entry = ref _cometEntries[i];
@@ -1567,16 +1580,16 @@ namespace WindowsBuddy.BuddyCapsule.UI
                 var path = entry.PathElement;
                 path.Visibility = Visibility.Visible;
 
-                double thScale = entry.IsGlow ? (1.45 + 1.65 * pulse) : (1.25 + 0.85 * pulse);
-                double activeTh = Math.Max(1.0, entry.Thickness * thScale);
-                if (Math.Abs(path.StrokeThickness - activeTh) > 0.03)
+                double thicknessScale = entry.IsGlow ? (1.15 + 0.85 * smoothPulse) : (1.05 + 0.45 * smoothPulse);
+                double activeThickness = Math.Max(1.0, entry.Thickness * thicknessScale);
+                if (Math.Abs(path.StrokeThickness - activeThickness) > 0.03)
                 {
-                    path.StrokeThickness = activeTh;
+                    path.StrokeThickness = activeThickness;
                 }
 
-                double layerSpan = Math.Max(0.02, wingSpan * entry.LayerFraction);
-                double totalInStroke = _totalLength / activeTh;
-                double wingDash = Math.Max(0.4, layerSpan * totalInStroke);
+                double layerSpan = Math.Max(0.025, wingSpan * entry.LayerFraction);
+                double totalInStroke = _totalLength / activeThickness;
+                double wingDash = Math.Max(0.45, layerSpan * totalInStroke);
                 double gapDash = Math.Max(2.0, totalInStroke * 4.0);
 
                 if (path.StrokeDashArray != null && path.StrokeDashArray.Count == 2 && !path.StrokeDashArray.IsFrozen)
@@ -1589,7 +1602,6 @@ namespace WindowsBuddy.BuddyCapsule.UI
                     path.StrokeDashArray = new DoubleCollection { wingDash, gapDash };
                 }
 
-                // Anchor dash end at exact bottom-center (0.50) so forward & reverse form mirrored seamless left/right audio wings
                 path.StrokeDashOffset = (layerSpan - 0.50) * totalInStroke;
             }
         }

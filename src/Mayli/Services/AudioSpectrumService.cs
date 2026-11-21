@@ -8,8 +8,8 @@ using System.Windows.Media.Imaging;
 namespace WindowsBuddy.Services
 {
     /// <summary>
-    /// Real-time WASAPI Loopback 2048-point FFT Audio Spectrum Analyzer (28 logarithmic bands)
-    /// and Album Art Dominant Color Extractor matching Vayli's native music visualizer.
+    /// Real-time WASAPI Loopback Audio Spectrum & Bass Beat Analyzer (28 logarithmic bands)
+    /// with automatic multi-endpoint active render device discovery and dual-domain bass kick extraction.
     /// </summary>
     public sealed class AudioSpectrumService : IDisposable
     {
@@ -33,12 +33,21 @@ namespace WindowsBuddy.Services
         private readonly float[] _smooth = new float[Bands];
         private readonly float[] _levels = new float[Bands];
         private float _peakDb = -32f;
+
+        // From-scratch dual-domain bass kick detector state
+        private float _lpStage1;
+        private float _lpStage2;
+        private float _bassRefPeak = 0.006f;
+        private float _bassFloor = 0.0015f;
+        private float _midRefPeak = 0.005f;
         private float _reactiveBass;
         private float _reactiveMid;
         private float _reactiveOverall;
         private bool _live;
+
         private volatile bool _running;
         private volatile bool _isActive;
+        private volatile bool _forceReconnect;
         private Thread _thread;
 
         private AudioSpectrumService()
@@ -48,6 +57,19 @@ namespace WindowsBuddy.Services
                 _window[i] = (float)(0.5 * (1.0 - Math.Cos(2.0 * Math.PI * i / (FftSize - 1))));
             }
             Start();
+        }
+
+        public void RequestReconnect() => _forceReconnect = true;
+
+        private static void LogSpec(string msg)
+        {
+            try
+            {
+                string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mayli", "logs");
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "spectrum.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {msg}\r\n");
+            }
+            catch { }
         }
 
         public void Start()
@@ -69,6 +91,18 @@ namespace WindowsBuddy.Services
         public void SetActive(bool active)
         {
             _isActive = active;
+            if (!active)
+            {
+                lock (_lock)
+                {
+                    _live = false;
+                    _reactiveBass = 0f;
+                    _reactiveMid = 0f;
+                    _reactiveOverall = 0f;
+                    Array.Clear(_smooth, 0, Bands);
+                    Array.Clear(_levels, 0, Bands);
+                }
+            }
         }
 
         private struct BandBinRange
@@ -117,7 +151,7 @@ namespace WindowsBuddy.Services
         }
 
         /// <summary>
-        /// Reads low-latency bass, mid, and overall normalized energy (0..1) from the live spectrum bands.
+        /// Reads low-latency bass beat pulse, mid, and overall normalized energy (0..1).
         /// </summary>
         public void ReadReactiveEnergy(out float bass, out float mid, out float overall, out bool isLive)
         {
@@ -140,7 +174,6 @@ namespace WindowsBuddy.Services
 
         /// <summary>
         /// Symmetrical center-outward band mapping matching CapsuleWindow.MapBands(bands, bars, n).
-        /// Places low sub-bass bands in the center and mid/high bands symmetrically on the left and right wings.
         /// </summary>
         public static void MapBands(float[] bands, float[] bars, int n)
         {
@@ -151,7 +184,7 @@ namespace WindowsBuddy.Services
 
             for (int i = 0; i < n && i < bars.Length; i++)
             {
-                double norm = Math.Abs(i - half) / half; // 0 at center, 1 at outer edges
+                double norm = Math.Abs(i - half) / half;
                 double pos = norm * 0.92 * (bandCount - 1);
                 int idx0 = Math.Clamp((int)pos, 0, bandCount - 1);
                 int idx1 = Math.Clamp(idx0 + 1, 0, bandCount - 1);
@@ -181,7 +214,6 @@ namespace WindowsBuddy.Services
             }
             else
             {
-                // Gentle organic motion when audio is playing softly
                 mini4[0] = (float)(0.35 + 0.30 * Math.Abs(Math.Sin(phase * 2.1)));
                 mini4[1] = (float)(0.20 + 0.25 * Math.Abs(Math.Cos(phase * 1.7)));
                 mini4[2] = (float)(0.45 + 0.35 * Math.Abs(Math.Sin(phase * 2.6 + 1.1)));
@@ -201,25 +233,159 @@ namespace WindowsBuddy.Services
             return count > 0 ? sum / count : 0f;
         }
 
+        private static float ReadEndpointHardwarePeak(IMMDevice dev, out IAudioMeterInformation meterOut)
+        {
+            meterOut = null;
+            try
+            {
+                var iidMeter = typeof(IAudioMeterInformation).GUID;
+                if (dev.Activate(ref iidMeter, CLSCTX_ALL, IntPtr.Zero, out object meterObj) == 0 &&
+                    meterObj is IAudioMeterInformation meter)
+                {
+                    meterOut = meter;
+                    if (meter.GetPeakValue(out float peak) == 0 && float.IsFinite(peak))
+                        return peak;
+                }
+            }
+            catch { }
+            return 0f;
+        }
+
+        /// <summary>
+        /// Scans all active Windows eRender endpoints and returns the endpoint currently outputting audio
+        /// (highest hardware peak > 0.00025). Falls back to Windows default multimedia/console endpoint if silent.
+        /// </summary>
+        private static IMMDevice SelectBestRenderEndpoint(
+            IMMDeviceEnumerator enumerator,
+            out string selectedId,
+            out float selectedPeak,
+            out IAudioMeterInformation selectedMeter)
+        {
+            selectedId = string.Empty;
+            selectedPeak = 0f;
+            selectedMeter = null;
+
+            IMMDevice bestActiveDev = null;
+            string bestActiveId = string.Empty;
+            float bestActivePeak = 0f;
+            IAudioMeterInformation bestActiveMeter = null;
+
+            try
+            {
+                if (enumerator.EnumAudioEndpoints(0, 1, out IMMDeviceCollection col) == 0 && col != null)
+                {
+                    col.GetCount(out uint count);
+                    for (uint i = 0; i < count; i++)
+                    {
+                        if (col.Item(i, out IMMDevice candidate) == 0 && candidate != null)
+                        {
+                            string id = string.Empty;
+                            try { candidate.GetId(out id); } catch { }
+                            float peak = ReadEndpointHardwarePeak(candidate, out IAudioMeterInformation meter);
+                            if (peak > 0.00025f && peak > bestActivePeak)
+                            {
+                                if (bestActiveMeter != null) { try { Marshal.ReleaseComObject(bestActiveMeter); } catch { } }
+                                if (bestActiveDev != null) { try { Marshal.ReleaseComObject(bestActiveDev); } catch { } }
+                                bestActiveDev = candidate;
+                                bestActiveId = id ?? string.Empty;
+                                bestActivePeak = peak;
+                                bestActiveMeter = meter;
+                            }
+                            else
+                            {
+                                if (meter != null) { try { Marshal.ReleaseComObject(meter); } catch { } }
+                                try { Marshal.ReleaseComObject(candidate); } catch { }
+                            }
+                        }
+                    }
+                    try { Marshal.ReleaseComObject(col); } catch { }
+                }
+            }
+            catch { }
+
+            if (bestActiveDev != null)
+            {
+                selectedId = bestActiveId;
+                selectedPeak = bestActivePeak;
+                selectedMeter = bestActiveMeter;
+                return bestActiveDev;
+            }
+
+            IMMDevice fallback = null;
+            if ((enumerator.GetDefaultAudioEndpoint(0, 1, out fallback) == 0 && fallback != null) ||
+                (enumerator.GetDefaultAudioEndpoint(0, 0, out fallback) == 0 && fallback != null) ||
+                (enumerator.GetDefaultAudioEndpoint(0, 2, out fallback) == 0 && fallback != null))
+            {
+                try { fallback.GetId(out selectedId); } catch { selectedId = "default"; }
+                selectedPeak = ReadEndpointHardwarePeak(fallback, out selectedMeter);
+                return fallback;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Checks whether any other active eRender endpoint has started outputting audio while the current endpoint is silent.
+        /// </summary>
+        private static bool HasOtherEndpointPlayingAudio(
+            IMMDeviceEnumerator enumerator,
+            string currentEndpointId,
+            out string activeEndpointId,
+            out float activePeak)
+        {
+            activeEndpointId = string.Empty;
+            activePeak = 0f;
+            try
+            {
+                if (enumerator.EnumAudioEndpoints(0, 1, out IMMDeviceCollection col) == 0 && col != null)
+                {
+                    col.GetCount(out uint count);
+                    for (uint i = 0; i < count; i++)
+                    {
+                        if (col.Item(i, out IMMDevice candidate) == 0 && candidate != null)
+                        {
+                            string id = string.Empty;
+                            try { candidate.GetId(out id); } catch { }
+                            if (!string.Equals(id, currentEndpointId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                float peak = ReadEndpointHardwarePeak(candidate, out IAudioMeterInformation meter);
+                                if (meter != null) { try { Marshal.ReleaseComObject(meter); } catch { } }
+                                if (peak > 0.0005f && peak > activePeak)
+                                {
+                                    activePeak = peak;
+                                    activeEndpointId = id ?? string.Empty;
+                                }
+                            }
+                            try { Marshal.ReleaseComObject(candidate); } catch { }
+                        }
+                    }
+                    try { Marshal.ReleaseComObject(col); } catch { }
+                }
+            }
+            catch { }
+            return activePeak > 0.0005f;
+        }
+
         private void CaptureLoop()
         {
             while (_running)
             {
                 while (_running && !_isActive)
                 {
-                    Thread.Sleep(300);
+                    Thread.Sleep(200);
                 }
                 if (!_running) break;
 
                 IMMDeviceEnumerator enumerator = null;
                 IMMDevice device = null;
+                IAudioMeterInformation deviceMeter = null;
                 IAudioClient client = null;
                 IAudioCaptureClient capture = null;
                 IntPtr mixFormatPtr = IntPtr.Zero;
 
                 try
                 {
-                    var clsid = new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"); // MMDeviceEnumerator
+                    var clsid = new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E");
                     var type = Type.GetTypeFromCLSID(clsid);
                     if (type == null)
                     {
@@ -228,95 +394,168 @@ namespace WindowsBuddy.Services
                     }
 
                     enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(type);
-                    if (enumerator.GetDefaultAudioEndpoint(0, 1, out device) != 0 || device == null)
+                    device = SelectBestRenderEndpoint(enumerator, out string currentEndpointId, out float initPeak, out deviceMeter);
+                    if (device == null)
                     {
-                        Thread.Sleep(800);
+                        LogSpec("SelectBestRenderEndpoint found no active render endpoint.");
+                        Thread.Sleep(1000);
                         continue;
                     }
 
                     var iidAudioClient = typeof(IAudioClient).GUID;
                     if (device.Activate(ref iidAudioClient, CLSCTX_ALL, IntPtr.Zero, out object clientObj) != 0 || clientObj == null)
                     {
-                        Thread.Sleep(800);
+                        LogSpec("device.Activate(IAudioClient) failed");
+                        Thread.Sleep(1000);
                         continue;
                     }
                     client = (IAudioClient)clientObj;
 
                     if (client.GetMixFormat(out mixFormatPtr) != 0 || mixFormatPtr == IntPtr.Zero)
                     {
-                        Thread.Sleep(800);
+                        LogSpec("client.GetMixFormat failed");
+                        Thread.Sleep(1000);
                         continue;
                     }
 
+                    ushort formatTag = (ushort)Marshal.ReadInt16(mixFormatPtr, 0);
                     int channels = Marshal.ReadInt16(mixFormatPtr, 2);
                     int sampleRate = Marshal.ReadInt32(mixFormatPtr, 4);
+                    int blockAlign = Marshal.ReadInt16(mixFormatPtr, 12);
                     int bitsPerSample = Marshal.ReadInt16(mixFormatPtr, 14);
-                    int formatTag = (ushort)Marshal.ReadInt16(mixFormatPtr, 0);
-                    bool isFloat = formatTag == 3; // WAVE_FORMAT_IEEE_FLOAT
-                    if (formatTag == 0xFFFE && Marshal.ReadInt16(mixFormatPtr, 16) >= 22)
+                    int cbSize = Marshal.ReadInt16(mixFormatPtr, 16);
+
+                    bool isFloat = (formatTag == 3);
+                    if (formatTag == 0xFFFE && cbSize >= 22)
                     {
-                        // WAVE_FORMAT_EXTENSIBLE SubFormat first 4 bytes: 0x00000003 = IEEE_FLOAT
-                        int subFormat = Marshal.ReadInt32(mixFormatPtr, 24);
-                        isFloat = subFormat == 3;
+                        byte[] subFormatBytes = new byte[16];
+                        Marshal.Copy(IntPtr.Add(mixFormatPtr, 24), subFormatBytes, 0, 16);
+                        var subFormat = new Guid(subFormatBytes);
+                        if (subFormat == new Guid("00000003-0000-0010-8000-00aa00389b71"))
+                            isFloat = true;
                     }
 
-                    if (client.Initialize(0, AUDCLNT_STREAMFLAGS_LOOPBACK, 500000, 0, mixFormatPtr, IntPtr.Zero) != 0)
+                    int hrInit = client.Initialize(0, AUDCLNT_STREAMFLAGS_LOOPBACK, 400_000, 0, mixFormatPtr, IntPtr.Zero);
+                    if (hrInit != 0)
                     {
-                        Thread.Sleep(800);
+                        LogSpec($"client.Initialize failed hr=0x{hrInit:X8}");
+                        Thread.Sleep(1000);
                         continue;
                     }
 
                     var iidCapture = typeof(IAudioCaptureClient).GUID;
-                    if (client.GetService(ref iidCapture, out object capObj) != 0 || capObj == null)
+                    if (client.GetService(ref iidCapture, out object captureObj) != 0 || captureObj == null)
                     {
-                        Thread.Sleep(800);
+                        LogSpec("client.GetService(IAudioCaptureClient) failed");
+                        Thread.Sleep(1000);
                         continue;
                     }
-                    capture = (IAudioCaptureClient)capObj;
+                    capture = (IAudioCaptureClient)captureObj;
 
-                    client.Start();
-
-                    int bytesPerSample = Math.Max(1, bitsPerSample / 8);
-                    int frameStride = Math.Max(1, channels * bytesPerSample);
-                    DateTime lastActiveSoundUtc = DateTime.MinValue;
-
-                    while (_running && _isActive)
+                    if (client.Start() != 0)
                     {
-                        bool isStillLive = (DateTime.UtcNow - lastActiveSoundUtc).TotalMilliseconds < 450;
-                        Thread.Sleep(isStillLive ? 25 : 85);
-                        bool gotSamples = false;
+                        LogSpec("client.Start failed");
+                        Thread.Sleep(1000);
+                        continue;
+                    }
 
-                        while (capture.GetNextPacketSize(out uint packetFrames) == 0 && packetFrames > 0)
+                    LogSpec($"Loopback started on endpoint={currentEndpointId} initPeak={initPeak:F4} ch={channels} sr={sampleRate} bps={bitsPerSample} float={isFloat}");
+                    DateTime lastActiveSoundUtc = DateTime.UtcNow;
+                    DateTime lastEndpointCheckUtc = DateTime.UtcNow;
+                    _forceReconnect = false;
+
+                    while (_running && _isActive && !_forceReconnect)
+                    {
+                        bool gotFrames = false;
+                        float maxAbsSample = 0f;
+                        int frameStep = Math.Max(4, blockAlign);
+                        bool deviceInvalidated = false;
+
+                        while (true)
                         {
-                            if (capture.GetBuffer(out IntPtr dataPtr, out uint numFrames, out uint flags, out _, out _) != 0)
+                            int hrPacket = capture.GetNextPacketSize(out uint packetFrames);
+                            if (hrPacket != 0)
+                            {
+                                deviceInvalidated = true;
                                 break;
+                            }
+                            if (packetFrames == 0)
+                                break;
+
+                            int hrBuf = capture.GetBuffer(out IntPtr dataPtr, out uint numFrames, out uint flags, out _, out _);
+                            if (hrBuf != 0)
+                            {
+                                deviceInvalidated = true;
+                                break;
+                            }
 
                             try
                             {
-                                bool silent = (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0 || dataPtr == IntPtr.Zero;
+                                bool isSilent = (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0;
                                 for (uint f = 0; f < numFrames; f++)
                                 {
-                                    float s = 0f;
-                                    if (!silent)
+                                    float mono = 0f;
+                                    if (!isSilent && dataPtr != IntPtr.Zero)
                                     {
-                                        IntPtr framePtr = dataPtr + (int)(f * frameStride);
+                                        IntPtr framePtr = IntPtr.Add(dataPtr, (int)(f * (uint)frameStep));
                                         if (isFloat && bitsPerSample == 32)
                                         {
-                                            float ch0 = Marshal.PtrToStructure<float>(framePtr);
-                                            float ch1 = channels > 1 ? Marshal.PtrToStructure<float>(framePtr + 4) : ch0;
-                                            s = (ch0 + ch1) * 0.5f;
+                                            int chCount = Math.Min(channels, 2);
+                                            float sum = 0f;
+                                            for (int c = 0; c < chCount; c++)
+                                            {
+                                                int bits = Marshal.ReadInt32(framePtr, c * 4);
+                                                float s = BitConverter.Int32BitsToSingle(bits);
+                                                if (float.IsNaN(s) || float.IsInfinity(s)) s = 0f;
+                                                sum += s;
+                                            }
+                                            mono = chCount > 0 ? sum / chCount : 0f;
                                         }
                                         else if (bitsPerSample == 16)
                                         {
-                                            short ch0 = Marshal.ReadInt16(framePtr);
-                                            short ch1 = channels > 1 ? Marshal.ReadInt16(framePtr + 2) : ch0;
-                                            s = ((ch0 + ch1) * 0.5f) / 32768f;
+                                            int chCount = Math.Min(channels, 2);
+                                            float sum = 0f;
+                                            for (int c = 0; c < chCount; c++)
+                                            {
+                                                short pcm = Marshal.ReadInt16(framePtr, c * 2);
+                                                sum += pcm / 32768f;
+                                            }
+                                            mono = chCount > 0 ? sum / chCount : 0f;
+                                        }
+                                        else if (bitsPerSample == 24)
+                                        {
+                                            int chCount = Math.Min(channels, 2);
+                                            float sum = 0f;
+                                            for (int c = 0; c < chCount; c++)
+                                            {
+                                                int b0 = Marshal.ReadByte(framePtr, c * 3);
+                                                int b1 = Marshal.ReadByte(framePtr, c * 3 + 1);
+                                                int b2 = (sbyte)Marshal.ReadByte(framePtr, c * 3 + 2);
+                                                int pcm24 = b0 | (b1 << 8) | (b2 << 16);
+                                                sum += pcm24 / 8388608f;
+                                            }
+                                            mono = chCount > 0 ? sum / chCount : 0f;
+                                        }
+                                        else if (!isFloat && bitsPerSample == 32)
+                                        {
+                                            int chCount = Math.Min(channels, 2);
+                                            float sum = 0f;
+                                            for (int c = 0; c < chCount; c++)
+                                            {
+                                                int pcm32 = Marshal.ReadInt32(framePtr, c * 4);
+                                                sum += pcm32 / 2147483648f;
+                                            }
+                                            mono = chCount > 0 ? sum / chCount : 0f;
                                         }
                                     }
-                                    _ring[_ringPos] = s;
+
+                                    float abs = Math.Abs(mono);
+                                    if (abs > maxAbsSample) maxAbsSample = abs;
+
+                                    _ring[_ringPos] = mono;
                                     _ringPos = (_ringPos + 1) & (RingSize - 1);
                                 }
-                                gotSamples = true;
+                                gotFrames = numFrames > 0;
                             }
                             finally
                             {
@@ -324,86 +563,128 @@ namespace WindowsBuddy.Services
                             }
                         }
 
-                        if (gotSamples)
+                        if (deviceInvalidated)
                         {
-                            Analyze(sampleRate > 0 ? sampleRate : 48000, ref lastActiveSoundUtc);
+                            LogSpec("Endpoint stream invalidated; reconnecting.");
+                            break;
                         }
-                        else
+
+                        float meterPeak = 0f;
+                        if (deviceMeter != null)
                         {
-                            // Decay smoothly when no new packet arrives
-                            bool stillLive = (DateTime.UtcNow - lastActiveSoundUtc).TotalMilliseconds < 350;
-                            lock (_lock)
+                            try
                             {
-                                for (int b = 0; b < Bands; b++)
-                                {
-                                    _smooth[b] *= 0.82f;
-                                    _levels[b] = _smooth[b] < 0.01f ? 0f : _smooth[b];
-                                }
-                                _reactiveBass *= 0.78f;
-                                _reactiveMid *= 0.78f;
-                                _reactiveOverall *= 0.78f;
-                                if (_reactiveBass < 0.01f) _reactiveBass = 0f;
-                                if (_reactiveMid < 0.01f) _reactiveMid = 0f;
-                                if (_reactiveOverall < 0.01f) _reactiveOverall = 0f;
-                                _live = stillLive;
+                                if (deviceMeter.GetPeakValue(out float mp) == 0 && float.IsFinite(mp))
+                                    meterPeak = mp;
+                            }
+                            catch { }
+                        }
+
+                        if (gotFrames && (maxAbsSample > 0.00015f || meterPeak > 0.0004f))
+                        {
+                            lastActiveSoundUtc = DateTime.UtcNow;
+                        }
+                        else if (!gotFrames && meterPeak > 0.0008f)
+                        {
+                            lastActiveSoundUtc = DateTime.UtcNow;
+                        }
+
+                        Analyze(sampleRate, lastActiveSoundUtc, meterPeak);
+
+                        // If current endpoint has been silent for >280ms, check if audio is playing on another active render endpoint
+                        var nowUtc = DateTime.UtcNow;
+                        if ((nowUtc - lastActiveSoundUtc).TotalMilliseconds > 280 &&
+                            (nowUtc - lastEndpointCheckUtc).TotalMilliseconds > 320)
+                        {
+                            lastEndpointCheckUtc = nowUtc;
+                            if (HasOtherEndpointPlayingAudio(enumerator, currentEndpointId, out string newId, out float newPeak))
+                            {
+                                LogSpec($"Switching from silent endpoint {currentEndpointId} to active endpoint {newId} (peak={newPeak:F4})");
+                                break;
                             }
                         }
+
+                        Thread.Sleep(15);
                     }
+
+                    try { client.Stop(); } catch { }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    LogSpec($"CaptureLoop exception: {ex.Message}");
                     Thread.Sleep(1000);
                 }
                 finally
                 {
                     if (mixFormatPtr != IntPtr.Zero) Marshal.FreeCoTaskMem(mixFormatPtr);
-                    try { client?.Stop(); } catch { }
-                    if (capture != null) Marshal.ReleaseComObject(capture);
-                    if (client != null) Marshal.ReleaseComObject(client);
-                    if (device != null) Marshal.ReleaseComObject(device);
-                    if (enumerator != null) Marshal.ReleaseComObject(enumerator);
+                    if (capture != null) { try { Marshal.ReleaseComObject(capture); } catch { } }
+                    if (client != null) { try { Marshal.ReleaseComObject(client); } catch { } }
+                    if (deviceMeter != null) { try { Marshal.ReleaseComObject(deviceMeter); } catch { } }
+                    if (device != null) { try { Marshal.ReleaseComObject(device); } catch { } }
+                    if (enumerator != null) { try { Marshal.ReleaseComObject(enumerator); } catch { } }
                 }
             }
         }
 
-        private void Analyze(int sampleRate, ref DateTime lastActiveSoundUtc)
+        private void Analyze(int sampleRate, DateTime lastActiveSoundUtc, float hardwareMeterPeak)
         {
-            double energySum = 0.0;
-            int pos = _ringPos;
-            for (int i = 0; i < FftSize; i++)
-            {
-                int idx = (pos - FftSize + i) & (RingSize - 1);
-                float sample = _ring[idx];
-                energySum += sample * sample;
-                _re[i] = sample * _window[i];
-                _im[i] = 0f;
-            }
-
-            double rms = Math.Sqrt(energySum / FftSize);
-            bool hasSound = rms > 0.0005;
-            if (hasSound)
-            {
-                lastActiveSoundUtc = DateTime.UtcNow;
-            }
-            else
+            bool hasSound = (DateTime.UtcNow - lastActiveSoundUtc).TotalMilliseconds < 320;
+            if (!hasSound)
             {
                 lock (_lock)
                 {
+                    bool any = false;
                     for (int b = 0; b < Bands; b++)
                     {
-                        _smooth[b] *= 0.72f;
-                        _levels[b] = _smooth[b] < 0.005f ? 0f : _smooth[b];
+                        _smooth[b] *= 0.75f;
+                        if (_smooth[b] < 0.004f) _smooth[b] = 0f;
+                        else any = true;
+                        _levels[b] = _smooth[b];
                     }
-                    _reactiveBass *= 0.70f;
+                    _reactiveBass *= 0.65f;
                     _reactiveMid *= 0.70f;
                     _reactiveOverall *= 0.70f;
                     if (_reactiveBass < 0.005f) _reactiveBass = 0f;
                     if (_reactiveMid < 0.005f) _reactiveMid = 0f;
                     if (_reactiveOverall < 0.005f) _reactiveOverall = 0f;
-                    _live = false;
+                    _live = any || _reactiveBass > 0.01f;
                 }
                 return;
             }
+
+            // Copy latest 2048 samples and simultaneously run a 2-pole time-domain low-pass bass filter (~135 Hz cutoff)
+            // on the latest 512 samples (~10.6 ms at 48kHz) for instant zero-smear kick drum transient detection
+            float lpAlpha = 1f - MathF.Exp(-2f * MathF.PI * 135f / Math.Max(8000, sampleRate));
+            float lp1 = _lpStage1;
+            float lp2 = _lpStage2;
+            float recentBassSq = 0f;
+            float recentMidSq = 0f;
+            int recentStart = FftSize - 512;
+
+            int start = (_ringPos - FftSize + RingSize) & (RingSize - 1);
+            for (int i = 0; i < FftSize; i++)
+            {
+                float s = _ring[(start + i) & (RingSize - 1)];
+                if (!float.IsFinite(s)) s = 0f;
+
+                if (i >= recentStart)
+                {
+                    lp1 += lpAlpha * (s - lp1);
+                    lp2 += lpAlpha * (lp1 - lp2);
+                    float hi = s - lp2;
+                    recentBassSq += lp2 * lp2;
+                    recentMidSq += hi * hi;
+                }
+
+                _re[i] = s * _window[i];
+                _im[i] = 0f;
+            }
+
+            _lpStage1 = float.IsFinite(lp1) ? lp1 : 0f;
+            _lpStage2 = float.IsFinite(lp2) ? lp2 : 0f;
+
+            float tdBassRms = MathF.Sqrt(recentBassSq / 512f);
+            float tdMidRms = MathF.Sqrt(recentMidSq / 512f);
 
             Fft(_re, _im);
 
@@ -426,56 +707,78 @@ namespace WindowsBuddy.Services
                 }
 
                 double avgMag = count > 0 ? magSum / count : 0.0;
-                double tilt = bb.Tilt;
-                float db = (float)(20.0 * Math.Log10(avgMag * tilt + 1e-9));
+                float db = (float)(20.0 * Math.Log10(avgMag * bb.Tilt + 1e-9));
                 if (db > maxBandDb) maxBandDb = db;
                 _target[b] = db;
             }
 
             if (maxBandDb > _peakDb)
-                _peakDb = _peakDb * 0.80f + maxBandDb * 0.20f;
+                _peakDb = _peakDb * 0.78f + maxBandDb * 0.22f;
             else
-                _peakDb = Math.Max(-40f, _peakDb * 0.992f + maxBandDb * 0.008f);
+                _peakDb = Math.Max(-54f, _peakDb * 0.985f + maxBandDb * 0.015f);
 
             float floorDb = _peakDb - 42f;
-            float reactiveFloorDb = _peakDb - 26f;
-            float rawBassSum = 0f;
-            float rawBassPeak = 0f;
-            for (int b = 1; b <= 7 && b < Bands; b++)
-            {
-                float rn = Math.Clamp((_target[b] - reactiveFloorDb) / 26f, 0f, 1f);
-                rawBassSum += rn;
-                if (rn > rawBassPeak) rawBassPeak = rn;
-            }
-            float bassLinear = (rawBassSum / 7f) * 0.35f + rawBassPeak * 0.65f;
-            float targetBass = Math.Clamp(MathF.Pow(bassLinear, 0.72f) * 1.45f, 0f, 1f);
 
-            float rawMidSum = 0f;
-            for (int b = 8; b <= 17 && b < Bands; b++)
+            // Compute linear FFT sub-bass/kick magnitude (~40 Hz .. 180 Hz)
+            int kickBin0 = Math.Max(1, (int)(40.0 * FftSize / sampleRate));
+            int kickBin1 = Math.Max(kickBin0 + 1, (int)(180.0 * FftSize / sampleRate));
+            float fftKickMag = 0f;
+            int kickCount = 0;
+            for (int k = kickBin0; k <= kickBin1 && k < FftSize / 2; k++)
             {
-                rawMidSum += Math.Clamp((_target[b] - reactiveFloorDb) / 26f, 0f, 1f);
+                float mag = MathF.Sqrt(_re[k] * _re[k] + _im[k] * _im[k]) / (FftSize * 0.25f);
+                fftKickMag += mag;
+                kickCount++;
             }
-            float midLinear = rawMidSum / 10f;
-            float targetMid = Math.Clamp(MathF.Pow(midLinear, 0.75f) * 1.40f, 0f, 1f);
+            if (kickCount > 0) fftKickMag /= kickCount;
+
+            // Fuse time-domain 135Hz low-pass RMS and FFT 40-180Hz kick magnitude
+            float rawBass = (tdBassRms * 1.40f) + (fftKickMag * 1.10f);
+            if (!float.IsFinite(rawBass)) rawBass = 0f;
+
+            // Volume-adaptive peak reference: adapts quickly to track volume so 5% volume and 100% volume both pulse cleanly
+            if (rawBass > _bassRefPeak)
+                _bassRefPeak += (rawBass - _bassRefPeak) * 0.48f;
+            else
+                _bassRefPeak = Math.Max(0.0012f, _bassRefPeak * 0.992f);
+
+            // Slow moving average of bass energy (floor) to isolate drum kick transients
+            _bassFloor += (rawBass - _bassFloor) * 0.09f;
+            _bassFloor = Math.Max(0.0002f, _bassFloor);
+
+            // Normalized bass envelope (0..1) + gentle transient onset above rolling bass floor (0..1)
+            float normBass = Math.Clamp(rawBass / Math.Max(0.0012f, _bassRefPeak), 0f, 1f);
+            float onsetDelta = Math.Max(0f, rawBass - (_bassFloor * 0.96f));
+            float kickOnset = Math.Clamp(onsetDelta / Math.Max(0.0008f, _bassRefPeak * 0.55f), 0f, 1f);
+
+            // Smooth, eye-friendly beat shaping: avoids harsh spikes while tracking bass rhythm fluidly
+            float targetBass = Math.Clamp((MathF.Pow(normBass, 1.20f) * 0.52f) + (kickOnset * 0.52f), 0f, 1f);
+
+            if (tdMidRms > _midRefPeak)
+                _midRefPeak += (tdMidRms - _midRefPeak) * 0.38f;
+            else
+                _midRefPeak = Math.Max(0.0010f, _midRefPeak * 0.992f);
+
+            float targetMid = Math.Clamp(tdMidRms / Math.Max(0.0010f, _midRefPeak), 0f, 1f);
+            float targetOverall = Math.Clamp((targetBass * 0.70f) + (targetMid * 0.30f), 0f, 1f);
 
             lock (_lock)
             {
                 for (int b = 0; b < Bands; b++)
                 {
-                    // Suppress sub-bass DC rumble in lowest 5 bands so center dots stay clean like the video
                     float scale = b < 5 ? (b / 5.0f) * 0.25f : 1.0f;
-                    float norm = hasSound ? Math.Clamp((_target[b] - floorDb) / 42f, 0f, 1f) * scale : 0f;
+                    float norm = Math.Clamp((_target[b] - floorDb) / 42f, 0f, 1f) * scale;
                     float rate = norm > _smooth[b] ? 0.60f : 0.22f;
                     _smooth[b] += (norm - _smooth[b]) * rate;
                     _levels[b] = _smooth[b];
                 }
 
-                float bassRate = targetBass > _reactiveBass ? 0.72f : 0.28f;
-                float midRate = targetMid > _reactiveMid ? 0.62f : 0.24f;
-                _reactiveBass += (targetBass - _reactiveBass) * bassRate;
-                _reactiveMid += (targetMid - _reactiveMid) * midRate;
-                _reactiveOverall = Math.Clamp(_reactiveBass * 0.70f + _reactiveMid * 0.30f, 0f, 1f);
-                _live = (DateTime.UtcNow - lastActiveSoundUtc).TotalMilliseconds < 350;
+                float bassRate = targetBass > _reactiveBass ? 0.45f : 0.18f;
+                float midRate = targetMid > _reactiveMid ? 0.42f : 0.20f;
+                _reactiveBass = Math.Clamp(_reactiveBass + (targetBass - _reactiveBass) * bassRate, 0f, 1f);
+                _reactiveMid = Math.Clamp(_reactiveMid + (targetMid - _reactiveMid) * midRate, 0f, 1f);
+                _reactiveOverall = Math.Clamp((_reactiveBass * 0.72f) + (_reactiveMid * 0.28f), 0f, 1f);
+                _live = true;
             }
         }
 
@@ -542,8 +845,17 @@ namespace WindowsBuddy.Services
         [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         private interface IMMDeviceEnumerator
         {
-            int EnumAudioEndpoints(int dataFlow, uint stateMask, out IntPtr devices);
+            int EnumAudioEndpoints(int dataFlow, uint stateMask, out IMMDeviceCollection devices);
             int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint);
+        }
+
+        [ComImport]
+        [Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IMMDeviceCollection
+        {
+            int GetCount(out uint pcDevices);
+            int Item(uint nDevice, out IMMDevice ppDevice);
         }
 
         [ComImport]
@@ -552,6 +864,17 @@ namespace WindowsBuddy.Services
         private interface IMMDevice
         {
             int Activate(ref Guid iid, uint dwClsCtx, IntPtr pActivationParams, [MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
+            int OpenPropertyStore(uint stgmAccess, out IntPtr ppProperties);
+            int GetId([MarshalAs(UnmanagedType.LPWStr)] out string ppstrId);
+            int GetState(out uint pdwState);
+        }
+
+        [ComImport]
+        [Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IAudioMeterInformation
+        {
+            int GetPeakValue(out float pfPeak);
         }
 
         [ComImport]

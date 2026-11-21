@@ -173,7 +173,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                         double cardW = _window.CapsuleCard != null && _window.CapsuleCard.ActualWidth > 0 ? _window.CapsuleCard.ActualWidth : CapsuleWindow.CollapsedWidth;
                         double cardLeft = (CapsuleWindow.StableEnvelopeWidth - cardW) / 2.0;
 
-                        double baseLeft = (screenPoint.X >= winLeft && winLeft > 0) ? (winLeft + cardLeft) : cardLeft;
+                        double baseLeft = (winLeft > 0 && screenPoint.X > cardLeft + cardW + 40.0) ? (winLeft + cardLeft) : cardLeft;
                         double baseTop = (screenPoint.Y >= winTop && winTop > 0) ? winTop : 0;
 
                         double indLeft = baseLeft + cardW - 10.0 - indW;
@@ -229,7 +229,7 @@ namespace WindowsBuddy.BuddyCapsule.Core
                     {
                         double cardW = _window.CapsuleCard.ActualWidth > 0 ? _window.CapsuleCard.ActualWidth : CapsuleWindow.CollapsedWidth;
                         double cardLeft = (CapsuleWindow.StableEnvelopeWidth - cardW) / 2.0;
-                        double cardBaseLeft = (screenPoint.X >= winLeft && winLeft > 0) ? (winLeft + cardLeft) : cardLeft;
+                        double cardBaseLeft = (winLeft > 0 && screenPoint.X > cardLeft + cardW + 40.0) ? (winLeft + cardLeft) : cardLeft;
                         double cardBaseTop = (screenPoint.Y >= winTop && winTop > 0) ? winTop : 0;
                         pt = new Point(screenPoint.X - cardBaseLeft, screenPoint.Y - cardBaseTop);
                     }

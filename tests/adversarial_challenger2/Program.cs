@@ -300,24 +300,12 @@ namespace Mayli.AdversarialTests.Challenger2
             // Isolate indicator target box
             window.CapsuleCard.IsHitTestVisible = false;
 
-            // Indicator geometry:
-            // Collapsed notch width = 228, centered in 800 window -> left offset = 286.
-            // Indicator right margin = 10, width = 26.
-            // indLeft = 286 + 228 - 10 - 26 = 478.0.
-            // Padded left boundary is indLeft - 2 = 476.0.
-            // Y center = (35 - 24) / 2 + 12 = 17.5.
+            double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+            double indLeft = cardLeft + CapsuleWindow.CollapsedWidth - 10.0 - 26.0;
 
-            // 1. 1px Inside padded left boundary: X = 477.0
-            bool inside = controller.HitTestInteractive(new Point(477.0, 17.5));
-            AssertTrue(inside, "1px inside left boundary (X=477, pt.X=-1) must hit");
-
-            // 2. Exactly on padded left boundary: X = 476.0
-            bool onBoundary = controller.HitTestInteractive(new Point(476.0, 17.5));
-            AssertTrue(onBoundary, "Exactly on left boundary (X=476, pt.X=-2) must hit");
-
-            // 3. 1px Outside padded left boundary: X = 475.0
-            bool outside = controller.HitTestInteractive(new Point(475.0, 17.5));
-            AssertFalse(outside, "1px outside left boundary (X=475, pt.X=-3) must NOT hit indicator target box");
+            AssertTrue(controller.HitTestInteractive(new Point(indLeft - 1.0, 17.5)), "1px inside left boundary must hit");
+            AssertTrue(controller.HitTestInteractive(new Point(indLeft - 2.0, 17.5)), "Exactly on left boundary must hit");
+            AssertFalse(controller.HitTestInteractive(new Point(indLeft - 3.0, 17.5)), "1px outside left boundary must NOT hit indicator target box");
         }
 
         private static void Test_HitTest_RightBoundary_1pxInside_OnBoundary_1pxOutside()
@@ -327,20 +315,12 @@ namespace Mayli.AdversarialTests.Challenger2
             window.PrivacyIndicator.UpdateAccessState(true, "Discord", false, null);
             window.CapsuleCard.IsHitTestVisible = false;
 
-            // indLeft = 478.0, indW = 26.0.
-            // Padded right boundary is indLeft + indW + 2 = 478 + 26 + 2 = 506.0.
+            double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+            double indRight = cardLeft + CapsuleWindow.CollapsedWidth - 10.0;
 
-            // 1. 1px Inside padded right boundary: X = 505.0
-            bool inside = controller.HitTestInteractive(new Point(505.0, 17.5));
-            AssertTrue(inside, "1px inside right boundary (X=505, pt.X=27) must hit");
-
-            // 2. Exactly on padded right boundary: X = 506.0
-            bool onBoundary = controller.HitTestInteractive(new Point(506.0, 17.5));
-            AssertTrue(onBoundary, "Exactly on right boundary (X=506, pt.X=28) must hit");
-
-            // 3. 1px Outside padded right boundary: X = 507.0
-            bool outside = controller.HitTestInteractive(new Point(507.0, 17.5));
-            AssertFalse(outside, "1px outside right boundary (X=507, pt.X=29) must NOT hit indicator target box");
+            AssertTrue(controller.HitTestInteractive(new Point(indRight + 1.0, 17.5)), "1px inside right boundary must hit");
+            AssertTrue(controller.HitTestInteractive(new Point(indRight + 2.0, 17.5)), "Exactly on right boundary must hit");
+            AssertFalse(controller.HitTestInteractive(new Point(indRight + 3.0, 17.5)), "1px outside right boundary must NOT hit indicator target box");
         }
 
         private static void Test_HitTest_TopBoundary_1pxInside_OnBoundary_1pxOutside()
@@ -350,21 +330,12 @@ namespace Mayli.AdversarialTests.Challenger2
             window.PrivacyIndicator.UpdateAccessState(true, "Discord", false, null);
             window.CapsuleCard.IsHitTestVisible = false;
 
-            // indTop = (35 - 24) / 2 = 5.5.
-            // Padded top boundary is indTop - 2 = 3.5.
-            // X center = 491.0.
+            double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+            double centerX = cardLeft + CapsuleWindow.CollapsedWidth - 10.0 - 13.0;
 
-            // 1. 1px Inside padded top boundary: Y = 4.5
-            bool inside = controller.HitTestInteractive(new Point(491.0, 4.5));
-            AssertTrue(inside, "1px inside top boundary (Y=4.5, pt.Y=-1) must hit");
-
-            // 2. Exactly on padded top boundary: Y = 3.5
-            bool onBoundary = controller.HitTestInteractive(new Point(491.0, 3.5));
-            AssertTrue(onBoundary, "Exactly on top boundary (Y=3.5, pt.Y=-2) must hit");
-
-            // 3. 1px Outside padded top boundary: Y = 2.5
-            bool outside = controller.HitTestInteractive(new Point(491.0, 2.5));
-            AssertFalse(outside, "1px outside top boundary (Y=2.5, pt.Y=-3) must NOT hit indicator target box");
+            AssertTrue(controller.HitTestInteractive(new Point(centerX, 4.5)), "1px inside top boundary (Y=4.5, pt.Y=-1) must hit");
+            AssertTrue(controller.HitTestInteractive(new Point(centerX, 3.5)), "Exactly on top boundary (Y=3.5, pt.Y=-2) must hit");
+            AssertFalse(controller.HitTestInteractive(new Point(centerX, 2.5)), "1px outside top boundary (Y=2.5, pt.Y=-3) must NOT hit indicator target box");
         }
 
         private static void Test_HitTest_BottomBoundary_1pxInside_OnBoundary_1pxOutside()
@@ -374,44 +345,32 @@ namespace Mayli.AdversarialTests.Challenger2
             window.PrivacyIndicator.UpdateAccessState(true, "Discord", false, null);
             window.CapsuleCard.IsHitTestVisible = false;
 
-            // indTop = 5.5, indH = 24.0.
-            // Padded bottom boundary is indTop + indH + 2 = 5.5 + 24 + 2 = 31.5.
+            double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+            double centerX = cardLeft + CapsuleWindow.CollapsedWidth - 10.0 - 13.0;
 
-            // 1. 1px Inside padded bottom boundary: Y = 30.5
-            bool inside = controller.HitTestInteractive(new Point(491.0, 30.5));
-            AssertTrue(inside, "1px inside bottom boundary (Y=30.5, pt.Y=25) must hit");
-
-            // 2. Exactly on padded bottom boundary: Y = 31.5
-            bool onBoundary = controller.HitTestInteractive(new Point(491.0, 31.5));
-            AssertTrue(onBoundary, "Exactly on bottom boundary (Y=31.5, pt.Y=26) must hit");
-
-            // 3. 1px Outside padded bottom boundary: Y = 32.5
-            bool outside = controller.HitTestInteractive(new Point(491.0, 32.5));
-            AssertFalse(outside, "1px outside bottom boundary (Y=32.5, pt.Y=27) must NOT hit indicator target box");
+            AssertTrue(controller.HitTestInteractive(new Point(centerX, 30.5)), "1px inside bottom boundary (Y=30.5, pt.Y=25) must hit");
+            AssertTrue(controller.HitTestInteractive(new Point(centerX, 31.5)), "Exactly on bottom boundary (Y=31.5, pt.Y=26) must hit");
+            AssertFalse(controller.HitTestInteractive(new Point(centerX, 32.5)), "1px outside bottom boundary (Y=32.5, pt.Y=27) must NOT hit indicator target box");
         }
 
         private static void Test_HitTest_DualDotPill_ExpandedHitBoxBoundaries()
         {
             var window = new CapsuleWindow();
             var controller = new NotchMousePassThroughController(window);
-            // Both active -> dual dot pill (width = 34.0)
             window.PrivacyIndicator.UpdateAccessState(true, "Discord", true, "Zoom");
             window.CapsuleCard.IsHitTestVisible = false;
 
-            // indW = 34.0.
-            // indLeft = 286 + 228 - 10 - 34 = 470.0.
-            // Padded left = 470 - 2 = 468.0.
-            // Padded right = 470 + 34 + 2 = 506.0.
+            double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+            double indLeft = cardLeft + CapsuleWindow.CollapsedWidth - 10.0 - 34.0;
+            double indRight = indLeft + 34.0;
 
-            // Left boundary
-            AssertTrue(controller.HitTestInteractive(new Point(469.0, 17.5)), "Dual-pill 1px inside left must hit");
-            AssertTrue(controller.HitTestInteractive(new Point(468.0, 17.5)), "Dual-pill on left boundary must hit");
-            AssertFalse(controller.HitTestInteractive(new Point(467.0, 17.5)), "Dual-pill 1px outside left must NOT hit target box");
+            AssertTrue(controller.HitTestInteractive(new Point(indLeft - 1.0, 17.5)), "Dual-pill 1px inside left must hit");
+            AssertTrue(controller.HitTestInteractive(new Point(indLeft - 2.0, 17.5)), "Dual-pill on left boundary must hit");
+            AssertFalse(controller.HitTestInteractive(new Point(indLeft - 3.0, 17.5)), "Dual-pill 1px outside left must NOT hit target box");
 
-            // Right boundary
-            AssertTrue(controller.HitTestInteractive(new Point(505.0, 17.5)), "Dual-pill 1px inside right must hit");
-            AssertTrue(controller.HitTestInteractive(new Point(506.0, 17.5)), "Dual-pill on right boundary must hit");
-            AssertFalse(controller.HitTestInteractive(new Point(507.0, 17.5)), "Dual-pill 1px outside right must NOT hit target box");
+            AssertTrue(controller.HitTestInteractive(new Point(indRight + 1.0, 17.5)), "Dual-pill 1px inside right must hit");
+            AssertTrue(controller.HitTestInteractive(new Point(indRight + 2.0, 17.5)), "Dual-pill on right boundary must hit");
+            AssertFalse(controller.HitTestInteractive(new Point(indRight + 3.0, 17.5)), "Dual-pill 1px outside right must NOT hit target box");
         }
 
         private static void Test_HitTest_CollapsedIndicator_ReturnsFalse()
@@ -421,8 +380,8 @@ namespace Mayli.AdversarialTests.Challenger2
             window.PrivacyIndicator.Visibility = Visibility.Collapsed;
             window.CapsuleCard.IsHitTestVisible = false;
 
-            // Center of where the indicator was:
-            bool hit = controller.HitTestInteractive(new Point(491.0, 17.5));
+            double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+            bool hit = controller.HitTestInteractive(new Point(cardLeft + CapsuleWindow.CollapsedWidth - 23.0, 17.5));
             AssertFalse(hit, "Collapsed indicator must return false for hit testing to allow pass-through");
         }
 
@@ -432,15 +391,11 @@ namespace Mayli.AdversarialTests.Challenger2
             var controller = new NotchMousePassThroughController(window);
             window.PrivacyIndicator.UpdateAccessState(true, "Discord", false, null);
 
-            // Points far outside the notch silhouette (in the transparent envelope margin):
-            // Window envelope is 800x388. Card is centered at 286..514.
-            // Point X=100, Y=15 is in the transparent margin to the left of the notch.
             bool hitLeftMargin = controller.HitTestInteractive(new Point(100.0, 15.0));
             AssertFalse(hitLeftMargin, "Left transparent margin (100, 15) must pass through (false)");
 
-            // Point X=700, Y=15 is in the transparent margin to the right of the notch.
-            bool hitRightMargin = controller.HitTestInteractive(new Point(700.0, 15.0));
-            AssertFalse(hitRightMargin, "Right transparent margin (700, 15) must pass through (false)");
+            bool hitRightMargin = controller.HitTestInteractive(new Point(CapsuleWindow.StableEnvelopeWidth - 100.0, 15.0));
+            AssertFalse(hitRightMargin, "Right transparent margin must pass through (false)");
 
             // Point outside window envelope bounds entirely
             bool hitNegative = controller.HitTestInteractive(new Point(-20.0, -20.0));

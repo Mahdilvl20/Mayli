@@ -45,6 +45,7 @@ namespace WindowsBuddy.Services
         public bool BrightnessActivity { get; set; } = true;
         public bool ClipboardCopiedActivity { get; set; } = true;
         public bool KeyboardLanguageActivity { get; set; } = true;
+        public bool CapsLockActivity { get; set; } = true;
         public bool HideCopiedText { get; set; } = true;
         public bool RunningTimersActivity { get; set; } = true;
         public bool TimerFinishAlerts { get; set; } = true;
@@ -400,6 +401,12 @@ namespace WindowsBuddy.Services
         {
             get => Raw.KeyboardLanguageActivity;
             set { Raw.KeyboardLanguageActivity = value; Save(); }
+        }
+
+        public bool CapsLockActivity
+        {
+            get => Raw.CapsLockActivity;
+            set { Raw.CapsLockActivity = value; Save(); }
         }
 
         public bool HideCopiedText
@@ -773,6 +780,7 @@ namespace WindowsBuddy.Services
             Raw.BrightnessActivity = true;
             Raw.ClipboardCopiedActivity = true;
             Raw.KeyboardLanguageActivity = true;
+            Raw.CapsLockActivity = true;
             Raw.HideCopiedText = true;
             Raw.RunningTimersActivity = true;
             Raw.TimerFinishAlerts = true;

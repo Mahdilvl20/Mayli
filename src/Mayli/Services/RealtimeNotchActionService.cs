@@ -764,6 +764,7 @@ namespace WindowsBuddy.Services
             if (eventCode is 0x8000 or 0x8004 or 0x0007)
             {
                 Task.Run(() => CheckBluetoothDevices(isDirectEvent: true));
+                AudioSpectrumService.Instance.RequestReconnect();
             }
         }
 

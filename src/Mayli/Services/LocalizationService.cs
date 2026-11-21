@@ -872,6 +872,8 @@ namespace WindowsBuddy.Services
             ["settings.live.header.keyboard"] = "KEYBOARD & INPUT",
             ["settings.live.keyboard.title"] = "Keyboard layout switch",
             ["settings.live.keyboard.desc"] = "Show animated notch banner when switching input language (Alt+Shift, Win+Space)",
+            ["settings.live.capslock.title"] = "Caps Lock indicator",
+            ["settings.live.capslock.desc"] = "Show a floating right-side capsule while Caps Lock is ON",
         };
 
         public static string T(string key, string fallback = null)

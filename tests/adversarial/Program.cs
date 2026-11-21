@@ -535,28 +535,26 @@ namespace Mayli.AdversarialTests
                 var controller = window.PassThroughController;
                 window.PrivacyIndicator.UpdateAccessState(isMicInUse: true, micAppName: "Discord", isCamInUse: false, camAppName: null);
 
-                // Coordinates:
-                // Collapsed notch width = 228. Card center in 800 envelope = (800-228)/2 = 286.
-                // Indicator width = 26, right margin = 10.
-                // Left = 286 + 228 - 10 - 26 = 478. Right = 504.
-                // Center Y = 15.
+                double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+                double indLeft = cardLeft + CapsuleWindow.CollapsedWidth - 10.0 - 26.0;
+                double indRight = indLeft + 26.0;
 
                 // Exact inside
-                if (!controller.HitTestInteractive(new Point(490, 15)))
+                if (!controller.HitTestInteractive(new Point(indLeft + 12.0, 15)))
                 {
-                    throw new Exception("Inside point (490, 15) must be interactive!");
+                    throw new Exception("Inside privacy indicator point must be interactive!");
                 }
 
-                // 2px padded boundary left (476, 15)
-                if (!controller.HitTestInteractive(new Point(476, 15)))
+                // 2px padded boundary left
+                if (!controller.HitTestInteractive(new Point(indLeft - 2.0, 15)))
                 {
-                    throw new Exception("Padded left point (476, 15) must be interactive!");
+                    throw new Exception("Padded left point must be interactive!");
                 }
 
-                // 2px padded boundary right (506, 15)
-                if (!controller.HitTestInteractive(new Point(506, 15)))
+                // 2px padded boundary right
+                if (!controller.HitTestInteractive(new Point(indRight + 2.0, 15)))
                 {
-                    throw new Exception("Padded right point (506, 15) must be interactive!");
+                    throw new Exception("Padded right point must be interactive!");
                 }
 
                 // Outside interactive target (far off in pass-through margins)

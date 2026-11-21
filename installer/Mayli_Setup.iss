@@ -2,7 +2,7 @@
 ; Inno Setup 6+ Compiler Script
 
 #define MyAppName "Mayli"
-#define MyAppVersion "1.1.67"
+#define MyAppVersion "1.1.68"
 #define MyAppPublisher "Modi Studio"
 #define MyAppURL "https://mayli.in"
 #define MyAppExeName "Mayli.exe"

@@ -347,20 +347,17 @@ namespace Mayli.UnitTests
             // Make indicator visible
             window.PrivacyIndicator.UpdateAccessState(isMicInUse: true, micAppName: "Discord", isCamInUse: false, camAppName: null);
 
-            // Coordinates in the right shoulder area:
-            // Collapsed notch width = 228, centered in 800 window.
-            // Left offset = (800 - 228)/2 = 286.
-            // Indicator right margin = 10, width = 26.
-            // Indicator X = 286 + 228 - 10 - 26 = 478 to 504.
-            // Height = 35. Center Y = (35 - 24)/2 = 5.5 to 29.5.
+            // Collapsed notch width = 228, centered in StableEnvelopeWidth window.
+            double cardLeft = (CapsuleWindow.StableEnvelopeWidth - CapsuleWindow.CollapsedWidth) / 2.0;
+            double indLeft = cardLeft + CapsuleWindow.CollapsedWidth - 10.0 - 26.0;
 
             // 1. Center of indicator
-            var insidePt = new Point(490, 15);
+            var insidePt = new Point(indLeft + 12.0, 15);
             bool hitsInside = controller.HitTestInteractive(insidePt);
             AssertTrue(hitsInside, "Click inside privacy indicator hit box must return true");
 
             // 2. 2px boundary padding (TC-T1-083)
-            var paddedPt = new Point(476, 15); // 2px left of indicator X=478
+            var paddedPt = new Point(indLeft - 2.0, 15);
             bool hitsPadded = controller.HitTestInteractive(paddedPt);
             AssertTrue(hitsPadded, "Point within 2px boundary padding must return true");
 
@@ -475,18 +472,20 @@ namespace Mayli.UnitTests
                     return 0.0;
                 }
 
-                // 1. Even with NO music playing (idle main notch), Caps Lock ON opens as "Caps Lock ON" pill on the right
+                // 1. Even with NO music playing (idle main notch), Caps Lock ON opens as "Caps Lock ON" pill aligned inside idle notch height
                 window.SetCapsLockStateForTest(isOn: true, expandPill: true, immediate: true);
                 AssertTrue(capsIsland.Visibility == Visibility.Visible, "CapsLock capsule must be visible even when notch is idle and nothing is playing");
-                AssertTrue(capsIsland.Width > 120.0, "Initial CapsLock phase must expand as a roomy pill for text");
+                AssertTrue(capsIsland.Width > 105.0, "Initial CapsLock phase must expand as a pill for text");
+                AssertTrue(capsIsland.Margin.Top + capsIsland.Height <= window.CapsuleCard.Height + 0.5, "CapsLock capsule bottom must stay aligned with main notch bottom");
                 AssertTrue(string.Equals(window.CapsLockDisplayText, "Caps Lock ON", StringComparison.Ordinal), "Expanded pill must display 'Caps Lock ON'");
                 AssertTrue(GetCapsTranslateX() > 90.0, "CapsLock capsule must be positioned to the right of the main notch");
 
-                // 2. After delay, shrinks smoothly into compact enlarged circle (40x40) with centered 'A'
+                // 2. After delay, shrinks smoothly into compact circle aligned with main notch height & centered 'A'
                 window.SetCapsLockStateForTest(isOn: true, expandPill: false, immediate: true);
                 AssertTrue(capsIsland.Visibility == Visibility.Visible, "CapsLock shrunk circle must remain visible while Caps Lock is ON");
-                AssertTrue(Math.Abs(capsIsland.Width - 40.0) < 0.5 && Math.Abs(capsIsland.Height - 40.0) < 0.5, "Shrunk CapsLock capsule must become a 40x40 circle");
-                AssertTrue(Math.Abs(capsIsland.CornerRadius.TopLeft - 20.0) < 0.5, "Shrunk CapsLock capsule must be fully circular");
+                AssertTrue(Math.Abs(capsIsland.Width - capsIsland.Height) < 0.5 && capsIsland.Height >= 26.0, "Shrunk CapsLock capsule must be circular");
+                AssertTrue(Math.Abs(capsIsland.CornerRadius.TopLeft - capsIsland.Height / 2.0) < 0.5, "Shrunk CapsLock capsule must be fully circular");
+                AssertTrue(capsIsland.Margin.Top + capsIsland.Height <= window.CapsuleCard.Height + 0.5, "Shrunk CapsLock circle must never hang below idle notch bottom");
                 AssertTrue(string.Equals(window.CapsLockCircleGlyphText, "A", StringComparison.Ordinal), "Shrunk circle center must show 'A'");
                 double idleRightX = GetCapsTranslateX();
 

@@ -6,11 +6,18 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = (Get-Item "$PSScriptRoot\..\..").FullName
-$setupExe = Join-Path $repoRoot "dist\Mayli_Modern_Setup_v1.1.65.exe"
+$distDir = Join-Path $repoRoot "dist"
+$latestSetup = Get-ChildItem -Path $distDir -Filter "Mayli_Modern_Setup_v*.exe" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
 
-if (-not (Test-Path $setupExe)) {
-    throw "Installer executable not found at $setupExe"
+if ($null -eq $latestSetup) {
+    throw "No Mayli_Modern_Setup_v*.exe installer executable found in $distDir"
 }
+
+$setupExe = $latestSetup.FullName
+$versionMatch = [regex]::Match($latestSetup.Name, 'v(\d+\.\d+\.\d+)')
+$expectedVersion = if ($versionMatch.Success) { $versionMatch.Groups[1].Value } else { "1.1.67" }
 
 $desktopLink = Join-Path ([Environment]::GetFolderPath("DesktopDirectory")) "Mayli.lnk"
 $programsDir = [Environment]::GetFolderPath("Programs")
@@ -82,7 +89,7 @@ try {
     Assert-Check "ARP Uninstall registry key exists" ($null -ne $arp)
     if ($arp) {
         Assert-Check "ARP DisplayName == Mayli" ($arp.DisplayName -eq "Mayli")
-        Assert-Check "ARP DisplayVersion == 1.1.65" ($arp.DisplayVersion -eq "1.1.65") "Actual=$($arp.DisplayVersion)"
+        Assert-Check "ARP DisplayVersion == $expectedVersion" ($arp.DisplayVersion -eq $expectedVersion) "Actual=$($arp.DisplayVersion)"
         Assert-Check "ARP Publisher == Modi Studio" ($arp.Publisher -eq "Modi Studio")
         Assert-Check "ARP InstallLocation matches" ($arp.InstallLocation -eq $testInstallA)
         Assert-Check "ARP EstimatedSize > 10000 KB" ($arp.EstimatedSize -gt 10000) "Actual=$($arp.EstimatedSize)"
